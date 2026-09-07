@@ -21,7 +21,7 @@ const Login = () => {
       
       const response = await axios.post(`${API_URL}/api/auth/login`, {
         email: email.trim().toLowerCase(),
-        password
+        password: password
       });
 
       console.log('Login Response:', response.data);
@@ -32,10 +32,10 @@ const Login = () => {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         localStorage.setItem('userRole', user.role);
-        localStorage.setItem('userName', `${user.firstName} ${user.lastName}`);
+        localStorage.setItem('userName', user.firstName + ' ' + user.lastName);
         localStorage.setItem('userEmail', user.email);
         
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
         console.log('Login successful! Redirecting...');
         console.log('User Role:', user.role);
@@ -106,7 +106,7 @@ const Login = () => {
                   padding: '8px'
                 }}
               >
-                {showPassword ? '👁️' : '👁️‍🗨️'}
+                {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
           </div>
