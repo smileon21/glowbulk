@@ -138,11 +138,11 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         {profileOpen && (
           <div className="sidebar-profile-menu">
             <Link to="/profile" className="dropdown-item" onClick={() => setProfileOpen(false)}>
-              👤 My Profile
+               My Profile
             </Link>
             <div className="dropdown-divider"></div>
             <button className="dropdown-item dropdown-logout" onClick={handleLogout}>
-              🚪 Logout
+               Logout
             </button>
           </div>
         )}
