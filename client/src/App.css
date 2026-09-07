@@ -22,6 +22,19 @@
   --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
 }
 
+/* Force input text visibility */
+.glow-input,
+input.glow-input {
+  color: #14141f !important;
+  background: #ffffff !important;
+  -webkit-text-fill-color: #14141f !important;
+}
+
+.glow-input::placeholder {
+  color: #999999 !important;
+  opacity: 1 !important;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
