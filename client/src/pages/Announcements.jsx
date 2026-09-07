@@ -11,11 +11,11 @@ const FILTERS = [
 ];
 
 const TYPE_LABELS = {
-  announcement: '📢 Announcement',
-  faq: '❓ FAQ',
-  fuel_info: '⛽ Fuel Info',
-  policy: '📋 Policy',
-  news: '📰 News',
+  announcement: ' Announcement',
+  faq: ' FAQ',
+  fuel_info: ' Fuel Info',
+  policy: ' Policy',
+  news: ' News',
 };
 
 const Announcements = () => {
