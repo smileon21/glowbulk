@@ -7,6 +7,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   const handleSubmit = async (e) => {
@@ -16,8 +17,9 @@ const Login = () => {
 
     try {
       console.log('Logging in...');
+      console.log('API_URL:', API_URL);
       
-      const response = await axios.post('`${API_URL}/api/auth/login', {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
         email: email.trim().toLowerCase(),
         password
       });
@@ -27,21 +29,17 @@ const Login = () => {
       if (response.data.success) {
         const { token, user } = response.data.data;
 
-        // Save to localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         localStorage.setItem('userRole', user.role);
         localStorage.setItem('userName', `${user.firstName} ${user.lastName}`);
         localStorage.setItem('userEmail', user.email);
         
-        // Set axios header
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-        console.log('✅ Login successful! Redirecting...');
+        console.log('Login successful! Redirecting...');
         console.log('User Role:', user.role);
-        console.log('User Name:', `${user.firstName} ${user.lastName}`);
         
-        // Redirect to dashboard
         window.location.href = '/dashboard';
       } else {
         setError(response.data.message || 'Login failed');
@@ -73,20 +71,44 @@ const Login = () => {
               required
               placeholder="Enter your email"
               autoComplete="email"
+              style={{ color: '#14141f', background: '#ffffff' }}
             />
           </div>
           
           <div className="form-group">
             <label className="glow-label">Password</label>
-            <input
-              type="password"
-              className="glow-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-              autoComplete="current-password"
-            />
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="glow-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                style={{ 
+                  color: '#14141f', 
+                  background: '#ffffff',
+                  paddingRight: '45px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  color: '#6b7280',
+                  padding: '8px'
+                }}
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
           </div>
           
           <button type="submit" className="glow-btn" disabled={loading}>
