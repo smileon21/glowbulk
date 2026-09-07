@@ -30,7 +30,7 @@ const Announcements = () => {
 
   const fetchAnnouncements = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/content/published');
+      const response = await axios.get('`${API_URL}/api/content/published');
       if (response.data.success) {
         setItems(response.data.data);
       }

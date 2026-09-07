@@ -59,7 +59,7 @@ const CreateOrder = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       };
       
-      const response = await axios.get(`http://localhost:5000/api/quotations/${quotationId}`, config);
+      const response = await axios.get(``${API_URL}/api/quotations/${quotationId}`, config);
       if (response.data.success) {
         const quote = response.data.data;
         setQuotation(quote);
@@ -131,7 +131,7 @@ const CreateOrder = () => {
       };
 
       const orderResponse = await axios.post(
-        'http://localhost:5000/api/orders/create',
+        '`${API_URL}/api/orders/create',
         submitData,
         config
       );
@@ -144,7 +144,7 @@ const CreateOrder = () => {
           formData.append('poFile', poFile);
           
           await axios.post(
-            `http://localhost:5000/api/orders/upload-po/${order.id}`,
+            ``${API_URL}/api/orders/upload-po/${order.id}`,
             formData,
             {
               headers: {

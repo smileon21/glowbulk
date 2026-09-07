@@ -58,7 +58,7 @@ const Register = () => {
       console.log(' Registering customer...');
 
       const response = await axios.post(
-        'http://localhost:5000/api/auth/register',
+        '`${API_URL}/api/auth/register',
         {
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
@@ -80,7 +80,7 @@ const Register = () => {
       console.log('Registration successful. Logging customer in...');
 
       const loginResponse = await axios.post(
-        'http://localhost:5000/api/auth/login',
+        '`${API_URL}/api/auth/login',
         {
           email: formData.email.trim().toLowerCase(),
           password: formData.password,

@@ -36,7 +36,7 @@ const CustomerProfile = () => {
       }
       
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.get('http://localhost:5000/api/customers/profile/me');
+      const response = await axios.get('`${API_URL}/api/customers/profile/me');
       
       if (response.data.success) {
         setProfile(response.data.data);
@@ -76,9 +76,9 @@ const CustomerProfile = () => {
       
       let response;
       if (profileExists) {
-        response = await axios.put('http://localhost:5000/api/customers/profile/me', profile);
+        response = await axios.put('`${API_URL}/api/customers/profile/me', profile);
       } else {
-        response = await axios.post('http://localhost:5000/api/customers/profile', profile);
+        response = await axios.post('`${API_URL}/api/customers/profile', profile);
       }
       
       if (response.data.success) {

@@ -29,12 +29,12 @@ const AdminProfile = () => {
         }
       };
       
-      const userResponse = await axios.get('http://localhost:5000/api/auth/me', config);
+      const userResponse = await axios.get('`${API_URL}/api/auth/me', config);
       if (userResponse.data.success) {
         setUser(userResponse.data.data);
       }
       
-      const usersResponse = await axios.get('http://localhost:5000/api/auth/users', config);
+      const usersResponse = await axios.get('`${API_URL}/api/auth/users', config);
       if (usersResponse.data.success) {
         // Filter to show only admin users
         const adminUsers = usersResponse.data.data.filter(u => u.role === 'admin');
@@ -63,7 +63,7 @@ const AdminProfile = () => {
       
       const response = await axios({
         method: 'GET',
-        url: `http://localhost:5000/api/export/monthly-orders-report?month=${month}&year=${year}`,
+        url: ``${API_URL}/api/export/monthly-orders-report?month=${month}&year=${year}`,
         headers: {
           'Authorization': `Bearer ${token}`
         },

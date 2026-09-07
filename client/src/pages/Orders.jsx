@@ -33,9 +33,9 @@ const Orders = () => {
 
       let response;
       if (isStaff) {
-        response = await axios.get('http://localhost:5000/api/orders/all', config);
+        response = await axios.get('`${API_URL}/api/orders/all', config);
       } else {
-        response = await axios.get('http://localhost:5000/api/orders/my-orders', config);
+        response = await axios.get('`${API_URL}/api/orders/my-orders', config);
       }
 
       if (response.data.success) {
@@ -59,7 +59,7 @@ const Orders = () => {
       };
       
       const response = await axios.put(
-        `http://localhost:5000/api/orders/${id}/confirm-payment`,
+        ``${API_URL}/api/orders/${id}/confirm-payment`,
         { notes: 'Payment verified in company bank account' },
         config
       );
@@ -82,7 +82,7 @@ const Orders = () => {
       };
       
       const response = await axios.put(
-        `http://localhost:5000/api/orders/${id}/status`,
+        ``${API_URL}/api/orders/${id}/status`,
         { status },
         config
       );

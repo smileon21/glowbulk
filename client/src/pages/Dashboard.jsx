@@ -32,7 +32,7 @@ const Dashboard = () => {
 
   const fetchAnnouncements = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/content/published');
+      const response = await axios.get('`${API_URL}/api/content/published');
       if (response.data.success) {
         const announcements = response.data.data.filter(c => c.content_type === 'announcement');
         setAnnouncements(announcements.slice(0, 3));
@@ -44,13 +44,13 @@ const Dashboard = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/customers/profile/me');
+      const response = await axios.get('`${API_URL}/api/customers/profile/me');
       setUser(response.data.data);
 
       if (userRole === 'customer') {
-        const requests = await axios.get('http://localhost:5000/api/fuel-requests/my-requests');
-        const quotes = await axios.get('http://localhost:5000/api/quotations/my-quotations');
-        const orders = await axios.get('http://localhost:5000/api/orders/my-orders');
+        const requests = await axios.get('`${API_URL}/api/fuel-requests/my-requests');
+        const quotes = await axios.get('`${API_URL}/api/quotations/my-quotations');
+        const orders = await axios.get('`${API_URL}/api/orders/my-orders');
 
         setStats({
           fuelRequests: requests.data.count || 0,
@@ -61,11 +61,11 @@ const Dashboard = () => {
           pendingRequests: 0
         });
       } else {
-        const requests = await axios.get('http://localhost:5000/api/fuel-requests/all');
-        const quotes = await axios.get('http://localhost:5000/api/quotations/all');
-        const orders = await axios.get('http://localhost:5000/api/orders/all');
-        const pending = await axios.get('http://localhost:5000/api/orders/pending-payment');
-        const customers = await axios.get('http://localhost:5000/api/customers');
+        const requests = await axios.get('`${API_URL}/api/fuel-requests/all');
+        const quotes = await axios.get('`${API_URL}/api/quotations/all');
+        const orders = await axios.get('`${API_URL}/api/orders/all');
+        const pending = await axios.get('`${API_URL}/api/orders/pending-payment');
+        const customers = await axios.get('`${API_URL}/api/customers');
 
         const pendingRequests = requests.data.data?.filter(r => r.status === 'pending') || [];
 

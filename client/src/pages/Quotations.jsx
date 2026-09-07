@@ -37,9 +37,9 @@ const Quotations = () => {
 
       let quotesResponse;
       if (isStaff) {
-        quotesResponse = await axios.get('http://localhost:5000/api/quotations/all');
+        quotesResponse = await axios.get('`${API_URL}/api/quotations/all');
       } else {
-        quotesResponse = await axios.get('http://localhost:5000/api/quotations/my-quotations');
+        quotesResponse = await axios.get('`${API_URL}/api/quotations/my-quotations');
       }
 
       if (quotesResponse.data.success) {
@@ -47,7 +47,7 @@ const Quotations = () => {
       }
 
       if (isStaff) {
-        const requestsResponse = await axios.get('http://localhost:5000/api/fuel-requests/available-for-quote');
+        const requestsResponse = await axios.get('`${API_URL}/api/fuel-requests/available-for-quote');
         if (requestsResponse.data.success) {
           setFuelRequests(requestsResponse.data.data);
         }
@@ -99,7 +99,7 @@ const Quotations = () => {
         grandTotal: grandTotal.toFixed(2)
       };
 
-      const response = await axios.post('http://localhost:5000/api/quotations', payload);
+      const response = await axios.post('`${API_URL}/api/quotations', payload);
 
       if (response.data.success) {
         const statusText = formData.status === 'sent' ? ' and sent to customer' : '';
@@ -130,7 +130,7 @@ const Quotations = () => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       const response = await axios.put(
-        `http://localhost:5000/api/quotations/${id}/status`,
+        ``${API_URL}/api/quotations/${id}/status`,
         { status }
       );
 
@@ -149,7 +149,7 @@ const Quotations = () => {
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.put(`http://localhost:5000/api/quotations/${id}/accept`);
+      const response = await axios.put(``${API_URL}/api/quotations/${id}/accept`);
       if (response.data.success) {
         setMessage('Quotation accepted successfully!');
         setSelectedQuote(null);
@@ -165,7 +165,7 @@ const Quotations = () => {
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.put(`http://localhost:5000/api/quotations/${id}/reject`);
+      const response = await axios.put(``${API_URL}/api/quotations/${id}/reject`);
       if (response.data.success) {
         setMessage('Quotation rejected');
         setSelectedQuote(null);

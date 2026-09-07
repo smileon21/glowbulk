@@ -30,7 +30,7 @@ const ContentManagement = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       };
       // Use /all endpoint for admin view
-      const response = await axios.get('http://localhost:5000/api/content/all', config);
+      const response = await axios.get('`${API_URL}/api/content/all', config);
       if (response.data.success) {
         setContents(response.data.data);
       }
@@ -62,9 +62,9 @@ const ContentManagement = () => {
       
       let response;
       if (editing) {
-        response = await axios.put(`http://localhost:5000/api/content/${editing}`, formData, config);
+        response = await axios.put(``${API_URL}/api/content/${editing}`, formData, config);
       } else {
-        response = await axios.post('http://localhost:5000/api/content', formData, config);
+        response = await axios.post('`${API_URL}/api/content', formData, config);
       }
       
       if (response.data.success) {
@@ -92,7 +92,7 @@ const ContentManagement = () => {
       const config = {
         headers: { 'Authorization': `Bearer ${token}` }
       };
-      const response = await axios.put(`http://localhost:5000/api/content/${id}/publish`, {}, config);
+      const response = await axios.put(``${API_URL}/api/content/${id}/publish`, {}, config);
       if (response.data.success) {
         setMessage('Content published successfully!');
         fetchContent();
@@ -110,7 +110,7 @@ const ContentManagement = () => {
       const config = {
         headers: { 'Authorization': `Bearer ${token}` }
       };
-      const response = await axios.delete(`http://localhost:5000/api/content/${id}`, config);
+      const response = await axios.delete(``${API_URL}/api/content/${id}`, config);
       if (response.data.success) {
         setMessage('Content deleted successfully!');
         fetchContent();

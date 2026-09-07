@@ -36,8 +36,8 @@ const FuelRequests = () => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       const endpoint = isStaff
-        ? 'http://localhost:5000/api/fuel-requests/all'
-        : 'http://localhost:5000/api/fuel-requests/my-requests';
+        ? '`${API_URL}/api/fuel-requests/all'
+        : '`${API_URL}/api/fuel-requests/my-requests';
 
       const response = await axios.get(endpoint);
       if (response.data.success) {
@@ -66,7 +66,7 @@ const FuelRequests = () => {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
-      const response = await axios.post('http://localhost:5000/api/fuel-requests', formData);
+      const response = await axios.post('`${API_URL}/api/fuel-requests', formData);
       
       if (response.data.success) {
         setMessage('Fuel request submitted successfully!');
@@ -103,7 +103,7 @@ const FuelRequests = () => {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      const response = await axios.delete(`http://localhost:5000/api/fuel-requests/${id}`);
+      const response = await axios.delete(``${API_URL}/api/fuel-requests/${id}`);
 
       if (response.data.success) {
         setMessage('Fuel request deleted.');
