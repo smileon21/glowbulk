@@ -9,6 +9,8 @@ const AdminProfile = () => {
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
 
+  const API_URL = 'https://glowbulk-api.onrender.com';
+
   useEffect(() => {
     fetchAdminData();
   }, []);
@@ -25,24 +27,25 @@ const AdminProfile = () => {
 
       const config = {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': 'Bearer ' + token
         }
       };
       
-      const userResponse = await axios.get('`${API_URL}/api/auth/me', config);
+      const userResponse = await axios.get(API_URL + '/api/auth/me', config);
       if (userResponse.data.success) {
         setUser(userResponse.data.data);
       }
       
-      const usersResponse = await axios.get('`${API_URL}/api/auth/users', config);
+      const usersResponse = await axios.get(API_URL + '/api/auth/users', config);
       if (usersResponse.data.success) {
-        // Filter to show only admin users
-        const adminUsers = usersResponse.data.data.filter(u => u.role === 'admin');
+        const adminUsers = usersResponse.data.data.filter(function(u) {
+          return u.role === 'admin';
+        });
         setAdmins(adminUsers);
       }
     } catch (error) {
       console.error('Error fetching admin data:', error);
-      if (error.response?.status === 401) {
+      if (error.response && error.response.status === 401) {
         setError('Session expired. Please login again.');
       } else {
         setError('Error loading admin data');
@@ -52,7 +55,6 @@ const AdminProfile = () => {
     }
   };
 
-  // Export monthly orders report
   const exportMonthlyOrdersReport = async () => {
     try {
       setExporting(true);
@@ -63,9 +65,9 @@ const AdminProfile = () => {
       
       const response = await axios({
         method: 'GET',
-        url: ``${API_URL}/api/export/monthly-orders-report?month=${month}&year=${year}`,
+        url: API_URL + '/api/export/monthly-orders-report?month=' + month + '&year=' + year,
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': 'Bearer ' + token
         },
         responseType: 'blob'
       });
@@ -74,7 +76,7 @@ const AdminProfile = () => {
       const link = document.createElement('a');
       link.href = url;
       const contentDisposition = response.headers['content-disposition'];
-      let filename = `GlowBulk_Orders_Report_${year}_${String(month).padStart(2, '0')}.xlsx`;
+      let filename = 'GlowBulk_Orders_Report_' + year + '_' + String(month).padStart(2, '0') + '.xlsx';
       if (contentDisposition) {
         const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (match && match[1]) {
@@ -108,7 +110,6 @@ const AdminProfile = () => {
       {message && <div className="success-message">{message}</div>}
       {error && <div className="error-message">{error}</div>}
 
-      {/* Export Section */}
       <div className="export-section">
         <button 
           className="glow-btn export-btn" 
@@ -119,7 +120,6 @@ const AdminProfile = () => {
         </button>
       </div>
 
-      {/* Admin Info */}
       <div className="admin-info glow-card">
         <h3>Your Account</h3>
         <div className="admin-info-grid">
@@ -133,7 +133,7 @@ const AdminProfile = () => {
           </div>
           <div className="admin-info-item">
             <span className="detail-label">Role</span>
-            <span className={`role-badge ${user?.role}`}>{user?.role}</span>
+            <span className={'role-badge ' + (user?.role || '')}>{user?.role}</span>
           </div>
           <div className="admin-info-item">
             <span className="detail-label">Joined</span>
@@ -144,11 +144,9 @@ const AdminProfile = () => {
         </div>
       </div>
 
-      {/* System Stats - Only Admin Stats */}
       <div className="admin-stats-grid">
         <div className="stat-card">
           <div className="stat-card-header">
-            <span className="stat-icon">AD</span>
             <h3>Total Admins</h3>
             <span className="ticket-tag">ADM</span>
           </div>
@@ -168,13 +166,12 @@ const AdminProfile = () => {
           <div className="stat-card-body">
             <div className="stat-detail-item">
               <span className="detail-label">Count</span>
-              <span className="detail-value">{admins.filter(u => u.role === 'admin').length}</span>
+              <span className="detail-value">{admins.filter(function(u) { return u.role === 'admin'; }).length}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Admin Users List */}
       <div className="admin-users">
         <h3>System Administrators</h3>
         <div className="users-table-container glow-card">
@@ -194,23 +191,25 @@ const AdminProfile = () => {
                   <td colSpan="5" className="no-data">No admin users found</td>
                 </tr>
               ) : (
-                admins.map((admin) => (
-                  <tr key={admin.id}>
-                    <td>{admin.first_name} {admin.last_name}</td>
-                    <td>{admin.email}</td>
-                    <td>
-                      <span className="role-badge admin">
-                        {admin.role}
-                      </span>
-                    </td>
-                    <td>{new Date(admin.created_at).toLocaleDateString()}</td>
-                    <td>
-                      <span className={`status-badge ${admin.is_active ? 'active' : 'inactive'}`}>
-                        {admin.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                admins.map(function(admin) {
+                  return (
+                    <tr key={admin.id}>
+                      <td>{admin.first_name} {admin.last_name}</td>
+                      <td>{admin.email}</td>
+                      <td>
+                        <span className="role-badge admin">
+                          {admin.role}
+                        </span>
+                      </td>
+                      <td>{new Date(admin.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <span className={'status-badge ' + (admin.is_active ? 'active' : 'inactive')}>
+                          {admin.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
