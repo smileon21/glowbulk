@@ -7,6 +7,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
