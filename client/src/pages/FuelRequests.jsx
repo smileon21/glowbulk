@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const FuelRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -33,11 +34,11 @@ const FuelRequests = () => {
   const fetchRequests = async () => {
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
       const endpoint = isStaff
-        ? '`${API_URL}/api/fuel-requests/all'
-        : '`${API_URL}/api/fuel-requests/my-requests';
+        ? API_BASE_URL + '/api/fuel-requests/all'
+        : API_BASE_URL + '/api/fuel-requests/my-requests';
 
       const response = await axios.get(endpoint);
       if (response.data.success) {
@@ -50,23 +51,23 @@ const FuelRequests = () => {
     }
   };
 
-  const handleChange = (e) => {
+  const handleChange = function(e) {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async function(e) {
     e.preventDefault();
     setMessage('');
     setError('');
 
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
       
-      const response = await axios.post('`${API_URL}/api/fuel-requests', formData);
+      const response = await axios.post(API_BASE_URL + '/api/fuel-requests', formData);
       
       if (response.data.success) {
         setMessage('Fuel request submitted successfully!');
@@ -90,7 +91,7 @@ const FuelRequests = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async function(id) {
     if (!window.confirm('Delete this fuel request? This cannot be undone.')) {
       return;
     }
@@ -101,13 +102,17 @@ const FuelRequests = () => {
 
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
-      const response = await axios.delete(``${API_URL}/api/fuel-requests/${id}`);
+      const response = await axios.delete(API_BASE_URL + '/api/fuel-requests/' + id);
 
       if (response.data.success) {
         setMessage('Fuel request deleted.');
-        setRequests((prev) => prev.filter((r) => r.id !== id));
+        setRequests(function(prev) {
+          return prev.filter(function(r) {
+            return r.id !== id;
+          });
+        });
       }
     } catch (error) {
       setError(error.response?.data?.message || 'Error deleting request');
@@ -116,22 +121,21 @@ const FuelRequests = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
+  const getStatusBadge = function(status) {
+    var statusMap = {
       'pending': { color: '#E8A33D', text: 'Pending' },
       'quoted': { color: '#2f7ea8', text: 'Quoted' },
       'accepted': { color: '#2f7a3f', text: 'Accepted' },
       'rejected': { color: '#8f0000', text: 'Rejected' },
       'expired': { color: '#6b7280', text: 'Expired' }
     };
-    const s = statusMap[status] || { color: '#6b7280', text: status };
+    var s = statusMap[status] || { color: '#6b7280', text: status };
     return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
   };
 
-  // Format date to readable format
-  const formatDate = (dateString) => {
+  var formatDate = function(dateString) {
     if (!dateString) return 'Not specified';
-    const date = new Date(dateString);
+    var date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Invalid date';
     return date.toLocaleDateString('en-ZW', {
       year: 'numeric',
@@ -140,18 +144,17 @@ const FuelRequests = () => {
     });
   };
 
-  // Format time to 12-hour with AM/PM
-  const formatTime = (timeString) => {
+  var formatTime = function(timeString) {
     if (!timeString) return 'Not specified';
     
-    const parts = timeString.split(':');
+    var parts = timeString.split(':');
     if (parts.length >= 2) {
-      let hours = parseInt(parts[0]);
-      const minutes = parts[1];
-      const ampm = hours >= 12 ? 'PM' : 'AM';
+      var hours = parseInt(parts[0]);
+      var minutes = parts[1];
+      var ampm = hours >= 12 ? 'PM' : 'AM';
       hours = hours % 12;
       hours = hours ? hours : 12;
-      return `${hours}:${minutes} ${ampm}`;
+      return hours + ':' + minutes + ' ' + ampm;
     }
     
     return timeString;
@@ -166,7 +169,7 @@ const FuelRequests = () => {
       <div className="page-header">
         <h2>Fuel Requests</h2>
         {!isStaff && (
-          <button className="glow-btn" onClick={() => setShowForm(!showForm)}>
+          <button className="glow-btn" onClick={function() { setShowForm(!showForm); }}>
             {showForm ? 'Cancel' : '+ New Request'}
           </button>
         )}
@@ -175,7 +178,6 @@ const FuelRequests = () => {
       {message && <div className="success-message">{message}</div>}
       {error && <div className="error-message">{error}</div>}
 
-      {/* Request Form - Customer Only */}
       {showForm && !isStaff && (
         <div className="request-form glow-card">
           <h3>Submit Fuel Request</h3>
@@ -318,7 +320,6 @@ const FuelRequests = () => {
         </div>
       )}
 
-      {/* Requests List */}
       <div className="requests-list">
         {requests.length === 0 ? (
           <div className="glow-card no-content">
@@ -327,58 +328,58 @@ const FuelRequests = () => {
           </div>
         ) : (
           <div className="requests-grid">
-            {requests.map((request) => (
-              <div key={request.id} className="request-card glow-card">
-                <div className="request-header">
-                  <h3>{request.fuel_type}</h3>
-                  {getStatusBadge(request.status)}
-                </div>
-                <div className="request-details">
-                  {isStaff && (
-                    <p><strong>Customer:</strong> {request.company_name || 'N/A'}</p>
-                  )}
-                  <p><strong>Quantity:</strong> {request.quantity} {request.unit}</p>
-                  <p><strong>Priority:</strong> {request.priority}</p>
-                  <p><strong>Delivery Date:</strong> {formatDate(request.preferred_delivery_date)}</p>
-                  <p><strong>Time:</strong> {formatTime(request.preferred_delivery_time)}</p>
-                  <p><strong>Address:</strong> {request.delivery_address || 'Not specified'}</p>
-                  {request.special_instructions && (
-                    <p><strong>Instructions:</strong> {request.special_instructions}</p>
-                  )}
-                </div>
-                <div className="request-footer">
-                  <small>Submitted: {formatDate(request.created_at)}</small>
-                  {request.status === 'pending' && !isStaff && (
-                    <span className="pending-note">Awaiting quotation</span>
-                  )}
-                </div>
-
-                {/* Customer: delete while still pending */}
-                {!isStaff && request.status === 'pending' && (
-                  <div className="request-actions">
-                    <button
-                      className="glow-btn-small danger"
-                      onClick={() => handleDelete(request.id)}
-                      disabled={deletingId === request.id}
-                    >
-                      {deletingId === request.id ? 'Deleting...' : 'Delete Request'}
-                    </button>
+            {requests.map(function(request) {
+              return (
+                <div key={request.id} className="request-card glow-card">
+                  <div className="request-header">
+                    <h3>{request.fuel_type}</h3>
+                    {getStatusBadge(request.status)}
                   </div>
-                )}
-
-                {/* Staff: quick link to respond with a quotation */}
-                {isStaff && (request.status === 'pending' || request.status === 'quoted') && (
-                  <div className="request-actions">
-                    <button
-                      className="glow-btn-small"
-                      onClick={() => navigate('/quotations')}
-                    >
-                      Respond with Quotation
-                    </button>
+                  <div className="request-details">
+                    {isStaff && (
+                      <p><strong>Customer:</strong> {request.company_name || 'N/A'}</p>
+                    )}
+                    <p><strong>Quantity:</strong> {request.quantity} {request.unit}</p>
+                    <p><strong>Priority:</strong> {request.priority}</p>
+                    <p><strong>Delivery Date:</strong> {formatDate(request.preferred_delivery_date)}</p>
+                    <p><strong>Time:</strong> {formatTime(request.preferred_delivery_time)}</p>
+                    <p><strong>Address:</strong> {request.delivery_address || 'Not specified'}</p>
+                    {request.special_instructions && (
+                      <p><strong>Instructions:</strong> {request.special_instructions}</p>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                  <div className="request-footer">
+                    <small>Submitted: {formatDate(request.created_at)}</small>
+                    {request.status === 'pending' && !isStaff && (
+                      <span className="pending-note">Awaiting quotation</span>
+                    )}
+                  </div>
+
+                  {!isStaff && request.status === 'pending' && (
+                    <div className="request-actions">
+                      <button
+                        className="glow-btn-small danger"
+                        onClick={function() { handleDelete(request.id); }}
+                        disabled={deletingId === request.id}
+                      >
+                        {deletingId === request.id ? 'Deleting...' : 'Delete Request'}
+                      </button>
+                    </div>
+                  )}
+
+                  {isStaff && (request.status === 'pending' || request.status === 'quoted') && (
+                    <div className="request-actions">
+                      <button
+                        className="glow-btn-small"
+                        onClick={function() { navigate('/quotations'); }}
+                      >
+                        Respond with Quotation
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

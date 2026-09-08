@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const FILTERS = [
+var FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'announcement', label: 'Announcements' },
   { key: 'faq', label: 'FAQs' },
@@ -10,7 +11,7 @@ const FILTERS = [
   { key: 'news', label: 'News' },
 ];
 
-const TYPE_LABELS = {
+var TYPE_LABELS = {
   announcement: ' Announcement',
   faq: ' FAQ',
   fuel_info: ' Fuel Info',
@@ -18,19 +19,19 @@ const TYPE_LABELS = {
   news: ' News',
 };
 
-const Announcements = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
+var Announcements = function() {
+  var [items, setItems] = useState([]);
+  var [loading, setLoading] = useState(true);
+  var [error, setError] = useState('');
+  var [activeFilter, setActiveFilter] = useState('all');
 
-  useEffect(() => {
+  useEffect(function() {
     fetchAnnouncements();
   }, []);
 
-  const fetchAnnouncements = async () => {
+  var fetchAnnouncements = async function() {
     try {
-      const response = await axios.get('`${API_URL}/api/content/published');
+      var response = await axios.get(API_BASE_URL + '/api/content/published');
       if (response.data.success) {
         setItems(response.data.data);
       }
@@ -42,9 +43,9 @@ const Announcements = () => {
     }
   };
 
-  const formatDate = (dateString) => {
+  var formatDate = function(dateString) {
     if (!dateString) return 'Not specified';
-    const date = new Date(dateString);
+    var date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Invalid date';
     return date.toLocaleDateString('en-ZW', {
       year: 'numeric',
@@ -53,10 +54,12 @@ const Announcements = () => {
     });
   };
 
-  const filteredItems =
+  var filteredItems =
     activeFilter === 'all'
       ? items
-      : items.filter((item) => item.content_type === activeFilter);
+      : items.filter(function(item) {
+          return item.content_type === activeFilter;
+        });
 
   if (loading) {
     return <div className="loading">Loading updates...</div>;
@@ -71,15 +74,17 @@ const Announcements = () => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="announcements-filters">
-        {FILTERS.map((filter) => (
-          <button
-            key={filter.key}
-            className={`filter-chip ${activeFilter === filter.key ? 'active' : ''}`}
-            onClick={() => setActiveFilter(filter.key)}
-          >
-            {filter.label}
-          </button>
-        ))}
+        {FILTERS.map(function(filter) {
+          return (
+            <button
+              key={filter.key}
+              className={'filter-chip ' + (activeFilter === filter.key ? 'active' : '')}
+              onClick={function() { setActiveFilter(filter.key); }}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
       </div>
 
       {filteredItems.length === 0 ? (
@@ -88,20 +93,22 @@ const Announcements = () => {
         </div>
       ) : (
         <div className="announcements-grid">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="announcement-card">
-              <div className="announcement-header">
-                <h3>{item.title}</h3>
-                <span className="content-type-tag">
-                  {TYPE_LABELS[item.content_type] || item.content_type}
-                </span>
+          {filteredItems.map(function(item) {
+            return (
+              <div key={item.id} className="announcement-card">
+                <div className="announcement-header">
+                  <h3>{item.title}</h3>
+                  <span className="content-type-tag">
+                    {TYPE_LABELS[item.content_type] || item.content_type}
+                  </span>
+                </div>
+                <p className="announcement-body">{item.content}</p>
+                <div className="announcement-footer">
+                  <small>Posted: {formatDate(item.published_at || item.created_at)}</small>
+                </div>
               </div>
-              <p className="announcement-body">{item.content}</p>
-              <div className="announcement-footer">
-                <small>Posted: {formatDate(item.published_at || item.created_at)}</small>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

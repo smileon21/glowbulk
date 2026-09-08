@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -14,8 +15,7 @@ const Login = () => {
     setError('');
 
     try {
-      const API_URL = 'https://glowbulk-api.onrender.com';
-      const response = await axios.post(API_URL + '/api/auth/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         email: email,
         password: password
       });

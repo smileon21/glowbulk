@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 
 const Quotations = () => {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ const Quotations = () => {
   const [formData, setFormData] = useState({
     fuelRequestId: '',
     unitPrice: '',
-    taxRate: '15', // Default tax rate percentage (e.g. 15%)
+    taxRate: '15',
     validUntil: '',
     deliveryTerms: '',
     paymentTerms: '',
@@ -33,13 +34,13 @@ const Quotations = () => {
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
       let quotesResponse;
       if (isStaff) {
-        quotesResponse = await axios.get('`${API_URL}/api/quotations/all');
+        quotesResponse = await axios.get(API_BASE_URL + '/api/quotations/all');
       } else {
-        quotesResponse = await axios.get('`${API_URL}/api/quotations/my-quotations');
+        quotesResponse = await axios.get(API_BASE_URL + '/api/quotations/my-quotations');
       }
 
       if (quotesResponse.data.success) {
@@ -47,7 +48,7 @@ const Quotations = () => {
       }
 
       if (isStaff) {
-        const requestsResponse = await axios.get('`${API_URL}/api/fuel-requests/available-for-quote');
+        const requestsResponse = await axios.get(API_BASE_URL + '/api/fuel-requests/available-for-quote');
         if (requestsResponse.data.success) {
           setFuelRequests(requestsResponse.data.data);
         }
@@ -60,28 +61,26 @@ const Quotations = () => {
     }
   };
 
-  const handleChange = (e) => {
+  const handleChange = function(e) {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  // --- Dynamic Calculation Logic ---
-  const selectedFuelRequest = fuelRequests.find(
-    (req) => req.id.toString() === formData.fuelRequestId.toString()
-  );
+  var selectedFuelRequest = fuelRequests.find(function(req) {
+    return req.id.toString() === formData.fuelRequestId.toString();
+  });
 
-  const quantity = selectedFuelRequest ? parseFloat(selectedFuelRequest.quantity) || 0 : 0;
-  const unitPrice = parseFloat(formData.unitPrice) || 0;
-  const taxRate = parseFloat(formData.taxRate) || 0;
+  var quantity = selectedFuelRequest ? parseFloat(selectedFuelRequest.quantity) || 0 : 0;
+  var unitPrice = parseFloat(formData.unitPrice) || 0;
+  var taxRate = parseFloat(formData.taxRate) || 0;
 
-  const subtotal = quantity * unitPrice;
-  const taxAmount = (subtotal * taxRate) / 100;
-  const grandTotal = subtotal + taxAmount;
-  // ---------------------------------
+  var subtotal = quantity * unitPrice;
+  var taxAmount = (subtotal * taxRate) / 100;
+  var grandTotal = subtotal + taxAmount;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async function(e) {
     e.preventDefault();
     setMessage('');
     setError('');
@@ -89,21 +88,20 @@ const Quotations = () => {
 
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
-      // Payload includes calculated financial totals
-      const payload = {
+      var payload = {
         ...formData,
         subtotal: subtotal.toFixed(2),
         taxAmount: taxAmount.toFixed(2),
         grandTotal: grandTotal.toFixed(2)
       };
 
-      const response = await axios.post('`${API_URL}/api/quotations', payload);
+      const response = await axios.post(API_BASE_URL + '/api/quotations', payload);
 
       if (response.data.success) {
-        const statusText = formData.status === 'sent' ? ' and sent to customer' : '';
-        setMessage(`Quotation created successfully${statusText}!`);
+        var statusText = formData.status === 'sent' ? ' and sent to customer' : '';
+        setMessage('Quotation created successfully' + statusText + '!');
         setShowForm(false);
         setFormData({
           fuelRequestId: '',
@@ -124,18 +122,18 @@ const Quotations = () => {
     }
   };
 
-  const updateStatus = async (id, status) => {
+  const updateStatus = async function(id, status) {
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
       const response = await axios.put(
-        ``${API_URL}/api/quotations/${id}/status`,
-        { status }
+        API_BASE_URL + '/api/quotations/' + id + '/status',
+        { status: status }
       );
 
       if (response.data.success) {
-        setMessage(`Quotation ${status} successfully!`);
+        setMessage('Quotation ' + status + ' successfully!');
         setSelectedQuote(null);
         fetchData();
       }
@@ -144,12 +142,12 @@ const Quotations = () => {
     }
   };
 
-  const acceptQuotation = async (id) => {
+  const acceptQuotation = async function(id) {
     if (!window.confirm('Accept this quotation?')) return;
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.put(``${API_URL}/api/quotations/${id}/accept`);
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+      const response = await axios.put(API_BASE_URL + '/api/quotations/' + id + '/accept');
       if (response.data.success) {
         setMessage('Quotation accepted successfully!');
         setSelectedQuote(null);
@@ -160,12 +158,12 @@ const Quotations = () => {
     }
   };
 
-  const rejectQuotation = async (id) => {
+  const rejectQuotation = async function(id) {
     if (!window.confirm('Reject this quotation?')) return;
     try {
       const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.put(``${API_URL}/api/quotations/${id}/reject`);
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+      const response = await axios.put(API_BASE_URL + '/api/quotations/' + id + '/reject');
       if (response.data.success) {
         setMessage('Quotation rejected');
         setSelectedQuote(null);
@@ -176,24 +174,23 @@ const Quotations = () => {
     }
   };
 
-  // Navigate to Create Order page
-  const handleCreateOrder = (quotationId) => {
-    navigate(`/create-order?quotationId=${quotationId}`);
+  const handleCreateOrder = function(quotationId) {
+    navigate('/create-order?quotationId=' + quotationId);
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
+  const getStatusBadge = function(status) {
+    var statusMap = {
       'draft': { color: '#6c757d', text: 'Draft' },
       'sent': { color: '#17a2b8', text: 'Sent' },
       'accepted': { color: '#28a745', text: 'Accepted' },
       'rejected': { color: '#dc3545', text: 'Rejected' },
       'expired': { color: '#ffc107', text: 'Expired' }
     };
-    const s = statusMap[status] || { color: '#6c757d', text: status };
+    var s = statusMap[status] || { color: '#6c757d', text: status };
     return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
   };
 
-  const formatCurrency = (amount) => {
+  var formatCurrency = function(amount) {
     if (!amount) return '$0.00';
     return '$' + Number(amount).toFixed(2);
   };
@@ -207,7 +204,7 @@ const Quotations = () => {
       <div className="page-header">
         <h2>Quotations</h2>
         {isStaff && (
-          <button className="glow-btn" onClick={() => setShowForm(!showForm)}>
+          <button className="glow-btn" onClick={function() { setShowForm(!showForm); }}>
             {showForm ? 'Cancel' : '+ New Quotation'}
           </button>
         )}
@@ -216,7 +213,6 @@ const Quotations = () => {
       {message && <div className="success-message">{message}</div>}
       {error && <div className="error-message">{error}</div>}
 
-      {/* Create Quotation Form */}
       {showForm && isStaff && (
         <div className="quotation-form glow-card">
           <h3>Create Quotation</h3>
@@ -234,11 +230,13 @@ const Quotations = () => {
                 {fuelRequests.length === 0 ? (
                   <option value="" disabled>No available fuel requests</option>
                 ) : (
-                  fuelRequests.map((request) => (
-                    <option key={request.id} value={request.id}>
-                      {request.fuel_type} - {request.quantity} {request.unit} - {request.company_name || 'Customer'}
-                    </option>
-                  ))
+                  fuelRequests.map(function(request) {
+                    return (
+                      <option key={request.id} value={request.id}>
+                        {request.fuel_type} - {request.quantity} {request.unit} - {request.company_name || 'Customer'}
+                      </option>
+                    );
+                  })
                 )}
               </select>
             </div>
@@ -287,7 +285,6 @@ const Quotations = () => {
               </div>
             </div>
 
-            {/* Dynamic Total Summary Panel */}
             <div className="calculation-summary">
               <p><strong>Subtotal:</strong> ${subtotal.toFixed(2)} ({quantity} units @ ${unitPrice || 0}/unit)</p>
               <p><strong>Tax ({taxRate}%):</strong> ${taxAmount.toFixed(2)}</p>
@@ -356,7 +353,6 @@ const Quotations = () => {
         </div>
       )}
 
-      {/* Quotations List */}
       <div className="quotations-list">
         {quotations.length === 0 ? (
           <div className="glow-card no-content">
@@ -364,40 +360,41 @@ const Quotations = () => {
           </div>
         ) : (
           <div className="quotations-grid">
-            {quotations.map((quote) => (
-              <div
-                key={quote.id}
-                className="quote-card glow-card"
-                onClick={() => setSelectedQuote(quote)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="quote-header">
-                  <h3> {quote.quotation_number}</h3>
-                  {getStatusBadge(quote.status)}
+            {quotations.map(function(quote) {
+              return (
+                <div
+                  key={quote.id}
+                  className="quote-card glow-card"
+                  onClick={function() { setSelectedQuote(quote); }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="quote-header">
+                    <h3> {quote.quotation_number}</h3>
+                    {getStatusBadge(quote.status)}
+                  </div>
+                  <div className="quote-details">
+                    <p><strong>Fuel Type:</strong> {quote.fuel_type}</p>
+                    <p><strong>Quantity:</strong> {quote.quantity} {quote.unit}</p>
+                    <p><strong>Grand Total:</strong> {formatCurrency(quote.grand_total)}</p>
+                    <p><strong>Valid Until:</strong> {new Date(quote.valid_until).toLocaleDateString()}</p>
+                  </div>
+                  <div className="quote-footer">
+                    <small>Created: {new Date(quote.created_at).toLocaleDateString()}</small>
+                    <span className="stat-btn">View Details →</span>
+                  </div>
                 </div>
-                <div className="quote-details">
-                  <p><strong>Fuel Type:</strong> {quote.fuel_type}</p>
-                  <p><strong>Quantity:</strong> {quote.quantity} {quote.unit}</p>
-                  <p><strong>Grand Total:</strong> {formatCurrency(quote.grand_total)}</p>
-                  <p><strong>Valid Until:</strong> {new Date(quote.valid_until).toLocaleDateString()}</p>
-                </div>
-                <div className="quote-footer">
-                  <small>Created: {new Date(quote.created_at).toLocaleDateString()}</small>
-                  <span className="stat-btn">View Details →</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Quotation Detail Modal */}
       {selectedQuote && (
-        <div className="modal-overlay" onClick={() => setSelectedQuote(null)}>
-          <div className="modal-content glow-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={function() { setSelectedQuote(null); }}>
+          <div className="modal-content glow-card" onClick={function(e) { e.stopPropagation(); }}>
             <div className="modal-header">
               <h3> {selectedQuote.quotation_number}</h3>
-              <button className="modal-close" onClick={() => setSelectedQuote(null)}>✕</button>
+              <button className="modal-close" onClick={function() { setSelectedQuote(null); }}>✕</button>
             </div>
 
             <div className="modal-status-row">
@@ -444,46 +441,42 @@ const Quotations = () => {
             </div>
 
             <div className="modal-actions">
-              {/* Staff Actions */}
               {selectedQuote.status === 'draft' && isStaff && (
-                <button className="glow-btn" onClick={() => updateStatus(selectedQuote.id, 'sent')}>
-                   Send to Customer
+                <button className="glow-btn" onClick={function() { updateStatus(selectedQuote.id, 'sent'); }}>
+                  Send to Customer
                 </button>
               )}
               {(selectedQuote.status === 'draft' || selectedQuote.status === 'sent') && isStaff && (
-                <button className="glow-btn glow-btn-secondary" onClick={() => updateStatus(selectedQuote.id, 'expired')}>
+                <button className="glow-btn glow-btn-secondary" onClick={function() { updateStatus(selectedQuote.id, 'expired'); }}>
                   Expire
                 </button>
               )}
 
-              {/* Customer Actions */}
               {selectedQuote.status === 'sent' && userRole === 'customer' && (
                 <>
-                  <button className="glow-btn" onClick={() => acceptQuotation(selectedQuote.id)}>
-                     Accept Quotation
+                  <button className="glow-btn" onClick={function() { acceptQuotation(selectedQuote.id); }}>
+                    Accept Quotation
                   </button>
-                  <button className="glow-btn glow-btn-secondary" onClick={() => rejectQuotation(selectedQuote.id)}>
-                     Reject
+                  <button className="glow-btn glow-btn-secondary" onClick={function() { rejectQuotation(selectedQuote.id); }}>
+                    Reject
                   </button>
                 </>
               )}
 
-              {/* Create Order Button - Show when quotation is accepted */}
               {selectedQuote.status === 'accepted' && userRole === 'customer' && (
                 <button 
                   className="glow-btn" 
-                  onClick={() => handleCreateOrder(selectedQuote.id)}
+                  onClick={function() { handleCreateOrder(selectedQuote.id); }}
                   style={{ background: '#059669' }}
                 >
-                   Create Order
+                  Create Order
                 </button>
               )}
 
-              {/* View Order Button - If order already exists */}
               {selectedQuote.status === 'accepted' && userRole === 'customer' && selectedQuote.has_order && (
                 <button 
                   className="glow-btn glow-btn-secondary" 
-                  onClick={() => navigate('/orders')}
+                  onClick={function() { navigate('/orders'); }}
                 >
                   View Order
                 </button>

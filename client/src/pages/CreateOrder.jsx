@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const CreateOrder = () => {
   const navigate = useNavigate();
@@ -25,23 +26,22 @@ const CreateOrder = () => {
   });
   const [poFile, setPoFile] = useState(null);
 
-  // Helper function to safely parse numbers
-  const safeParseNumber = (value) => {
+  var safeParseNumber = function(value) {
     if (value === null || value === undefined || value === '') return 0;
-    const num = parseFloat(value);
+    var num = parseFloat(value);
     return isNaN(num) ? 0 : num;
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
+  useEffect(function() {
+    var token = localStorage.getItem('token');
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
     }
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const quotationId = params.get('quotationId');
+  useEffect(function() {
+    var params = new URLSearchParams(location.search);
+    var quotationId = params.get('quotationId');
     
     if (quotationId) {
       fetchQuotation(quotationId);
@@ -51,27 +51,29 @@ const CreateOrder = () => {
     }
   }, [location]);
 
-  const fetchQuotation = async (quotationId) => {
+  var fetchQuotation = async function(quotationId) {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+      var token = localStorage.getItem('token');
+      var config = {
+        headers: { 'Authorization': 'Bearer ' + token }
       };
       
-      const response = await axios.get(``${API_URL}/api/quotations/${quotationId}`, config);
+      var response = await axios.get(API_BASE_URL + '/api/quotations/' + quotationId, config);
       if (response.data.success) {
-        const quote = response.data.data;
+        var quote = response.data.data;
         setQuotation(quote);
-        setOrderData(prev => ({
-          ...prev,
-          quotationId: quotationId,
-          delivery_address: quote.delivery_address || quote.deliveryAddress || '',
-          delivery_city: quote.delivery_city || quote.deliveryCity || '',
-          delivery_state: quote.delivery_state || quote.deliveryState || '',
-          delivery_country: quote.delivery_country || quote.deliveryCountry || '',
-          delivery_postal_code: quote.delivery_postal_code || quote.deliveryPostalCode || ''
-        }));
+        setOrderData(function(prev) {
+          return {
+            ...prev,
+            quotationId: quotationId,
+            delivery_address: quote.delivery_address || quote.deliveryAddress || '',
+            delivery_city: quote.delivery_city || quote.deliveryCity || '',
+            delivery_state: quote.delivery_state || quote.deliveryState || '',
+            delivery_country: quote.delivery_country || quote.deliveryCountry || '',
+            delivery_postal_code: quote.delivery_postal_code || quote.deliveryPostalCode || ''
+          };
+        });
       }
     } catch (error) {
       console.error('Error fetching quotation:', error);
@@ -81,17 +83,17 @@ const CreateOrder = () => {
     }
   };
 
-  const handleChange = (e) => {
+  var handleChange = function(e) {
     setOrderData({
       ...orderData,
       [e.target.name]: e.target.value
     });
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  var handleFileChange = function(e) {
+    var file = e.target.files[0];
     if (file) {
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      var allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(file.type)) {
         setError('Please upload a PDF, JPG, or PNG file');
         return;
@@ -105,19 +107,19 @@ const CreateOrder = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  var handleSubmit = async function(e) {
     e.preventDefault();
     setSubmitting(true);
     setError('');
     setMessage('');
 
     try {
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+      var token = localStorage.getItem('token');
+      var config = {
+        headers: { 'Authorization': 'Bearer ' + token }
       };
       
-      const submitData = {
+      var submitData = {
         quotationId: parseInt(orderData.quotationId),
         purchaseOrderNumber: orderData.purchaseOrderNumber || null,
         preferredDeliveryDate: orderData.preferredDeliveryDate || null,
@@ -130,34 +132,34 @@ const CreateOrder = () => {
         notes: orderData.notes || null
       };
 
-      const orderResponse = await axios.post(
-        '`${API_URL}/api/orders/create',
+      var orderResponse = await axios.post(
+        API_BASE_URL + '/api/orders/create',
         submitData,
         config
       );
 
       if (orderResponse.data.success) {
-        const order = orderResponse.data.data;
+        var order = orderResponse.data.data;
         
         if (poFile) {
-          const formData = new FormData();
+          var formData = new FormData();
           formData.append('poFile', poFile);
           
           await axios.post(
-            ``${API_URL}/api/orders/upload-po/${order.id}`,
+            API_BASE_URL + '/api/orders/upload-po/' + order.id,
             formData,
             {
               headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': 'Bearer ' + token,
                 'Content-Type': 'multipart/form-data'
               }
             }
           );
         }
 
-        setMessage(` Order created successfully!\nOrder Number: ${order.order_number}\n📌 Status: Pending Payment`);
+        setMessage('Order created successfully!\nOrder Number: ' + order.order_number + '\nStatus: Pending Payment');
         
-        setTimeout(() => {
+        setTimeout(function() {
           navigate('/orders');
         }, 3000);
       }
@@ -169,7 +171,7 @@ const CreateOrder = () => {
     }
   };
 
-  const goBack = () => {
+  var goBack = function() {
     navigate('/quotations');
   };
 
@@ -191,12 +193,11 @@ const CreateOrder = () => {
     );
   }
 
-  // Safely parse numbers for display
-  const total = safeParseNumber(quotation?.total_amount || quotation?.total);
-  const tax = safeParseNumber(quotation?.tax_amount || quotation?.tax);
-  const grandTotal = safeParseNumber(quotation?.grand_total || (total + tax));
-  const unitPrice = safeParseNumber(quotation?.unit_price);
-  const quantity = safeParseNumber(quotation?.quantity);
+  var total = safeParseNumber(quotation?.total_amount || quotation?.total);
+  var tax = safeParseNumber(quotation?.tax_amount || quotation?.tax);
+  var grandTotal = safeParseNumber(quotation?.grand_total || (total + tax));
+  var unitPrice = safeParseNumber(quotation?.unit_price);
+  var quantity = safeParseNumber(quotation?.quantity);
 
   return (
     <div className="create-order-container">
@@ -207,7 +208,6 @@ const CreateOrder = () => {
       {error && <div className="error-message">{error}</div>}
 
       <form onSubmit={handleSubmit} className="create-order-form">
-        {/* Quotation Information */}
         <div className="form-section">
           <h3>Quotation Information</h3>
           <div className="info-grid">
@@ -242,7 +242,6 @@ const CreateOrder = () => {
           </div>
         </div>
 
-        {/* Delivery Information */}
         <div className="form-section">
           <h3>Delivery Information</h3>
           <div className="form-group">
@@ -328,7 +327,6 @@ const CreateOrder = () => {
           </div>
         </div>
 
-        {/* Business Information */}
         <div className="form-section">
           <h3>Business Information</h3>
           <div className="form-group">
@@ -367,7 +365,6 @@ const CreateOrder = () => {
           </div>
         </div>
 
-        {/* Order Summary */}
         <div className="order-summary">
           <div className="summary-total">
             <span>Grand Total</span>

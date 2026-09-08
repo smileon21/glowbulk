@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const ContentManagement = () => {
   const [contents, setContents] = useState([]);
@@ -18,19 +19,18 @@ const ContentManagement = () => {
     status: 'draft'
   });
 
-  useEffect(() => {
+  useEffect(function() {
     fetchContent();
   }, []);
 
-  const fetchContent = async () => {
+  var fetchContent = async function() {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+      var token = localStorage.getItem('token');
+      var config = {
+        headers: { 'Authorization': 'Bearer ' + token }
       };
-      // Use /all endpoint for admin view
-      const response = await axios.get('`${API_URL}/api/content/all', config);
+      var response = await axios.get(API_BASE_URL + '/api/content/all', config);
       if (response.data.success) {
         setContents(response.data.data);
       }
@@ -42,29 +42,29 @@ const ContentManagement = () => {
     }
   };
 
-  const handleChange = (e) => {
+  var handleChange = function(e) {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  const handleSubmit = async (e) => {
+  var handleSubmit = async function(e) {
     e.preventDefault();
     setMessage('');
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+      var token = localStorage.getItem('token');
+      var config = {
+        headers: { 'Authorization': 'Bearer ' + token }
       };
       
-      let response;
+      var response;
       if (editing) {
-        response = await axios.put(``${API_URL}/api/content/${editing}`, formData, config);
+        response = await axios.put(API_BASE_URL + '/api/content/' + editing, formData, config);
       } else {
-        response = await axios.post('`${API_URL}/api/content', formData, config);
+        response = await axios.post(API_BASE_URL + '/api/content', formData, config);
       }
       
       if (response.data.success) {
@@ -86,13 +86,13 @@ const ContentManagement = () => {
     }
   };
 
-  const handlePublish = async (id) => {
+  var handlePublish = async function(id) {
     try {
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+      var token = localStorage.getItem('token');
+      var config = {
+        headers: { 'Authorization': 'Bearer ' + token }
       };
-      const response = await axios.put(``${API_URL}/api/content/${id}/publish`, {}, config);
+      var response = await axios.put(API_BASE_URL + '/api/content/' + id + '/publish', {}, config);
       if (response.data.success) {
         setMessage('Content published successfully!');
         fetchContent();
@@ -102,15 +102,15 @@ const ContentManagement = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  var handleDelete = async function(id) {
     if (!window.confirm('Are you sure you want to delete this content?')) return;
     
     try {
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+      var token = localStorage.getItem('token');
+      var config = {
+        headers: { 'Authorization': 'Bearer ' + token }
       };
-      const response = await axios.delete(``${API_URL}/api/content/${id}`, config);
+      var response = await axios.delete(API_BASE_URL + '/api/content/' + id, config);
       if (response.data.success) {
         setMessage('Content deleted successfully!');
         fetchContent();
@@ -120,7 +120,7 @@ const ContentManagement = () => {
     }
   };
 
-  const handleEdit = (content) => {
+  var handleEdit = function(content) {
     setFormData({
       title: content.title,
       contentType: content.content_type,
@@ -133,23 +133,23 @@ const ContentManagement = () => {
     setShowForm(true);
   };
 
-  const getContentTypeLabel = (type) => {
-    const labels = {
-      'announcement': '📢 Announcement',
-      'faq': '❓ FAQ',
-      'fuel_info': '⛽ Fuel Info',
-      'policy': '📋 Policy',
-      'news': '📰 News'
+  var getContentTypeLabel = function(type) {
+    var labels = {
+      'announcement': 'Announcement',
+      'faq': 'FAQ',
+      'fuel_info': 'Fuel Info',
+      'policy': 'Policy',
+      'news': 'News'
     };
     return labels[type] || type;
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
+  var getStatusBadge = function(status) {
+    var statusMap = {
       'draft': { color: '#6c757d', text: 'Draft' },
       'published': { color: '#28a745', text: 'Published' }
     };
-    const s = statusMap[status] || { color: '#6c757d', text: status };
+    var s = statusMap[status] || { color: '#6c757d', text: status };
     return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
   };
 
@@ -161,7 +161,7 @@ const ContentManagement = () => {
     <div className="content-management">
       <div className="content-header">
         <h2>Content Management</h2>
-        <button className="glow-btn" onClick={() => {
+        <button className="glow-btn" onClick={function() {
           setShowForm(!showForm);
           setEditing(null);
           setFormData({
@@ -206,11 +206,11 @@ const ContentManagement = () => {
                 onChange={handleChange}
                 required
               >
-                <option value="announcement">📢 Announcement</option>
-                <option value="faq">❓ FAQ</option>
-                <option value="fuel_info">⛽ Fuel Information</option>
-                <option value="policy">📋 Policy</option>
-                <option value="news">📰 News</option>
+                <option value="announcement">Announcement</option>
+                <option value="faq">FAQ</option>
+                <option value="fuel_info">Fuel Information</option>
+                <option value="policy">Policy</option>
+                <option value="news">News</option>
               </select>
             </div>
 
@@ -281,44 +281,46 @@ const ContentManagement = () => {
           </div>
         ) : (
           <div className="content-grid">
-            {contents.map((content) => (
-              <div key={content.id} className="content-item glow-card">
-                <div className="content-item-header">
-                  <h3>{content.title}</h3>
-                  {getStatusBadge(content.status)}
-                </div>
-                <p className="content-type">Type: {getContentTypeLabel(content.content_type)}</p>
-                <p className="content-preview">
-                  {content.content && content.content.substring(0, 150)}...
-                </p>
-                <div className="content-actions">
-                  {content.status !== 'published' && (
+            {contents.map(function(content) {
+              return (
+                <div key={content.id} className="content-item glow-card">
+                  <div className="content-item-header">
+                    <h3>{content.title}</h3>
+                    {getStatusBadge(content.status)}
+                  </div>
+                  <p className="content-type">Type: {getContentTypeLabel(content.content_type)}</p>
+                  <p className="content-preview">
+                    {content.content && content.content.substring(0, 150)}...
+                  </p>
+                  <div className="content-actions">
+                    {content.status !== 'published' && (
+                      <button 
+                        className="glow-btn glow-btn-small" 
+                        onClick={function() { handlePublish(content.id); }}
+                      >
+                        Publish
+                      </button>
+                    )}
                     <button 
-                      className="glow-btn glow-btn-small" 
-                      onClick={() => handlePublish(content.id)}
+                      className="glow-btn glow-btn-small glow-btn-secondary" 
+                      onClick={function() { handleEdit(content); }}
                     >
-                      Publish
+                      Edit
                     </button>
-                  )}
-                  <button 
-                    className="glow-btn glow-btn-small glow-btn-secondary" 
-                    onClick={() => handleEdit(content)}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="glow-btn glow-btn-small danger" 
-                    onClick={() => handleDelete(content.id)}
-                  >
-                    Delete
-                  </button>
+                    <button 
+                      className="glow-btn glow-btn-small danger" 
+                      onClick={function() { handleDelete(content.id); }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <small className="content-meta">
+                    Created: {new Date(content.created_at).toLocaleDateString()}
+                    {content.published_at && ' | Published: ' + new Date(content.published_at).toLocaleDateString()}
+                  </small>
                 </div>
-                <small className="content-meta">
-                  Created: {new Date(content.created_at).toLocaleDateString()}
-                  {content.published_at && ` | Published: ${new Date(content.published_at).toLocaleDateString()}`}
-                </small>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const AdminProfile = () => {
   const [user, setUser] = useState(null);
@@ -8,8 +9,6 @@ const AdminProfile = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
-
-  const API_URL = 'https://glowbulk-api.onrender.com';
 
   useEffect(() => {
     fetchAdminData();
@@ -31,12 +30,12 @@ const AdminProfile = () => {
         }
       };
       
-      const userResponse = await axios.get(API_URL + '/api/auth/me', config);
+      const userResponse = await axios.get(API_BASE_URL + '/api/auth/me', config);
       if (userResponse.data.success) {
         setUser(userResponse.data.data);
       }
       
-      const usersResponse = await axios.get(API_URL + '/api/auth/users', config);
+      const usersResponse = await axios.get(API_BASE_URL + '/api/auth/users', config);
       if (usersResponse.data.success) {
         const adminUsers = usersResponse.data.data.filter(function(u) {
           return u.role === 'admin';
@@ -65,7 +64,7 @@ const AdminProfile = () => {
       
       const response = await axios({
         method: 'GET',
-        url: API_URL + '/api/export/monthly-orders-report?month=' + month + '&year=' + year,
+        url: API_BASE_URL + '/api/export/monthly-orders-report?month=' + month + '&year=' + year,
         headers: {
           'Authorization': 'Bearer ' + token
         },
