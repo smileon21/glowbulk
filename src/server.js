@@ -56,9 +56,6 @@ app.use(cors({
   optionsSuccessStatus: 200 // Ensures legacy browser preflight requests succeed
 }));
 
-// Enable preflight for all routes
-app.options('*', cors());
-
 // =====================================================
 // TEST ROUTE
 // =====================================================
@@ -197,13 +194,11 @@ app.use(function(err, req, res, next) {
 // =====================================================
 const PORT = process.env.PORT || 5000;
 
-if (require.main === module) {
-  app.listen(PORT, function() {
-    console.log('='.repeat(50));
-    console.log('GlowBulk Server Started on Port ' + PORT);
-    console.log('Database: ' + process.env.DB_NAME);
-    console.log('='.repeat(50));
-  });
-}
+app.listen(PORT, '0.0.0.0', function() {
+  console.log('='.repeat(50));
+  console.log('GlowBulk Server Started on Port ' + PORT);
+  console.log('Database: ' + process.env.DB_NAME);
+  console.log('='.repeat(50));
+});
 
 module.exports = app;
