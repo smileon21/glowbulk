@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
@@ -9,13 +9,18 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const navigate = useNavigate();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
+      // Strips trailing slashes and forces HTTPS protocol to prevent 308 redirects
+      const cleanBaseUrl = API_BASE_URL.replace(/\/$/, '').replace(/^http:/, 'https:');
+
+      const response = await axios.post(`${cleanBaseUrl}/api/auth/login`, {
         email: email,
         password: password
       });
@@ -24,15 +29,17 @@ const Login = () => {
         const data = response.data.data;
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', data.user.role);
-        localStorage.setItem('userName', data.user.firstName + ' ' + data.user.lastName);
+        localStorage.setItem('userName', `${data.user.firstName} ${data.user.lastName}`);
         localStorage.setItem('userEmail', data.user.email);
-        window.location.href = '/dashboard';
+        
+        // Use React Router for SPA client-side navigation
+        navigate('/dashboard');
       } else {
         setError(response.data.message || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('Login failed. Please try again.');
+      setError(error.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
