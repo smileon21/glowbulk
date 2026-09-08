@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+
+// Absolute backend URL to prevent relative routing and 308 redirects on Vercel
+const BACKEND_URL = 'https://glowbulk-api.onrender.com';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -17,11 +19,9 @@ const Login = () => {
     setError('');
 
     try {
-      // Strips trailing slashes and forces HTTPS protocol to prevent 308 redirects
-      const cleanBaseUrl = API_BASE_URL.replace(/\/$/, '').replace(/^http:/, 'https:');
-
-      const response = await axios.post(`${cleanBaseUrl}/api/auth/login`, {
-        email: email,
+      // Direct call to Render backend
+      const response = await axios.post(`${BACKEND_URL}/api/auth/login`, {
+        email: email.trim(),
         password: password
       });
 
@@ -29,17 +29,25 @@ const Login = () => {
         const data = response.data.data;
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', data.user.role);
-        localStorage.setItem('userName', `${data.user.firstName} ${data.user.lastName}`);
+        localStorage.setItem('userName', `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim());
         localStorage.setItem('userEmail', data.user.email);
         
-        // Use React Router for SPA client-side navigation
+        // Single Page App navigation
         navigate('/dashboard');
       } else {
         setError(response.data.message || 'Login failed');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError(error.response?.data?.message || 'Login failed. Please try again.');
+    } catch (err) {
+      console.error('Login error:', err);
+      
+      // Detailed error response handling
+      if (err.response) {
+        setError(err.response.data?.message || 'Invalid credentials or server error.');
+      } else if (err.request) {
+        setError('Unable to reach server. Please check your internet connection.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -63,6 +71,7 @@ const Login = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="Enter your email"
+              autoComplete="email"
             />
           </div>
           
@@ -75,6 +84,7 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="Enter your password"
+              autoComplete="current-password"
             />
           </div>
           
