@@ -20,29 +20,46 @@ const app = express();
 
 
 // =====================================================
-// CORS - Allow Vercel frontend and localhost
+// CORS - Allow Vercel and localhost
 // =====================================================
 
-// Allow all origins for simplicity
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://glowbulk.vercel.app'
+];
+
 app.use(cors({
   origin: function(origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://glowbulk.vercel.app'
-    ];
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      return callback(null, true);
     }
+    
+    // Allow any vercel.app subdomain
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    console.log('Blocked by CORS:', origin);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
+
+
+// =====================================================
+// TEST ROUTE
+// =====================================================
+
+app.get('/api/test', function(req, res) {
+  res.json({ success: true, message: 'API is working!' });
+});
 
 
 // =====================================================
@@ -85,7 +102,10 @@ app.use(express.urlencoded({
 // API ROUTES
 // =====================================================
 
+console.log('Registering auth routes...');
 app.use('/api/auth', authRoutes);
+console.log('Auth routes registered');
+
 app.use('/api/customers', customerRoutes);
 app.use('/api/fuel-requests', fuelRequestRoutes);
 app.use('/api/quotations', quotationRoutes);
@@ -93,6 +113,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/export', exportRoutes);
+
+console.log('All routes registered');
 
 
 // =====================================================
@@ -106,6 +128,7 @@ app.get('/', function(req, res) {
     database: process.env.DB_NAME,
     status: 'connected',
     endpoints: {
+      test: '/api/test',
       auth: '/api/auth/register, /api/auth/login',
       customers: '/api/customers',
       fuelRequests: '/api/fuel-requests',
@@ -161,6 +184,7 @@ app.get('/api/test-db', async function(req, res) {
 // =====================================================
 
 app.use(function(req, res) {
+  console.log('404 Not Found:', req.originalUrl);
   res.status(404).json({
     success: false,
     message: 'API endpoint not found',
