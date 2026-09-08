@@ -213,20 +213,17 @@ app.use(function(err, req, res, next) {
 
 
 // =====================================================
-// START SERVER (LOCAL DEV ONLY)
+// START SERVER
 // =====================================================
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
-  app.listen(PORT, function() {
-    console.log('='.repeat(50));
-    console.log('GlowBulk Server Started');
-    console.log('URL: http://localhost:' + PORT);
-    console.log('Database: ' + process.env.DB_NAME);
-    console.log('='.repeat(50));
-  });
-}
+app.listen(PORT, function() {
+  console.log('='.repeat(50));
+  console.log('GlowBulk Server Started on Port ' + PORT);
+  console.log('Database: ' + process.env.DB_NAME);
+  console.log('='.repeat(50));
+});
 
 // Export Express app for Vercel Serverless Functions
 module.exports = app;
