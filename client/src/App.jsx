@@ -22,55 +22,42 @@ import Announcements from './pages/Announcements';
 
 import './App.css';
 
-
 // =====================================================
 // PROTECTED ROUTE
 // =====================================================
-
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
-
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-
   return children;
 };
-
 
 // =====================================================
 // ROLE PROTECTED ROUTE
 // =====================================================
-
 const RoleProtectedRoute = ({ children, allowedRoles }) => {
   const userRole = localStorage.getItem('userRole');
-
   if (!allowedRoles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
   }
-
   return children;
 };
-
 
 // =====================================================
 // PROFILE ROUTE (Role-Based)
 // =====================================================
-
 const ProfileRoute = () => {
   const userRole = localStorage.getItem('userRole');
-
   if (userRole === 'admin' || userRole === 'marketing') {
     return <AdminProfile />;
   }
   return <CustomerProfile />;
 };
 
-
 // =====================================================
 // SIDEBAR
 // =====================================================
-
 const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -104,7 +91,6 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     navItems.push({ to: '/content', label: 'Content' });
   }
 
-  // Add Create Order link for customers
   if (userRole === 'customer') {
     navItems.push({ to: '/create-order', label: 'Create Order' });
   }
@@ -161,11 +147,9 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   );
 };
 
-
 // =====================================================
 // MOBILE TOPBAR
 // =====================================================
-
 const MobileTopbar = ({ setSidebarOpen }) => (
   <header className="mobile-topbar">
     <button
@@ -182,11 +166,9 @@ const MobileTopbar = ({ setSidebarOpen }) => (
   </header>
 );
 
-
 // =====================================================
 // FOOTER
 // =====================================================
-
 const Footer = () => (
   <footer className="glow-footer">
     <div className="footer-content">
@@ -201,11 +183,9 @@ const Footer = () => (
   </footer>
 );
 
-
 // =====================================================
 // MAIN APP
 // =====================================================
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!localStorage.getItem('token')
@@ -213,19 +193,23 @@ function App() {
   const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    const checkAuthentication = () => {
-      const token = localStorage.getItem('token');
-      const role = localStorage.getItem('userRole');
-      setIsAuthenticated(!!token);
-      setUserRole(role);
-    };
+  const checkAuthentication = () => {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('userRole');
+    setIsAuthenticated(!!token);
+    setUserRole(role);
+  };
 
+  useEffect(() => {
     checkAuthentication();
+
+    // Listen for storage events (cross-tab) and custom auth state changes (same-tab)
     window.addEventListener('storage', checkAuthentication);
+    window.addEventListener('authChange', checkAuthentication);
 
     return () => {
       window.removeEventListener('storage', checkAuthentication);
+      window.removeEventListener('authChange', checkAuthentication);
     };
   }, []);
 
@@ -235,8 +219,9 @@ function App() {
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
-    setIsAuthenticated(false);
-    setUserRole(null);
+    
+    // Dispatch state update
+    window.dispatchEvent(new Event('authChange'));
     window.location.href = '/login';
   };
 
@@ -270,7 +255,6 @@ function App() {
                 <Route path="/quotations" element={<Quotations />} />
                 <Route path="/orders" element={<Orders />} />
                 
-                {/* Create Order Route - Customers only */}
                 <Route
                   path="/create-order"
                   element={
