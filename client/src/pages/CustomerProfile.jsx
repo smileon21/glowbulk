@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const CustomerProfile = () => {
   const [profile, setProfile] = useState({
@@ -23,20 +24,20 @@ const CustomerProfile = () => {
   const [error, setError] = useState('');
   const [profileExists, setProfileExists] = useState(false);
 
-  useEffect(() => {
+  useEffect(function() {
     fetchProfile();
   }, []);
 
-  const fetchProfile = async () => {
+  var fetchProfile = async function() {
     try {
-      const token = localStorage.getItem('token');
+      var token = localStorage.getItem('token');
       if (!token) {
         setLoading(false);
         return;
       }
       
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.get('`${API_URL}/api/customers/profile/me');
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+      var response = await axios.get(API_BASE_URL + '/api/customers/profile/me');
       
       if (response.data.success) {
         setProfile(response.data.data);
@@ -44,7 +45,7 @@ const CustomerProfile = () => {
         setError('');
       }
     } catch (error) {
-      if (error.response?.status === 404) {
+      if (error.response && error.response.status === 404) {
         setProfileExists(false);
         setMessage('Please create your customer profile below.');
         setError('');
@@ -57,28 +58,28 @@ const CustomerProfile = () => {
     }
   };
 
-  const handleChange = (e) => {
+  var handleChange = function(e) {
     setProfile({
       ...profile,
       [e.target.name]: e.target.value
     });
   };
 
-  const handleSubmit = async (e) => {
+  var handleSubmit = async function(e) {
     e.preventDefault();
     setSaving(true);
     setMessage('');
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      var token = localStorage.getItem('token');
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
       
-      let response;
+      var response;
       if (profileExists) {
-        response = await axios.put('`${API_URL}/api/customers/profile/me', profile);
+        response = await axios.put(API_BASE_URL + '/api/customers/profile/me', profile);
       } else {
-        response = await axios.post('`${API_URL}/api/customers/profile', profile);
+        response = await axios.post(API_BASE_URL + '/api/customers/profile', profile);
       }
       
       if (response.data.success) {

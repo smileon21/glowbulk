@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -22,7 +23,7 @@ const Dashboard = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
       fetchUserData();
       fetchAnnouncements();
     } else {
@@ -32,9 +33,11 @@ const Dashboard = () => {
 
   const fetchAnnouncements = async () => {
     try {
-      const response = await axios.get('`${API_URL}/api/content/published');
+      const response = await axios.get(API_BASE_URL + '/api/content/published');
       if (response.data.success) {
-        const announcements = response.data.data.filter(c => c.content_type === 'announcement');
+        const announcements = response.data.data.filter(function(c) {
+          return c.content_type === 'announcement';
+        });
         setAnnouncements(announcements.slice(0, 3));
       }
     } catch (error) {
@@ -44,13 +47,13 @@ const Dashboard = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await axios.get('`${API_URL}/api/customers/profile/me');
+      const response = await axios.get(API_BASE_URL + '/api/customers/profile/me');
       setUser(response.data.data);
 
       if (userRole === 'customer') {
-        const requests = await axios.get('`${API_URL}/api/fuel-requests/my-requests');
-        const quotes = await axios.get('`${API_URL}/api/quotations/my-quotations');
-        const orders = await axios.get('`${API_URL}/api/orders/my-orders');
+        const requests = await axios.get(API_BASE_URL + '/api/fuel-requests/my-requests');
+        const quotes = await axios.get(API_BASE_URL + '/api/quotations/my-quotations');
+        const orders = await axios.get(API_BASE_URL + '/api/orders/my-orders');
 
         setStats({
           fuelRequests: requests.data.count || 0,
@@ -61,13 +64,15 @@ const Dashboard = () => {
           pendingRequests: 0
         });
       } else {
-        const requests = await axios.get('`${API_URL}/api/fuel-requests/all');
-        const quotes = await axios.get('`${API_URL}/api/quotations/all');
-        const orders = await axios.get('`${API_URL}/api/orders/all');
-        const pending = await axios.get('`${API_URL}/api/orders/pending-payment');
-        const customers = await axios.get('`${API_URL}/api/customers');
+        const requests = await axios.get(API_BASE_URL + '/api/fuel-requests/all');
+        const quotes = await axios.get(API_BASE_URL + '/api/quotations/all');
+        const orders = await axios.get(API_BASE_URL + '/api/orders/all');
+        const pending = await axios.get(API_BASE_URL + '/api/orders/pending-payment');
+        const customers = await axios.get(API_BASE_URL + '/api/customers');
 
-        const pendingRequests = requests.data.data?.filter(r => r.status === 'pending') || [];
+        const pendingRequests = requests.data.data?.filter(function(r) {
+          return r.status === 'pending';
+        }) || [];
 
         setStats({
           fuelRequests: requests.data.count || 0,
@@ -105,17 +110,19 @@ const Dashboard = () => {
           <div className="announcements-section">
             <h2>Announcements</h2>
             <div className="announcements-grid">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="announcement-card">
-                  <div className="announcement-header">
-                    <h3>{announcement.title}</h3>
+              {announcements.map(function(announcement) {
+                return (
+                  <div key={announcement.id} className="announcement-card">
+                    <div className="announcement-header">
+                      <h3>{announcement.title}</h3>
+                    </div>
+                    <p>{announcement.content}</p>
+                    <div className="announcement-footer">
+                      <small>Posted: {new Date(announcement.published_at).toLocaleDateString()}</small>
+                    </div>
                   </div>
-                  <p>{announcement.content}</p>
-                  <div className="announcement-footer">
-                    <small>Posted: {new Date(announcement.published_at).toLocaleDateString()}</small>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -212,7 +219,7 @@ const Dashboard = () => {
     <div className="dashboard">
       <div className="dashboard-welcome">
         <h1>Welcome, {userName}</h1>
-        <div className={`role-indicator ${userRole}`}>
+        <div className={'role-indicator ' + userRole}>
           <span>Marketing console — manage fuel sales and delivery requests</span>
         </div>
       </div>
@@ -222,17 +229,19 @@ const Dashboard = () => {
         <div className="announcements-section">
           <h2>Announcements</h2>
           <div className="announcements-grid">
-            {announcements.map((announcement) => (
-              <div key={announcement.id} className="announcement-card">
-                <div className="announcement-header">
-                  <h3>{announcement.title}</h3>
+            {announcements.map(function(announcement) {
+              return (
+                <div key={announcement.id} className="announcement-card">
+                  <div className="announcement-header">
+                    <h3>{announcement.title}</h3>
+                  </div>
+                  <p>{announcement.content}</p>
+                  <div className="announcement-footer">
+                    <small>Posted: {new Date(announcement.published_at).toLocaleDateString()}</small>
+                  </div>
                 </div>
-                <p>{announcement.content}</p>
-                <div className="announcement-footer">
-                  <small>Posted: {new Date(announcement.published_at).toLocaleDateString()}</small>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -346,9 +355,9 @@ const Dashboard = () => {
       <div className="recent-activity">
         <h2>Recent activity</h2>
         <div className="activity-list glow-card">
-          <p> New fuel request from customer</p>
-          <p> Payment confirmed for order #ORD-20260831-1410</p>
-          <p> Quotation sent to customer</p>
+          <p>New fuel request from customer</p>
+          <p>Payment confirmed for order #ORD-20260831-1410</p>
+          <p>Quotation sent to customer</p>
         </div>
       </div>
     </div>

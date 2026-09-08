@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -16,7 +17,7 @@ const Orders = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
     }
   }, []);
 
@@ -28,14 +29,14 @@ const Orders = () => {
     try {
       const token = localStorage.getItem('token');
       const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': 'Bearer ' + token }
       };
 
       let response;
       if (isStaff) {
-        response = await axios.get('`${API_URL}/api/orders/all', config);
+        response = await axios.get(API_BASE_URL + '/api/orders/all', config);
       } else {
-        response = await axios.get('`${API_URL}/api/orders/my-orders', config);
+        response = await axios.get(API_BASE_URL + '/api/orders/my-orders', config);
       }
 
       if (response.data.success) {
@@ -49,17 +50,17 @@ const Orders = () => {
     }
   };
 
-  const confirmPayment = async (id) => {
+  const confirmPayment = async function(id) {
     if (!window.confirm('Confirm payment for this order?')) return;
 
     try {
       const token = localStorage.getItem('token');
       const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': 'Bearer ' + token }
       };
       
       const response = await axios.put(
-        ``${API_URL}/api/orders/${id}/confirm-payment`,
+        API_BASE_URL + '/api/orders/' + id + '/confirm-payment',
         { notes: 'Payment verified in company bank account' },
         config
       );
@@ -74,21 +75,21 @@ const Orders = () => {
     }
   };
 
-  const updateStatus = async (id, status) => {
+  const updateStatus = async function(id, status) {
     try {
       const token = localStorage.getItem('token');
       const config = {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': 'Bearer ' + token }
       };
       
       const response = await axios.put(
-        ``${API_URL}/api/orders/${id}/status`,
-        { status },
+        API_BASE_URL + '/api/orders/' + id + '/status',
+        { status: status },
         config
       );
 
       if (response.data.success) {
-        setMessage(`Order ${status} successfully!`);
+        setMessage('Order ' + status + ' successfully!');
         fetchOrders();
         setSelectedOrder(null);
       }
@@ -97,31 +98,31 @@ const Orders = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
+  var getStatusBadge = function(status) {
+    var statusMap = {
       'pending_payment': { color: '#E8A33D', text: 'Pending Payment' },
       'payment_confirmed': { color: '#2f7ea8', text: 'Payment Confirmed' },
       'processing': { color: '#6f42c1', text: 'Processing' },
       'completed': { color: '#2f7a3f', text: 'Completed' },
       'cancelled': { color: '#8f0000', text: 'Cancelled' }
     };
-    const s = statusMap[status] || { color: '#6b7280', text: status };
+    var s = statusMap[status] || { color: '#6b7280', text: status };
     return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
   };
 
-  const getPaymentStatusBadge = (status) => {
-    const statusMap = {
+  var getPaymentStatusBadge = function(status) {
+    var statusMap = {
       'pending': { color: '#E8A33D', text: 'Pending' },
       'confirmed': { color: '#2f7a3f', text: 'Confirmed' },
       'proof_uploaded': { color: '#4f46e5', text: 'Proof Uploaded' }
     };
-    const s = statusMap[status] || { color: '#6b7280', text: status };
+    var s = statusMap[status] || { color: '#6b7280', text: status };
     return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
   };
 
-  const formatDate = (dateString) => {
+  var formatDate = function(dateString) {
     if (!dateString) return 'Not specified';
-    const date = new Date(dateString);
+    var date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Invalid date';
     return date.toLocaleDateString('en-ZW', {
       year: 'numeric',
@@ -130,7 +131,7 @@ const Orders = () => {
     });
   };
 
-  const formatCurrency = (amount) => {
+  var formatCurrency = function(amount) {
     if (!amount) return '$0.00';
     return '$' + Number(amount).toFixed(2);
   };
@@ -145,13 +146,13 @@ const Orders = () => {
         <h2>Orders</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           {isStaff && (
-            <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/pending-payments')}>
+            <button className="glow-btn glow-btn-secondary" onClick={function() { navigate('/pending-payments'); }}>
               View Pending Payments
             </button>
           )}
           <button 
             className="glow-btn" 
-            onClick={() => navigate('/create-order')}
+            onClick={function() { navigate('/create-order'); }}
           >
             + Create Order
           </button>
@@ -170,7 +171,7 @@ const Orders = () => {
             )}
             <button 
               className="glow-btn" 
-              onClick={() => navigate('/quotations')}
+              onClick={function() { navigate('/quotations'); }}
               style={{ width: 'auto', marginTop: '15px' }}
             >
               View Quotations
@@ -178,43 +179,44 @@ const Orders = () => {
           </div>
         ) : (
           <div className="orders-grid">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="order-card"
-                onClick={() => setSelectedOrder(order)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="order-header">
-                  <h3> {order.order_number}</h3>
-                  {getStatusBadge(order.status)}
+            {orders.map(function(order) {
+              return (
+                <div
+                  key={order.id}
+                  className="order-card"
+                  onClick={function() { setSelectedOrder(order); }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="order-header">
+                    <h3> {order.order_number}</h3>
+                    {getStatusBadge(order.status)}
+                  </div>
+                  <div className="order-details">
+                    <p><strong>Fuel Type:</strong> {order.fuel_type}</p>
+                    <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
+                    <p><strong>Grand Total:</strong> {formatCurrency(order.grand_total)}</p>
+                    <p><strong>Payment:</strong> {getPaymentStatusBadge(order.payment_status)}</p>
+                    {order.company_name && (
+                      <p><strong>Company:</strong> {order.company_name}</p>
+                    )}
+                  </div>
+                  <div className="order-footer">
+                    <small>Created: {formatDate(order.created_at)}</small>
+                    <span className="stat-btn">View Details →</span>
+                  </div>
                 </div>
-                <div className="order-details">
-                  <p><strong>Fuel Type:</strong> {order.fuel_type}</p>
-                  <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
-                  <p><strong>Grand Total:</strong> {formatCurrency(order.grand_total)}</p>
-                  <p><strong>Payment:</strong> {getPaymentStatusBadge(order.payment_status)}</p>
-                  {order.company_name && (
-                    <p><strong>Company:</strong> {order.company_name}</p>
-                  )}
-                </div>
-                <div className="order-footer">
-                  <small>Created: {formatDate(order.created_at)}</small>
-                  <span className="stat-btn">View Details →</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Order Detail Modal */}
       {selectedOrder && (
-        <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={function() { setSelectedOrder(null); }}>
+          <div className="modal-content" onClick={function(e) { e.stopPropagation(); }}>
             <div className="modal-header">
               <h3> {selectedOrder.order_number}</h3>
-              <button className="modal-close" onClick={() => setSelectedOrder(null)}>✕</button>
+              <button className="modal-close" onClick={function() { setSelectedOrder(null); }}>✕</button>
             </div>
 
             <div className="modal-status-row">
@@ -254,7 +256,6 @@ const Orders = () => {
                 <span className="detail-value">{formatCurrency(selectedOrder.grand_total)}</span>
               </div>
               
-              {/* Delivery Information */}
               {selectedOrder.delivery_address && (
                 <>
                   <div className="modal-detail-item">
@@ -328,36 +329,34 @@ const Orders = () => {
             </div>
 
             <div className="modal-actions">
-              {/* Marketing/Admin Actions */}
               {selectedOrder.status === 'pending_payment' && isStaff && (
-                <button className="glow-btn" onClick={() => confirmPayment(selectedOrder.id)}>
+                <button className="glow-btn" onClick={function() { confirmPayment(selectedOrder.id); }}>
                   Confirm Payment
                 </button>
               )}
               {selectedOrder.status === 'payment_confirmed' && isStaff && (
-                <button className="glow-btn" onClick={() => updateStatus(selectedOrder.id, 'processing')}>
+                <button className="glow-btn" onClick={function() { updateStatus(selectedOrder.id, 'processing'); }}>
                   Start Processing
                 </button>
               )}
               {selectedOrder.status === 'processing' && isStaff && (
-                <button className="glow-btn" onClick={() => updateStatus(selectedOrder.id, 'completed')}>
+                <button className="glow-btn" onClick={function() { updateStatus(selectedOrder.id, 'completed'); }}>
                   Mark as Completed
                 </button>
               )}
               {(selectedOrder.status === 'pending_payment' || selectedOrder.status === 'payment_confirmed' || selectedOrder.status === 'processing') && isStaff && (
                 <button 
                   className="glow-btn glow-btn-secondary" 
-                  onClick={() => updateStatus(selectedOrder.id, 'cancelled')}
+                  onClick={function() { updateStatus(selectedOrder.id, 'cancelled'); }}
                 >
                   Cancel Order
                 </button>
               )}
 
-              {/* Customer Actions */}
               {selectedOrder.status === 'pending_payment' && !isStaff && (
                 <button 
                   className="glow-btn"
-                  onClick={() => navigate(`/upload-proof/${selectedOrder.id}`)}
+                  onClick={function() { navigate('/upload-proof/' + selectedOrder.id); }}
                 >
                   Upload Payment Proof
                 </button>
