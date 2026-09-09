@@ -124,6 +124,9 @@ const Register = () => {
       // Set Axios authorization header
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
+      // Tell App.jsx that auth state just changed (same-tab)
+      window.dispatchEvent(new Event('authChange'));
+
       console.log('💾 Authentication saved successfully.');
       console.log('User:', user);
       console.log('User Role:', user.role);
