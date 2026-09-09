@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 
 // Absolute backend URL to prevent relative routing and 308 redirects on Vercel
@@ -10,8 +10,6 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,15 +29,18 @@ const Login = () => {
         localStorage.setItem('userRole', data.user.role);
         localStorage.setItem('userName', `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim());
         localStorage.setItem('userEmail', data.user.email);
-        
-        // Single Page App navigation
-        navigate('/dashboard');
+
+        // Tell App.jsx that auth state just changed (same-tab)
+        window.dispatchEvent(new Event('authChange'));
+
+        // Full page navigation ensures a clean app re-init on the new route
+        window.location.href = '/dashboard';
       } else {
         setError(response.data.message || 'Login failed');
       }
     } catch (err) {
       console.error('Login error:', err);
-      
+
       // Detailed error response handling
       if (err.response) {
         setError(err.response.data?.message || 'Invalid credentials or server error.');
