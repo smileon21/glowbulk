@@ -19,9 +19,16 @@ const {
   getOrderByNumber,
   updateOrderDelivery
 } = require('../models/order.model');
-const { getCustomerByUserId } = require('../models/customer.model');
+const { getCustomerByUserId, getCustomerById } = require('../models/customer.model');
 const { getQuotationById } = require('../models/quotation.model');
 const { updateFuelRequestStatus } = require('../models/fuelRequest.model');
+const {
+  sendNewOrderEmailToAdmin,
+  sendOrderConfirmationEmailToCustomer,
+  sendPaymentProofEmailToAdmin,
+  sendPaymentConfirmedEmailToCustomer,
+  sendOrderCompletedEmailToCustomer
+} = require('../utils/email');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -38,9 +45,9 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -66,7 +73,7 @@ const proofStorage = multer.diskStorage({
   }
 });
 
-const proofUpload = multer({ 
+const proofUpload = multer({
   storage: proofStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
@@ -79,7 +86,7 @@ const proofUpload = multer({
   }
 });
 
-// Customer: Create order from accepted quotation with all fields
+// Customer: Create order from accepted quotation
 router.post('/create', authenticate, [
   body('quotationId').isInt().withMessage('Quotation ID is required'),
   body('purchaseOrderNumber').optional().isString(),
@@ -95,10 +102,10 @@ router.post('/create', authenticate, [
       });
     }
 
-    const { 
-      quotationId, 
-      purchaseOrderNumber, 
-      preferredDeliveryDate, 
+    const {
+      quotationId,
+      purchaseOrderNumber,
+      preferredDeliveryDate,
       preferredDeliveryTime,
       notes,
       delivery_address,
@@ -108,7 +115,6 @@ router.post('/create', authenticate, [
       delivery_postal_code
     } = req.body;
 
-    // Get customer profile
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
       return res.status(404).json({
@@ -117,7 +123,6 @@ router.post('/create', authenticate, [
       });
     }
 
-    // Get quotation
     const quotation = await getQuotationById(quotationId);
     if (!quotation) {
       return res.status(404).json({
@@ -126,7 +131,6 @@ router.post('/create', authenticate, [
       });
     }
 
-    // Check if quotation belongs to this customer
     if (quotation.customer_id !== customer.id) {
       return res.status(403).json({
         success: false,
@@ -134,7 +138,6 @@ router.post('/create', authenticate, [
       });
     }
 
-    // Check if quotation is accepted
     if (quotation.status !== 'accepted') {
       return res.status(400).json({
         success: false,
@@ -142,7 +145,6 @@ router.post('/create', authenticate, [
       });
     }
 
-    // Prepare order data
     const orderData = {
       delivery_address: delivery_address || quotation.delivery_address || quotation.deliveryAddress,
       delivery_city: delivery_city || quotation.delivery_city || quotation.deliveryCity,
@@ -155,12 +157,18 @@ router.post('/create', authenticate, [
       notes: notes
     };
 
-    // Create order
     const order = await createOrderFromQuotation(quotationId, req.user.id, orderData);
-    
-    // Update fuel request status
+
     if (quotation.fuel_request_id) {
       await updateFuelRequestStatus(quotation.fuel_request_id, 'ordered');
+    }
+
+    // Notify admins + customer about new order
+    try {
+      await sendNewOrderEmailToAdmin(order, customer);
+      await sendOrderConfirmationEmailToCustomer(order, customer);
+    } catch (emailError) {
+      console.error('Order notification email failed:', emailError);
     }
 
     res.status(201).json({
@@ -181,7 +189,7 @@ router.post('/create', authenticate, [
 router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -197,7 +205,6 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
       });
     }
 
-    // Check if user owns this order
     if (order.created_by !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -205,9 +212,7 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
       });
     }
 
-    const filePath = `/uploads/purchase-orders/${req.file.filename}`;
-    
-    // Update order with file
+    const filePath = '/uploads/purchase-orders/' + req.file.filename;
     const updatedOrder = await addPurchaseOrderFile(orderId, req.file.filename, filePath);
 
     res.json({
@@ -230,7 +235,7 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
 router.post('/upload-proof/:orderId', authenticate, proofUpload.single('proofFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -246,7 +251,6 @@ router.post('/upload-proof/:orderId', authenticate, proofUpload.single('proofFil
       });
     }
 
-    // Check if user owns this order
     if (order.created_by !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -254,10 +258,18 @@ router.post('/upload-proof/:orderId', authenticate, proofUpload.single('proofFil
       });
     }
 
-    const filePath = `/uploads/payment-proofs/${req.file.filename}`;
-    
-    // Update order with payment proof
+    const filePath = '/uploads/payment-proofs/' + req.file.filename;
     const updatedOrder = await addPaymentProof(orderId, req.file.filename, filePath);
+
+    // Notify admins that payment proof was uploaded
+    try {
+      const customer = await getCustomerById(order.customer_id);
+      if (customer) {
+        await sendPaymentProofEmailToAdmin(updatedOrder, customer);
+      }
+    } catch (emailError) {
+      console.error('Payment proof email failed:', emailError);
+    }
 
     res.json({
       success: true,
@@ -323,7 +335,7 @@ router.put('/:orderId/delivery', authenticate, [
 
     const { orderId } = req.params;
     const order = await getOrderById(orderId);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -405,7 +417,6 @@ router.get('/:id', authenticate, async (req, res) => {
       });
     }
 
-    // Check if user has access
     const customer = await getCustomerByUserId(req.user.id);
     if (req.user.role === 'customer' && order.customer_id !== customer?.id) {
       return res.status(403).json({
@@ -450,6 +461,18 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
       });
     }
 
+    // If order was completed, notify the customer
+    if (req.body.status === 'completed') {
+      try {
+        const customer = await getCustomerById(order.customer_id);
+        if (customer) {
+          await sendOrderCompletedEmailToCustomer(order, customer);
+        }
+      } catch (emailError) {
+        console.error('Order completed email failed:', emailError);
+      }
+    }
+
     res.json({
       success: true,
       message: 'Order status updated',
@@ -478,13 +501,22 @@ router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing')
       });
     }
 
-    // Update payment status to confirmed
     const updatedOrder = await updatePaymentStatus(
       req.params.id,
       'confirmed',
       req.user.id,
-      req.body.notes || `Payment confirmed by ${req.user.first_name} ${req.user.last_name}`
+      req.body.notes || 'Payment confirmed by ' + req.user.first_name + ' ' + req.user.last_name
     );
+
+    // Notify customer that payment was confirmed
+    try {
+      const customer = await getCustomerById(order.customer_id);
+      if (customer) {
+        await sendPaymentConfirmedEmailToCustomer(updatedOrder, customer);
+      }
+    } catch (emailError) {
+      console.error('Payment confirmed email failed:', emailError);
+    }
 
     res.json({
       success: true,
