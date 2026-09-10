@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import TwoFactorSettings from '../components/TwoFactorSettings';
 
 const CustomerProfile = () => {
   const [profile, setProfile] = useState({
@@ -18,6 +19,7 @@ const CustomerProfile = () => {
     delivery_country: '',
     preferred_fuel_types: []
   });
+  const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -26,6 +28,7 @@ const CustomerProfile = () => {
 
   useEffect(function() {
     fetchProfile();
+    fetchAccount();
   }, []);
 
   var fetchProfile = async function() {
@@ -55,6 +58,23 @@ const CustomerProfile = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  var fetchAccount = async function() {
+    try {
+      var token = localStorage.getItem('token');
+      if (!token) return;
+
+      var response = await axios.get(API_BASE_URL + '/api/auth/me', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+
+      if (response.data.success) {
+        setAccount(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching account info:', error);
     }
   };
 
@@ -282,6 +302,8 @@ const CustomerProfile = () => {
           </button>
         </div>
       </form>
+
+      <TwoFactorSettings initialEnabled={account?.two_factor_enabled} />
     </div>
   );
 };
