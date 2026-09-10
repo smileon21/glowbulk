@@ -12,6 +12,10 @@ const Register = () => {
     confirmPassword: '',
   });
 
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -245,17 +249,38 @@ const Register = () => {
               Password
             </label>
 
-            <input
-              type="password"
-              name="password"
-              className="glow-input"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={6}
-              placeholder="Create a password (min 6 characters)"
-              autoComplete="new-password"
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                className="glow-input"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+                placeholder="Create a password (min 6 characters)"
+                autoComplete="new-password"
+                style={{ paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  padding: 0,
+                  color: '#6b7280',
+                  lineHeight: 1
+                }}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <div className="form-group">
@@ -263,17 +288,38 @@ const Register = () => {
               Confirm Password
             </label>
 
-            <input
-              type="password"
-              name="confirmPassword"
-              className="glow-input"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              minLength={6}
-              placeholder="Confirm your password"
-              autoComplete="new-password"
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                className="glow-input"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                minLength={6}
+                placeholder="Confirm your password"
+                autoComplete="new-password"
+                style={{ paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  padding: 0,
+                  color: '#6b7280',
+                  lineHeight: 1
+                }}
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+              >
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <button
