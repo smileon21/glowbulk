@@ -3,6 +3,7 @@ const router = express.Router();
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 
 const {
@@ -15,10 +16,18 @@ const {
   checkTwoFactorOtp,
   clearTwoFactorOtp,
   enableTwoFactor,
-  disableTwoFactor
+  disableTwoFactor,
+  setResetToken,
+  findUserByResetToken,
+  clearResetToken,
+  updatePassword
 } = require('../models/user.model');
 
-const { sendOtpEmail, generateOtp } = require('../utils/email');
+const {
+  sendOtpEmail,
+  generateOtp,
+  sendPasswordResetEmail
+} = require('../utils/email');
 
 const {
   authenticate,
@@ -210,7 +219,7 @@ router.post(
 
 
 // =====================================================
-// VERIFY OTP (completes login when 2FA is enabled)
+// VERIFY OTP
 // =====================================================
 
 router.post(
@@ -297,7 +306,7 @@ router.post('/resend-otp', async (req, res) => {
 
 
 // =====================================================
-// 2FA — SEND SETUP CODE (authenticated user enabling 2FA)
+// 2FA — SEND SETUP CODE
 // =====================================================
 
 router.post('/2fa/send-setup-otp', authenticate, async (req, res) => {
@@ -346,7 +355,7 @@ router.post('/2fa/enable', authenticate, async (req, res) => {
 
 
 // =====================================================
-// 2FA — DISABLE (requires password confirmation)
+// 2FA — DISABLE
 // =====================================================
 
 router.post('/2fa/disable', authenticate, async (req, res) => {
@@ -374,6 +383,297 @@ router.post('/2fa/disable', authenticate, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Error disabling two-factor authentication' });
   }
 });
+
+
+// =====================================================
+// FORGOT PASSWORD — Request reset link
+// =====================================================
+
+router.post(
+  '/forgot-password',
+  [
+    body('email').trim().isEmail().withMessage('Please provide a valid email')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid email'
+        });
+      }
+
+      const email = req.body.email.trim().toLowerCase();
+      const user = await findUserByEmail(email);
+
+      // Always return success (don't reveal if email exists)
+      if (!user) {
+        return res.json({
+          success: true,
+          message: 'If an account exists with this email, a reset link has been sent.'
+        });
+      }
+
+      const resetToken = crypto.randomBytes(32).toString('hex');
+
+      await setResetToken(user.id, resetToken);
+
+      const frontendUrl = process.env.FRONTEND_URL || 'https://glowbulk.vercel.app';
+      const resetLink = frontendUrl + '/reset-password?token=' + resetToken;
+
+      try {
+        await sendPasswordResetEmail(user.email, resetLink);
+      } catch (emailError) {
+        console.error('Error sending reset email:', emailError);
+        return res.status(500).json({
+          success: false,
+          message: 'Unable to send reset email. Please try again.'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'If an account exists with this email, a reset link has been sent.'
+      });
+
+    } catch (error) {
+      console.error('FORGOT PASSWORD ERROR:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error processing request'
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// RESET PASSWORD — Set new password
+// =====================================================
+
+router.post(
+  '/reset-password',
+  [
+    body('token').notEmpty().withMessage('Token is required'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid request',
+          errors: errors.array()
+        });
+      }
+
+      const { token, newPassword } = req.body;
+
+      const user = await findUserByResetToken(token);
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired reset link'
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      await updatePassword(user.id, hashedPassword);
+      await clearResetToken(user.id);
+
+      return res.json({
+        success: true,
+        message: 'Password reset successfully. You can now log in.'
+      });
+
+    } catch (error) {
+      console.error('RESET PASSWORD ERROR:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error resetting password'
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// ADMIN MANAGEMENT — Create new admin
+// =====================================================
+
+router.post(
+  '/admin/create',
+  authenticate,
+  authorize('admin'),
+  [
+    body('firstName').trim().notEmpty().withMessage('First name is required'),
+    body('lastName').trim().notEmpty().withMessage('Last name is required'),
+    body('email').trim().isEmail().withMessage('Please provide a valid email'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const firstName = req.body.firstName.trim();
+      const lastName = req.body.lastName.trim();
+      const email = req.body.email.trim().toLowerCase();
+      const password = req.body.password;
+      const phone = req.body.phone || null;
+
+      const existingUser = await findUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+
+      const user = await createUser({
+        firstName,
+        lastName,
+        email,
+        password,
+        role: 'admin',
+        phone
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Admin account created successfully',
+        data: user
+      });
+
+    } catch (error) {
+      console.error('ADMIN CREATE ERROR:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error creating admin account'
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// ADMIN MANAGEMENT — Update admin status
+// =====================================================
+
+router.put(
+  '/admin/:id/status',
+  authenticate,
+  authorize('admin'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+
+      if (parseInt(id) === req.user.id) {
+        return res.status(400).json({
+          success: false,
+          message: 'You cannot change your own status'
+        });
+      }
+
+      const query = `
+        UPDATE users
+        SET is_active = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND role = 'admin'
+        RETURNING id, first_name, last_name, email, is_active
+      `;
+
+      const result = await pool.query(query, [isActive, id]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Admin not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: isActive ? 'Admin activated' : 'Admin deactivated',
+        data: result.rows[0]
+      });
+
+    } catch (error) {
+      console.error('ADMIN STATUS ERROR:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error updating admin status'
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// ADMIN MANAGEMENT — Reset user password (admin only)
+// =====================================================
+
+router.put(
+  '/admin/:id/reset-password',
+  authenticate,
+  authorize('admin'),
+  [
+    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters'
+        });
+      }
+
+      const { id } = req.params;
+      const { newPassword } = req.body;
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const query = `
+        UPDATE users
+        SET password = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING id, first_name, last_name, email
+      `;
+
+      const result = await pool.query(query, [hashedPassword, id]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Password reset successfully'
+      });
+
+    } catch (error) {
+      console.error('ADMIN RESET PASSWORD ERROR:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error resetting password'
+      });
+    }
+  }
+);
 
 
 // =====================================================
