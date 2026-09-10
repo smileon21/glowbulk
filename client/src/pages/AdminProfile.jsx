@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import TwoFactorSettings from '../components/TwoFactorSettings';
+import AdminManagement from '../components/AdminManagement';
 
 const AdminProfile = () => {
   const [user, setUser] = useState(null);
@@ -145,6 +146,8 @@ const AdminProfile = () => {
       </div>
 
       <TwoFactorSettings initialEnabled={user?.two_factor_enabled} />
+
+      <AdminManagement />
 
       <div className="admin-stats-grid">
         <div className="stat-card">
