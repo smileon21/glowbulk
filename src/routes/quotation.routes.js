@@ -9,8 +9,12 @@ const {
   getAllQuotations,
   updateQuotationStatus
 } = require('../models/quotation.model');
-const { getCustomerByUserId } = require('../models/customer.model');
+const { getCustomerByUserId, getCustomerById } = require('../models/customer.model');
 const { getFuelRequestById, updateFuelRequestStatus } = require('../models/fuelRequest.model');
+const {
+  sendQuotationEmailToCustomer,
+  sendQuotationResponseEmailToAdmin
+} = require('../utils/email');
 
 // Generate quotation number
 const generateQuotationNumber = () => {
@@ -50,13 +54,12 @@ router.post('/', authenticate, authorize('admin', 'marketing'), [
     // Dynamic Calculations
     const quantity = parseFloat(fuelRequest.quantity) || 0;
     const unitPrice = parseFloat(req.body.unitPrice) || 0;
-    
-    // Accept taxRate from request body, default to 15% if not provided
-    const taxRate = req.body.taxRate !== undefined && req.body.taxRate !== '' 
-      ? parseFloat(req.body.taxRate) 
+
+    const taxRate = req.body.taxRate !== undefined && req.body.taxRate !== ''
+      ? parseFloat(req.body.taxRate)
       : 15;
 
-    const totalAmount = quantity * unitPrice; // Subtotal
+    const totalAmount = quantity * unitPrice;
     const taxAmount = totalAmount * (taxRate / 100);
     const grandTotal = totalAmount + taxAmount;
 
@@ -82,6 +85,18 @@ router.post('/', authenticate, authorize('admin', 'marketing'), [
 
     // Update fuel request status to quoted
     await updateFuelRequestStatus(fuelRequest.id, 'quoted');
+
+    // If quotation was created with status 'sent', notify the customer
+    if (quotation.status === 'sent') {
+      try {
+        const customer = await getCustomerById(quotation.customer_id);
+        if (customer) {
+          await sendQuotationEmailToCustomer(quotation, customer);
+        }
+      } catch (emailError) {
+        console.error('Quotation email notification failed:', emailError);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -155,7 +170,6 @@ router.get('/:id', authenticate, async (req, res) => {
       });
     }
 
-    // Check if user has access
     const customer = await getCustomerByUserId(req.user.id);
     if (req.user.role === 'customer' && quotation.customer_id !== customer?.id) {
       return res.status(403).json({
@@ -189,7 +203,6 @@ router.put('/:id/accept', authenticate, async (req, res) => {
       });
     }
 
-    // Check if user owns this quotation
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
       return res.status(404).json({
@@ -213,9 +226,14 @@ router.put('/:id/accept', authenticate, async (req, res) => {
     }
 
     const updatedQuotation = await updateQuotationStatus(quotation.id, 'accepted');
-    
-    // Update fuel request status
     await updateFuelRequestStatus(quotation.fuel_request_id, 'accepted');
+
+    // Notify all admins about the acceptance
+    try {
+      await sendQuotationResponseEmailToAdmin(updatedQuotation, customer, true);
+    } catch (emailError) {
+      console.error('Quotation acceptance email failed:', emailError);
+    }
 
     res.json({
       success: true,
@@ -243,7 +261,6 @@ router.put('/:id/reject', authenticate, async (req, res) => {
       });
     }
 
-    // Check if user owns this quotation
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
       return res.status(404).json({
@@ -267,9 +284,14 @@ router.put('/:id/reject', authenticate, async (req, res) => {
     }
 
     const updatedQuotation = await updateQuotationStatus(quotation.id, 'rejected');
-    
-    // Update fuel request status
     await updateFuelRequestStatus(quotation.fuel_request_id, 'rejected');
+
+    // Notify all admins about the rejection
+    try {
+      await sendQuotationResponseEmailToAdmin(updatedQuotation, customer, false);
+    } catch (emailError) {
+      console.error('Quotation rejection email failed:', emailError);
+    }
 
     res.json({
       success: true,
@@ -299,6 +321,15 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
       });
     }
 
+    // Get original quotation to know if status is changing to 'sent'
+    const originalQuotation = await getQuotationById(req.params.id);
+    if (!originalQuotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
     const quotation = await updateQuotationStatus(req.params.id, req.body.status);
     if (!quotation) {
       return res.status(404).json({
@@ -307,9 +338,21 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
       });
     }
 
-    // If status is sent, update fuel request status
+    // If status changed to 'sent', update fuel request and notify the customer
     if (req.body.status === 'sent') {
       await updateFuelRequestStatus(quotation.fuel_request_id, 'quoted');
+
+      // Only send email if the quotation wasn't already 'sent' before
+      if (originalQuotation.status !== 'sent') {
+        try {
+          const customer = await getCustomerById(quotation.customer_id);
+          if (customer) {
+            await sendQuotationEmailToCustomer(quotation, customer);
+          }
+        } catch (emailError) {
+          console.error('Quotation email notification failed:', emailError);
+        }
+      }
     }
 
     res.json({

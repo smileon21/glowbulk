@@ -129,6 +129,66 @@ const disableTwoFactor = async (id) => {
   await pool.query(query, [id]);
 };
 
+// ===== PASSWORD RESET HELPERS =====
+
+// Save a reset token + expiry (1 hour) for a user
+const setResetToken = async (id, token) => {
+  const query = `
+    UPDATE users
+    SET reset_token = $1,
+        reset_token_expires = CURRENT_TIMESTAMP + INTERVAL '1 hour'
+    WHERE id = $2
+  `;
+  await pool.query(query, [token, id]);
+};
+
+// Find user by reset token (must be valid and not expired)
+const findUserByResetToken = async (token) => {
+  const query = `
+    SELECT * FROM users
+    WHERE reset_token = $1
+      AND reset_token_expires > CURRENT_TIMESTAMP
+  `;
+  const result = await pool.query(query, [token]);
+  return result.rows[0];
+};
+
+// Clear reset token after use
+const clearResetToken = async (id) => {
+  const query = `
+    UPDATE users
+    SET reset_token = NULL,
+        reset_token_expires = NULL
+    WHERE id = $1
+  `;
+  await pool.query(query, [id]);
+};
+
+// Update user's password
+const updatePassword = async (id, hashedPassword) => {
+  const query = `
+    UPDATE users
+    SET password = $1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = $2
+  `;
+  await pool.query(query, [hashedPassword, id]);
+};
+
+// ===== NOTIFICATION HELPERS =====
+
+// Get all active admin emails (for email notifications)
+const getAllAdminEmails = async () => {
+  const query = `
+    SELECT email, first_name, last_name
+    FROM users
+    WHERE role = 'admin' AND is_active = true
+    ORDER BY created_at ASC
+  `;
+  const result = await pool.query(query);
+  return result.rows;
+};
+
 module.exports = {
   createUser,
   findUserByEmail,
@@ -141,5 +201,10 @@ module.exports = {
   checkTwoFactorOtp,
   clearTwoFactorOtp,
   enableTwoFactor,
-  disableTwoFactor
+  disableTwoFactor,
+  setResetToken,
+  findUserByResetToken,
+  clearResetToken,
+  updatePassword,
+  getAllAdminEmails
 };

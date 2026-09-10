@@ -11,6 +11,7 @@ const {
   updateFuelRequest
 } = require('../models/fuelRequest.model');
 const { getCustomerByUserId } = require('../models/customer.model');
+const { sendNewFuelRequestEmailToAdmin } = require('../utils/email');
 const pool = require('../config/database');
 
 // Customer: Create fuel request
@@ -41,6 +42,13 @@ router.post('/', authenticate, [
       customerId: customer.id,
       ...req.body
     });
+
+    // Send email notification to all admins (don't fail if email fails)
+    try {
+      await sendNewFuelRequestEmailToAdmin(fuelRequest, customer);
+    } catch (emailError) {
+      console.error('Fuel request email notification failed:', emailError);
+    }
 
     res.status(201).json({
       success: true,
@@ -101,7 +109,7 @@ router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, re
 });
 
 // =============================================
-// NEW: Get fuel requests available for quotation
+// Get fuel requests available for quotation
 // =============================================
 router.get('/available-for-quote', authenticate, authorize('admin', 'marketing'), async (req, res) => {
   try {
