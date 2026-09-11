@@ -118,7 +118,7 @@ const Dashboard = () => {
                     </div>
                     <p>{announcement.content}</p>
                     <div className="announcement-footer">
-                      <small>Posted: {new Date(announcement.published_at).toLocaleDateString()}</small>
+                     <small>Posted: {new Date(announcement.published_at || announcement.created_at).toLocaleDateString()}</small>
                     </div>
                   </div>
                 );

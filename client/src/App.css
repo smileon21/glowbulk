@@ -30,10 +30,6 @@ input.glow-input {
   -webkit-text-fill-color: #14141f !important;
 }
 
-.glow-input::placeholder {
-  color: #999999 !important;
-  opacity: 1 !important;
-}
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -2118,4 +2114,22 @@ body {
     padding: 6px 14px;
     font-size: 12px;
   }
+}
+
+/* Security page */
+.security-page {
+  padding: 20px 0;
+  width: 100%;
+  max-width: 700px;
+}
+
+.security-page .sub-text {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.glow-input::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+  font-weight: 400;
 }
