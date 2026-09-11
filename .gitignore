@@ -21,4 +21,4 @@ src/upload/*
 Thumbs.db
 
 # Editor
-.vscode/
+.vscode/node_modules/ 
