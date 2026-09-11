@@ -46,9 +46,9 @@ const upload = multer({
 // Customer: Create order from accepted quotation
 router.post('/create', authenticate, [
   body('quotationId').isInt().withMessage('Quotation ID is required'),
-  body('purchaseOrderNumber').optional().isString(),
-  body('preferredDeliveryDate').optional().isString(),
-  body('preferredDeliveryTime').optional().isString()
+  body('purchaseOrderNumber').optional({ nullable: true }).isString(),
+  body('preferredDeliveryDate').optional({ nullable: true }).isString(),
+  body('preferredDeliveryTime').optional({ nullable: true }).isString()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -285,13 +285,13 @@ router.get('/my-orders', authenticate, async (req, res) => {
 
 // Customer: Update delivery details
 router.put('/:orderId/delivery', authenticate, [
-  body('delivery_address').optional().isString(),
-  body('delivery_city').optional().isString(),
-  body('delivery_state').optional().isString(),
-  body('delivery_country').optional().isString(),
-  body('delivery_postal_code').optional().isString(),
-  body('preferred_delivery_date').optional().isString(),
-  body('preferred_delivery_time').optional().isString()
+  body('delivery_address').optional({ nullable: true }).isString(),
+  body('delivery_city').optional({ nullable: true }).isString(),
+  body('delivery_state').optional({ nullable: true }).isString(),
+  body('delivery_country').optional({ nullable: true }).isString(),
+  body('delivery_postal_code').optional({ nullable: true }).isString(),
+  body('preferred_delivery_date').optional({ nullable: true }).isString(),
+  body('preferred_delivery_time').optional({ nullable: true }).isString()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -411,7 +411,7 @@ router.get('/:id', authenticate, async (req, res) => {
 // Marketing/Admin: Update order status
 router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
   body('status').isIn(['pending_payment', 'payment_confirmed', 'processing', 'completed', 'cancelled']).withMessage('Invalid status'),
-  body('notes').optional().isString()
+  body('notes').optional({ nullable: true }).isString()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -458,7 +458,7 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
 
 // Marketing/Admin: Confirm payment
 router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing'), [
-  body('notes').optional().isString()
+  body('notes').optional({ nullable: true }).isString()
 ], async (req, res) => {
   try {
     const order = await getOrderById(req.params.id);
