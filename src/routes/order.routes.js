@@ -3,8 +3,6 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const {
   createOrderFromQuotation,
   getOrderById,
@@ -22,6 +20,7 @@ const {
 const { getCustomerByUserId, getCustomerById } = require('../models/customer.model');
 const { getQuotationById } = require('../models/quotation.model');
 const { updateFuelRequestStatus } = require('../models/fuelRequest.model');
+const { uploadToSupabase } = require('../utils/supabaseUpload');
 const {
   sendNewOrderEmailToAdmin,
   sendOrderConfirmationEmailToCustomer,
@@ -30,53 +29,11 @@ const {
   sendOrderCompletedEmailToCustomer
 } = require('../utils/email');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = 'uploads/purchase-orders/';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'PO-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Use memory storage — we'll send the file to Supabase from the buffer
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF, JPG, JPEG, and PNG files are allowed'));
-    }
-  }
-});
-
-// Configure multer for payment proof uploads
-const proofStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = 'uploads/payment-proofs/';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'PROOF-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const proofUpload = multer({
-  storage: proofStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
+  fileFilter: function(req, file, cb) {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -163,7 +120,6 @@ router.post('/create', authenticate, [
       await updateFuelRequestStatus(quotation.fuel_request_id, 'ordered');
     }
 
-    // Notify admins + customer about new order
     try {
       await sendNewOrderEmailToAdmin(order, customer);
       await sendOrderConfirmationEmailToCustomer(order, customer);
@@ -185,7 +141,7 @@ router.post('/create', authenticate, [
   }
 });
 
-// Customer: Upload Purchase Order file
+// Customer: Upload Purchase Order file to Supabase
 router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -212,8 +168,15 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
       });
     }
 
-    const filePath = '/uploads/purchase-orders/' + req.file.filename;
-    const updatedOrder = await addPurchaseOrderFile(orderId, req.file.filename, filePath);
+    // Upload to Supabase Storage
+    const { url, filename } = await uploadToSupabase(
+      req.file.buffer,
+      req.file.originalname,
+      'purchase-orders',
+      req.file.mimetype
+    );
+
+    const updatedOrder = await addPurchaseOrderFile(orderId, filename, url);
 
     res.json({
       success: true,
@@ -231,8 +194,8 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
   }
 });
 
-// Customer: Upload Payment Proof
-router.post('/upload-proof/:orderId', authenticate, proofUpload.single('proofFile'), async (req, res) => {
+// Customer: Upload Payment Proof to Supabase
+router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -258,10 +221,16 @@ router.post('/upload-proof/:orderId', authenticate, proofUpload.single('proofFil
       });
     }
 
-    const filePath = '/uploads/payment-proofs/' + req.file.filename;
-    const updatedOrder = await addPaymentProof(orderId, req.file.filename, filePath);
+    // Upload to Supabase Storage
+    const { url, filename } = await uploadToSupabase(
+      req.file.buffer,
+      req.file.originalname,
+      'payment-proofs',
+      req.file.mimetype
+    );
 
-    // Notify admins that payment proof was uploaded
+    const updatedOrder = await addPaymentProof(orderId, filename, url);
+
     try {
       const customer = await getCustomerById(order.customer_id);
       if (customer) {
@@ -461,7 +430,6 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
       });
     }
 
-    // If order was completed, notify the customer
     if (req.body.status === 'completed') {
       try {
         const customer = await getCustomerById(order.customer_id);
@@ -508,7 +476,6 @@ router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing')
       req.body.notes || 'Payment confirmed by ' + req.user.first_name + ' ' + req.user.last_name
     );
 
-    // Notify customer that payment was confirmed
     try {
       const customer = await getCustomerById(order.customer_id);
       if (customer) {

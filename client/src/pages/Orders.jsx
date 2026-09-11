@@ -287,6 +287,74 @@ const Orders = () => {
                 </div>
               )}
 
+              {/* Purchase Order File - Supabase URL */}
+              {selectedOrder.purchase_order_path && (
+                <div className="modal-detail-item modal-detail-notes">
+                  <span className="detail-label">Purchase Order File</span>
+                  <div style={{ marginTop: '8px' }}>
+                    {selectedOrder.purchase_order_path.toLowerCase().endsWith('.pdf') ? (
+                      <a 
+                        href={selectedOrder.purchase_order_path} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="glow-btn-small"
+                        style={{ display: 'inline-block', textDecoration: 'none' }}
+                      >
+                        View PDF
+                      </a>
+                    ) : (
+                      <img 
+                        src={selectedOrder.purchase_order_path} 
+                        alt="Purchase Order" 
+                        style={{ 
+                          maxWidth: '250px', 
+                          maxHeight: '250px', 
+                          cursor: 'pointer', 
+                          borderRadius: '6px', 
+                          border: '2px solid #e3dfd2',
+                          display: 'block'
+                        }}
+                        onClick={function() { window.open(selectedOrder.purchase_order_path, '_blank'); }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Proof File - Supabase URL */}
+              {selectedOrder.payment_proof_path && (
+                <div className="modal-detail-item modal-detail-notes">
+                  <span className="detail-label">Payment Proof</span>
+                  <div style={{ marginTop: '8px' }}>
+                    {selectedOrder.payment_proof_path.toLowerCase().endsWith('.pdf') ? (
+                      <a 
+                        href={selectedOrder.payment_proof_path} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="glow-btn-small"
+                        style={{ display: 'inline-block', textDecoration: 'none' }}
+                      >
+                        View PDF
+                      </a>
+                    ) : (
+                      <img 
+                        src={selectedOrder.payment_proof_path} 
+                        alt="Payment Proof" 
+                        style={{ 
+                          maxWidth: '250px', 
+                          maxHeight: '250px', 
+                          cursor: 'pointer', 
+                          borderRadius: '6px', 
+                          border: '2px solid #e3dfd2',
+                          display: 'block'
+                        }}
+                        onClick={function() { window.open(selectedOrder.payment_proof_path, '_blank'); }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="modal-detail-item">
                 <span className="detail-label">Status</span>
                 <span className="detail-value">{selectedOrder.status}</span>
