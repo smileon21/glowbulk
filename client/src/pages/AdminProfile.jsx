@@ -105,21 +105,18 @@ const AdminProfile = () => {
     <div className="admin-profile-container">
       <div className="page-header">
         <h2>Admin Profile</h2>
-      </div>
-      <p className="sub-text">System Administration Dashboard</p>
-
-      {message && <div className="success-message">{message}</div>}
-      {error && <div className="error-message">{error}</div>}
-
-      <div className="export-section">
         <button 
-          className="glow-btn export-btn" 
+          className="glow-btn" 
           onClick={exportMonthlyOrdersReport}
           disabled={exporting}
         >
           {exporting ? 'Exporting...' : 'Export Orders Report'}
         </button>
       </div>
+      <p className="sub-text">System Administration Dashboard</p>
+
+      {message && <div className="success-message">{message}</div>}
+      {error && <div className="error-message">{error}</div>}
 
       <div className="admin-info glow-card">
         <h3>Your Account</h3>

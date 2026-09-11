@@ -19,6 +19,7 @@ import Quotations from './pages/Quotations';
 import Orders from './pages/Orders';
 import CreateOrder from './pages/CreateOrder';
 import Announcements from './pages/Announcements';
+import Security from './pages/Security';
 
 import './App.css';
 
@@ -82,6 +83,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/announcements', label: 'News & Updates' },
     { to: '/profile', label: 'Profile' },
+    { to: '/security', label: 'Security' },
     { to: '/fuel-requests', label: 'Fuel Requests' },
     { to: '/quotations', label: 'Quotations' },
     { to: '/orders', label: 'Orders' },
@@ -251,6 +253,7 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/announcements" element={<Announcements />} />
                 <Route path="/profile" element={<ProfileRoute />} />
+                <Route path="/security" element={<Security />} />
                 <Route path="/fuel-requests" element={<FuelRequests />} />
                 <Route path="/quotations" element={<Quotations />} />
                 <Route path="/orders" element={<Orders />} />

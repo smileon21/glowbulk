@@ -145,17 +145,14 @@ const Orders = () => {
       <div className="page-header">
         <h2>Orders</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
-          {isStaff && (
-            <button className="glow-btn glow-btn-secondary" onClick={function() { navigate('/pending-payments'); }}>
-              View Pending Payments
+          {!isStaff && (
+            <button 
+              className="glow-btn" 
+              onClick={function() { navigate('/create-order'); }}
+            >
+              + Create Order
             </button>
           )}
-          <button 
-            className="glow-btn" 
-            onClick={function() { navigate('/create-order'); }}
-          >
-            + Create Order
-          </button>
         </div>
       </div>
 
