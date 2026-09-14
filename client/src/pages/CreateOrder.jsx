@@ -244,65 +244,6 @@ const CreateOrder = () => {
 
         <div className="form-section">
           <h3>Delivery Information</h3>
-          <div className="form-group">
-            <label className="glow-label">Delivery Address</label>
-            <input
-              type="text"
-              name="delivery_address"
-              className="glow-input"
-              placeholder="Street address"
-              value={orderData.delivery_address}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="glow-label">City</label>
-              <input
-                type="text"
-                name="delivery_city"
-                className="glow-input"
-                placeholder="City"
-                value={orderData.delivery_city}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label className="glow-label">Province/State</label>
-              <input
-                type="text"
-                name="delivery_state"
-                className="glow-input"
-                placeholder="Province/State"
-                value={orderData.delivery_state}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="glow-label">Country</label>
-              <input
-                type="text"
-                name="delivery_country"
-                className="glow-input"
-                placeholder="Country"
-                value={orderData.delivery_country}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label className="glow-label">Postal Code</label>
-              <input
-                type="text"
-                name="delivery_postal_code"
-                className="glow-input"
-                placeholder="Postal Code"
-                value={orderData.delivery_postal_code}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
           <div className="form-row">
             <div className="form-group">
               <label className="glow-label">Preferred Delivery Date</label>

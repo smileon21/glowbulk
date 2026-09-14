@@ -7,7 +7,6 @@ import AdminManagement from '../components/AdminManagement';
 const AdminProfile = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [admins, setAdmins] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -35,14 +34,6 @@ const AdminProfile = () => {
       const userResponse = await axios.get(API_BASE_URL + '/api/auth/me', config);
       if (userResponse.data.success) {
         setUser(userResponse.data.data);
-      }
-      
-      const usersResponse = await axios.get(API_BASE_URL + '/api/auth/users', config);
-      if (usersResponse.data.success) {
-        const adminUsers = usersResponse.data.data.filter(function(u) {
-          return u.role === 'admin';
-        });
-        setAdmins(adminUsers);
       }
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -145,78 +136,6 @@ const AdminProfile = () => {
       <TwoFactorSettings initialEnabled={user?.two_factor_enabled} />
 
       <AdminManagement />
-
-      <div className="admin-stats-grid">
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3>Total Admins</h3>
-            <span className="ticket-tag">ADM</span>
-          </div>
-          <div className="stat-card-body">
-            <div className="stat-detail-item">
-              <span className="detail-label">Count</span>
-              <span className="detail-value">{admins.length}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3>System Admins</h3>
-            <span className="ticket-tag">SYS</span>
-          </div>
-          <div className="stat-card-body">
-            <div className="stat-detail-item">
-              <span className="detail-label">Count</span>
-              <span className="detail-value">{admins.filter(function(u) { return u.role === 'admin'; }).length}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-users">
-        <h3>System Administrators</h3>
-        <div className="users-table-container glow-card">
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Joined</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {admins.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="no-data">No admin users found</td>
-                </tr>
-              ) : (
-                admins.map(function(admin) {
-                  return (
-                    <tr key={admin.id}>
-                      <td>{admin.first_name} {admin.last_name}</td>
-                      <td>{admin.email}</td>
-                      <td>
-                        <span className="role-badge admin">
-                          {admin.role}
-                        </span>
-                      </td>
-                      <td>{new Date(admin.created_at).toLocaleDateString()}</td>
-                      <td>
-                        <span className={'status-badge ' + (admin.is_active ? 'active' : 'inactive')}>
-                          {admin.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 };
