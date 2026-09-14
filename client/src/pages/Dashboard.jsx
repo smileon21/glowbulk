@@ -47,8 +47,16 @@ const Dashboard = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await axios.get(API_BASE_URL + '/api/customers/profile/me');
-      setUser(response.data.data);
+      // Try to fetch customer profile — only customers have one.
+      // Admins/marketing will get a 404 here, which we safely ignore.
+      try {
+        const response = await axios.get(API_BASE_URL + '/api/customers/profile/me');
+        setUser(response.data.data);
+      } catch (profileError) {
+        if (profileError.response && profileError.response.status !== 404) {
+          console.error('Error fetching profile:', profileError);
+        }
+      }
 
       if (userRole === 'customer') {
         const requests = await axios.get(API_BASE_URL + '/api/fuel-requests/my-requests');
@@ -118,7 +126,7 @@ const Dashboard = () => {
                     </div>
                     <p>{announcement.content}</p>
                     <div className="announcement-footer">
-                     <small>Posted: {new Date(announcement.published_at || announcement.created_at).toLocaleDateString()}</small>
+                      <small>Posted: {new Date(announcement.published_at || announcement.created_at).toLocaleDateString()}</small>
                     </div>
                   </div>
                 );
