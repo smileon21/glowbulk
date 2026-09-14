@@ -708,20 +708,7 @@ router.get('/users', authenticate, authorize('admin'), async (req, res) => {
 
     const result = await pool.query(query);
 
-    const formattedUsers = result.rows.map(user => ({
-      id: user.id,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      name: `${user.first_name} ${user.last_name}`,
-      email: user.email,
-      role: user.role,
-      phone: user.phone,
-      isActive: user.is_active,
-      lastLogin: user.last_login,
-      createdAt: user.created_at
-    }));
-
-    return res.json({ success: true, data: formattedUsers });
+    return res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('ERROR FETCHING USERS:', error);
     return res.status(500).json({ success: false, message: 'Error fetching users' });
