@@ -266,9 +266,6 @@ const Dashboard = () => {
               <span className="detail-value">{stats.totalCustomers}</span>
             </div>
           </div>
-          <div className="stat-card-footer">
-            <button className="stat-btn">View All →</button>
-          </div>
         </div>
 
         <div className="stat-card">
