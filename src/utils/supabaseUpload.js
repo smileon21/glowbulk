@@ -27,16 +27,6 @@ const uploadToSupabase = async function(fileBuffer, originalName, folder, mimety
   const random = Math.round(Math.random() * 1e9);
   const filename = safeFolder + '/' + timestamp + '-' + random + '.' + ext;
 
-  console.log('Supabase upload debug:', {
-    bucket: BUCKET,
-    folder: safeFolder,
-    originalName: originalName,
-    finalFilename: filename,
-    mimetype: mimetype,
-    bufferSize: fileBuffer.length,
-    url: process.env.SUPABASE_URL
-  });
-
   // Upload to Supabase Storage
   const { data, error } = await supabase.storage
     .from(BUCKET)
