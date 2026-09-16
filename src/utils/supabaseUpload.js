@@ -6,11 +6,36 @@ const BUCKET = process.env.SUPABASE_BUCKET || 'glowbulk-files';
  * Upload a file buffer to Supabase Storage
  */
 const uploadToSupabase = async function(fileBuffer, originalName, folder, mimetype) {
-  // Generate a unique filename
+  // Validate inputs
+  if (!fileBuffer || fileBuffer.length === 0) {
+    throw new Error('No file data provided');
+  }
+
+  if (!originalName) {
+    throw new Error('No filename provided');
+  }
+
+  // Safe folder — default to 'uploads' if missing, strip leading/trailing slashes
+  const safeFolder = (folder || 'uploads').replace(/^\/+|\/+$/g, '');
+
+  // Sanitize extension — remove dots and special chars
+  const rawExt = originalName.split('.').pop();
+  const ext = rawExt ? rawExt.replace(/[^a-zA-Z0-9]/g, '') : 'bin';
+
+  // Generate unique filename WITHOUT leading slash
   const timestamp = Date.now();
   const random = Math.round(Math.random() * 1e9);
-  const ext = originalName.split('.').pop();
-  const filename = folder + '/' + timestamp + '-' + random + '.' + ext;
+  const filename = safeFolder + '/' + timestamp + '-' + random + '.' + ext;
+
+  console.log('Supabase upload debug:', {
+    bucket: BUCKET,
+    folder: safeFolder,
+    originalName: originalName,
+    finalFilename: filename,
+    mimetype: mimetype,
+    bufferSize: fileBuffer.length,
+    url: process.env.SUPABASE_URL
+  });
 
   // Upload to Supabase Storage
   const { data, error } = await supabase.storage
