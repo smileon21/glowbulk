@@ -1,30 +1,41 @@
-const nodemailer = require('nodemailer');
 const { getAllAdminEmails } = require('../models/user.model');
 
-const FROM_EMAIL = process.env.EMAIL_FROM || 'GlowBulk <your-brevo-login@brevo.com>';
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const FROM_EMAIL_ADDRESS = process.env.EMAIL_FROM_ADDRESS || 'your-brevo-login@brevo.com';
+const FROM_NAME = process.env.EMAIL_FROM_NAME || 'GlowBulk';
 
 // =====================================================
-// BREVO SMTP TRANSPORTER
+// BREVO HTTP API SENDER (replaces SMTP — Render blocks SMTP ports)
 // =====================================================
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.BREVO_SMTP_USER,
-    pass: process.env.BREVO_SMTP_PASS
-  }
-});
+const sendEmail = async function({ to, subject, html }) {
+  const toList = Array.isArray(to)
+    ? to.map(function(email) { return { email: email }; })
+    : [{ email: to }];
 
-// Verify connection on startup (optional — remove if noisy)
-transporter.verify(function(error) {
-  if (error) {
-    console.error('Brevo SMTP connection error:', error);
-  } else {
-    console.log('Brevo SMTP ready to send emails');
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': BREVO_API_KEY,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: FROM_NAME, email: FROM_EMAIL_ADDRESS },
+      to: toList,
+      subject: subject,
+      htmlContent: html
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Brevo API error:', errText);
+    throw new Error('Failed to send email: ' + errText);
   }
-});
+
+  return response.json();
+};
 
 // =====================================================
 // HELPER — Get all active admin emails
@@ -51,8 +62,7 @@ const getAdminRecipients = async function() {
 // =====================================================
 
 const sendOtpEmail = async function(to, code) {
-  const mailOptions = {
-    from: FROM_EMAIL,
+  return sendEmail({
     to: to,
     subject: 'Your GlowBulk verification code',
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
@@ -61,9 +71,7 @@ const sendOtpEmail = async function(to, code) {
       '<p style="font-size: 32px; font-weight: bold; letter-spacing: 4px;">' + code + '</p>' +
       '<p>This code expires in 5 minutes. If you did not request this, you can ignore this email.</p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -71,8 +79,7 @@ const sendOtpEmail = async function(to, code) {
 // =====================================================
 
 const sendPasswordResetEmail = async function(to, resetLink) {
-  const mailOptions = {
-    from: FROM_EMAIL,
+  return sendEmail({
     to: to,
     subject: 'Reset your GlowBulk password',
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
@@ -83,9 +90,7 @@ const sendPasswordResetEmail = async function(to, resetLink) {
       '<p>If you did not request this, you can ignore this email.</p>' +
       '<p style="color: #6b7280; font-size: 12px;">This link expires in 1 hour.</p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -107,9 +112,8 @@ const sendNewFuelRequestEmailToAdmin = async function(request, customer) {
     return;
   }
 
-  const mailOptions = {
-    from: FROM_EMAIL,
-    to: adminEmails.join(', '),
+  return sendEmail({
+    to: adminEmails,
     subject: 'New Fuel Request - ' + request.fuel_type,
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
       '<h2 style="color: #CC0000;">New Fuel Request Received</h2>' +
@@ -121,9 +125,7 @@ const sendNewFuelRequestEmailToAdmin = async function(request, customer) {
       '<p><strong>Delivery Address:</strong> ' + (request.delivery_address || 'Not specified') + '</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/fuel-requests" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">Review Request</a></p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -131,8 +133,7 @@ const sendNewFuelRequestEmailToAdmin = async function(request, customer) {
 // =====================================================
 
 const sendQuotationEmailToCustomer = async function(quotation, customer) {
-  const mailOptions = {
-    from: FROM_EMAIL,
+  return sendEmail({
     to: customer.contact_person_email || customer.email,
     subject: 'New Quotation ' + quotation.quotation_number + ' - GlowBulk',
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
@@ -152,9 +153,7 @@ const sendQuotationEmailToCustomer = async function(quotation, customer) {
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/quotations" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View & Accept Quotation</a></p>' +
       '<p style="color: #6b7280; font-size: 12px;">Log in to your GlowBulk account to accept or reject this quotation.</p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -168,9 +167,8 @@ const sendQuotationResponseEmailToAdmin = async function(quotation, customer, ac
     return;
   }
 
-  const mailOptions = {
-    from: FROM_EMAIL,
-    to: adminEmails.join(', '),
+  return sendEmail({
+    to: adminEmails,
     subject: 'Quotation ' + quotation.quotation_number + ' has been ' + (accepted ? 'ACCEPTED' : 'REJECTED'),
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
       '<h2 style="color: ' + (accepted ? '#2f7a3f' : '#CC0000') + ';">Quotation ' + (accepted ? 'Accepted' : 'Rejected') + '</h2>' +
@@ -180,9 +178,7 @@ const sendQuotationResponseEmailToAdmin = async function(quotation, customer, ac
       '<p><strong>Grand Total:</strong> $' + parseFloat(quotation.grand_total).toFixed(2) + '</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/quotations" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View in Dashboard</a></p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -196,9 +192,8 @@ const sendNewOrderEmailToAdmin = async function(order, customer) {
     return;
   }
 
-  const mailOptions = {
-    from: FROM_EMAIL,
-    to: adminEmails.join(', '),
+  return sendEmail({
+    to: adminEmails,
     subject: 'New Order ' + order.order_number + ' - GlowBulk',
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
       '<h2 style="color: #CC0000;">New Order Created</h2>' +
@@ -210,9 +205,7 @@ const sendNewOrderEmailToAdmin = async function(order, customer) {
       '<p><strong>Status:</strong> ' + order.status + '</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View Order</a></p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -220,8 +213,7 @@ const sendNewOrderEmailToAdmin = async function(order, customer) {
 // =====================================================
 
 const sendOrderConfirmationEmailToCustomer = async function(order, customer) {
-  const mailOptions = {
-    from: FROM_EMAIL,
+  return sendEmail({
     to: customer.contact_person_email || customer.email,
     subject: 'Order ' + order.order_number + ' Confirmed - GlowBulk',
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
@@ -238,9 +230,7 @@ const sendOrderConfirmationEmailToCustomer = async function(order, customer) {
       '<ol><li>Make payment via your usual company channel</li><li>Upload proof of payment in your GlowBulk account</li><li>Wait for our team to verify your payment</li></ol>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View Order & Upload Proof</a></p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -254,9 +244,8 @@ const sendPaymentProofEmailToAdmin = async function(order, customer) {
     return;
   }
 
-  const mailOptions = {
-    from: FROM_EMAIL,
-    to: adminEmails.join(', '),
+  return sendEmail({
+    to: adminEmails,
     subject: 'Payment Proof Uploaded - ' + order.order_number,
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
       '<h2 style="color: #E8A33D;">Payment Proof Uploaded</h2>' +
@@ -266,9 +255,7 @@ const sendPaymentProofEmailToAdmin = async function(order, customer) {
       '<p>A customer has uploaded proof of payment. Please verify the payment in your company records and confirm it in the system.</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">Verify Payment</a></p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -276,8 +263,7 @@ const sendPaymentProofEmailToAdmin = async function(order, customer) {
 // =====================================================
 
 const sendPaymentConfirmedEmailToCustomer = async function(order, customer) {
-  const mailOptions = {
-    from: FROM_EMAIL,
+  return sendEmail({
     to: customer.contact_person_email || customer.email,
     subject: 'Payment Confirmed - Order ' + order.order_number,
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
@@ -290,9 +276,7 @@ const sendPaymentConfirmedEmailToCustomer = async function(order, customer) {
       '<p>We will notify you once your order is completed.</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View Order</a></p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 // =====================================================
@@ -300,8 +284,7 @@ const sendPaymentConfirmedEmailToCustomer = async function(order, customer) {
 // =====================================================
 
 const sendOrderCompletedEmailToCustomer = async function(order, customer) {
-  const mailOptions = {
-    from: FROM_EMAIL,
+  return sendEmail({
     to: customer.contact_person_email || customer.email,
     subject: 'Order Completed - ' + order.order_number,
     html: '<div style="font-family: sans-serif; padding: 20px;">' +
@@ -314,9 +297,7 @@ const sendOrderCompletedEmailToCustomer = async function(order, customer) {
       '<p>We hope to serve you again soon.</p>' +
       '<p style="margin-top: 20px;"><em>GlowBulk - We Go Further...</em></p>' +
       '</div>'
-  };
-
-  return transporter.sendMail(mailOptions);
+  });
 };
 
 module.exports = {
