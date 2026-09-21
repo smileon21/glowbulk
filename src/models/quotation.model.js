@@ -11,8 +11,6 @@ const createQuotation = async (quotationData) => {
     unit,
     unitPrice,
     totalAmount, // Subtotal
-    taxRate = 0,
-    taxAmount = 0,
     grandTotal,
     validUntil,
     deliveryTerms,
@@ -34,10 +32,12 @@ const createQuotation = async (quotationData) => {
     RETURNING *
   `;
 
+  // tax_rate and tax_amount are hardcoded to 0 — columns kept for DB compatibility.
+  // Tax feature has been removed from the app; these columns stay dormant.
   const values = [
     fuelRequestId, customerId, quotationNumber,
     fuelType, quantity, unit,
-    unitPrice, totalAmount, taxRate, taxAmount, grandTotal,
+    unitPrice, totalAmount, 0, 0, grandTotal,
     validUntil, deliveryTerms, paymentTerms,
     createdBy, notes, status
   ];
@@ -105,8 +105,6 @@ const updateQuotation = async (id, quotationData) => {
   const {
     unitPrice,
     totalAmount,
-    taxRate,
-    taxAmount,
     grandTotal,
     validUntil,
     deliveryTerms,
@@ -119,20 +117,20 @@ const updateQuotation = async (id, quotationData) => {
     SET 
       unit_price = $1,
       total_amount = $2,
-      tax_rate = $3,
-      tax_amount = $4,
-      grand_total = $5,
-      valid_until = $6,
-      delivery_terms = $7,
-      payment_terms = $8,
-      notes = $9,
+      tax_rate = 0,
+      tax_amount = 0,
+      grand_total = $3,
+      valid_until = $4,
+      delivery_terms = $5,
+      payment_terms = $6,
+      notes = $7,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $10
+    WHERE id = $8
     RETURNING *
   `;
 
   const values = [
-    unitPrice, totalAmount, taxRate, taxAmount, grandTotal,
+    unitPrice, totalAmount, grandTotal,
     validUntil, deliveryTerms, paymentTerms, notes,
     id
   ];

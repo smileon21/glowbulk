@@ -20,6 +20,7 @@ import Orders from './pages/Orders';
 import CreateOrder from './pages/CreateOrder';
 import Announcements from './pages/Announcements';
 import Security from './pages/Security';
+import UploadProof from './pages/UploadProof';
 
 import './App.css';
 
@@ -301,6 +302,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="/upload-proof/:orderId" element={<UploadProof />} />
             </Routes>
           </main>
 

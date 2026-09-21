@@ -244,10 +244,7 @@ const Orders = () => {
                 <span className="detail-label">Total Amount</span>
                 <span className="detail-value">{formatCurrency(selectedOrder.total_amount)}</span>
               </div>
-              <div className="modal-detail-item">
-                <span className="detail-label">Tax Amount</span>
-                <span className="detail-value">{formatCurrency(selectedOrder.tax_amount)}</span>
-              </div>
+             
               <div className="modal-detail-item modal-detail-highlight">
                 <span className="detail-label">Grand Total</span>
                 <span className="detail-value">{formatCurrency(selectedOrder.grand_total)}</span>

@@ -16,7 +16,6 @@ const Quotations = () => {
   const [formData, setFormData] = useState({
     fuelRequestId: '',
     unitPrice: '',
-    taxRate: '15',
     validUntil: '',
     deliveryTerms: '',
     paymentTerms: '',
@@ -74,11 +73,9 @@ const Quotations = () => {
 
   var quantity = selectedFuelRequest ? parseFloat(selectedFuelRequest.quantity) || 0 : 0;
   var unitPrice = parseFloat(formData.unitPrice) || 0;
-  var taxRate = parseFloat(formData.taxRate) || 0;
 
   var subtotal = quantity * unitPrice;
-  var taxAmount = (subtotal * taxRate) / 100;
-  var grandTotal = subtotal + taxAmount;
+  var grandTotal = subtotal;
 
   const handleSubmit = async function(e) {
     e.preventDefault();
@@ -93,7 +90,7 @@ const Quotations = () => {
       var payload = {
         ...formData,
         subtotal: subtotal.toFixed(2),
-        taxAmount: taxAmount.toFixed(2),
+        taxAmount: '0.00',
         grandTotal: grandTotal.toFixed(2)
       };
 
@@ -106,7 +103,6 @@ const Quotations = () => {
         setFormData({
           fuelRequestId: '',
           unitPrice: '',
-          taxRate: '15',
           validUntil: '',
           deliveryTerms: '',
           paymentTerms: '',
@@ -258,21 +254,6 @@ const Quotations = () => {
               </div>
 
               <div className="form-group">
-                <label className="glow-label">Tax Rate (%) *</label>
-                <input
-                  type="number"
-                  name="taxRate"
-                  className="glow-input"
-                  value={formData.taxRate}
-                  onChange={handleChange}
-                  required
-                  placeholder="e.g., 15"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-
-              <div className="form-group">
                 <label className="glow-label">Valid Until *</label>
                 <input
                   type="date"
@@ -287,7 +268,6 @@ const Quotations = () => {
 
             <div className="calculation-summary">
               <p><strong>Subtotal:</strong> ${subtotal.toFixed(2)} ({quantity} units @ ${unitPrice || 0}/unit)</p>
-              <p><strong>Tax ({taxRate}%):</strong> ${taxAmount.toFixed(2)}</p>
               <p className="grand-total-line">
                 <strong>Grand Total:</strong> ${grandTotal.toFixed(2)}
               </p>
@@ -419,14 +399,6 @@ const Quotations = () => {
               <div className="modal-detail-item">
                 <span className="detail-label">Unit Price</span>
                 <span className="detail-value">{formatCurrency(selectedQuote.unit_price)}</span>
-              </div>
-              <div className="modal-detail-item">
-                <span className="detail-label">Subtotal</span>
-                <span className="detail-value">{formatCurrency(selectedQuote.subtotal || selectedQuote.total_amount)}</span>
-              </div>
-              <div className="modal-detail-item">
-                <span className="detail-label">Tax</span>
-                <span className="detail-value">{formatCurrency(selectedQuote.tax_amount || selectedQuote.tax)}</span>
               </div>
               <div className="modal-detail-item modal-detail-highlight">
                 <span className="detail-label">Grand Total</span>

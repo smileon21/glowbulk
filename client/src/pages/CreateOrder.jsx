@@ -194,8 +194,7 @@ const CreateOrder = () => {
   }
 
   var total = safeParseNumber(quotation?.total_amount || quotation?.total);
-  var tax = safeParseNumber(quotation?.tax_amount || quotation?.tax);
-  var grandTotal = safeParseNumber(quotation?.grand_total || (total + tax));
+  var grandTotal = safeParseNumber(quotation?.grand_total || total);
   var unitPrice = safeParseNumber(quotation?.unit_price);
   var quantity = safeParseNumber(quotation?.quantity);
 
@@ -227,43 +226,9 @@ const CreateOrder = () => {
               <span className="label">Unit Price</span>
               <span className="value">${unitPrice.toFixed(2)}</span>
             </div>
-            <div className="info-item">
-              <span className="label">Subtotal</span>
-              <span className="value">${total.toFixed(2)}</span>
-            </div>
-            <div className="info-item">
-              <span className="label">Tax</span>
-              <span className="value">${tax.toFixed(2)}</span>
-            </div>
             <div className="info-item highlight">
               <span className="label">Grand Total</span>
               <span className="value grand-total">${grandTotal.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3>Delivery Information</h3>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="glow-label">Preferred Delivery Date</label>
-              <input
-                type="date"
-                name="preferredDeliveryDate"
-                className="glow-input"
-                value={orderData.preferredDeliveryDate}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label className="glow-label">Preferred Delivery Time</label>
-              <input
-                type="time"
-                name="preferredDeliveryTime"
-                className="glow-input"
-                value={orderData.preferredDeliveryTime}
-                onChange={handleChange}
-              />
             </div>
           </div>
         </div>
