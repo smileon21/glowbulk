@@ -61,6 +61,8 @@ const createOrderFromQuotation = async (quotationId, userId, orderData = {}) => 
     RETURNING *
   `;
   
+  // tax_amount is hardcoded to 0 — column kept for DB compatibility.
+  // Tax feature has been removed from the app; this column stays dormant.
   const values = [
     quotationId, 
     quotation.customer_id, 
@@ -71,7 +73,7 @@ const createOrderFromQuotation = async (quotationId, userId, orderData = {}) => 
     quotation.unit || 'L',
     quotation.unit_price,
     quotation.total_amount || quotation.total,
-    quotation.tax_amount || quotation.tax || 0,
+    0, // tax_amount — tax removed
     quotation.grand_total,
     orderData.delivery_address || quotation.delivery_address || quotation.deliveryAddress,
     orderData.delivery_city || quotation.delivery_city || quotation.deliveryCity,
