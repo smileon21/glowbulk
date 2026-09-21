@@ -276,6 +276,16 @@ function App() {
                     </RoleProtectedRoute>
                   }
                 />
+
+                <Route
+                  path="/upload-proof/:orderId"
+                  element={
+                    <RoleProtectedRoute allowedRoles={['customer']}>
+                      <UploadProof />
+                    </RoleProtectedRoute>
+                  }
+                />
+
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </main>
@@ -302,7 +312,6 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
-              <Route path="/upload-proof/:orderId" element={<UploadProof />} />
             </Routes>
           </main>
 
