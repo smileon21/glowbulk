@@ -8,6 +8,7 @@ const pool = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const stytchRoutes = require('./routes/stytch.routes');
 const customerRoutes = require('./routes/customer.routes');
 const fuelRequestRoutes = require('./routes/fuelRequest.routes');
 const quotationRoutes = require('./routes/quotation.routes');
@@ -36,17 +37,17 @@ app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    
+
     // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     }
-    
+
     // Allow any vercel.app subdomain
     if (origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
-    
+
     console.log('Blocked by CORS:', origin);
     return callback(new Error('Not allowed by CORS'));
   },
@@ -100,6 +101,10 @@ console.log('Registering auth routes...');
 app.use('/api/auth', authRoutes);
 console.log('Auth routes registered');
 
+console.log('Registering Stytch routes...');
+app.use('/api/stytch', stytchRoutes);
+console.log('Stytch routes registered');
+
 app.use('/api/customers', customerRoutes);
 app.use('/api/fuel-requests', fuelRequestRoutes);
 app.use('/api/quotations', quotationRoutes);
@@ -122,6 +127,7 @@ app.get('/', function(req, res) {
     endpoints: {
       test: '/api/test',
       auth: '/api/auth/register, /api/auth/login',
+      stytch: '/api/stytch/login, /api/stytch/authenticate',
       customers: '/api/customers',
       fuelRequests: '/api/fuel-requests',
       quotations: '/api/quotations',
