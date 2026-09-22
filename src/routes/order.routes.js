@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
+const { body, param, validationResult } = require('express-validator');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const multer = require('multer');
+
 const {
   createOrderFromQuotation,
   getOrderById,
@@ -17,6 +18,7 @@ const {
   getOrderByNumber,
   updateOrderDelivery
 } = require('../models/order.model');
+
 const { getCustomerByUserId, getCustomerById } = require('../models/customer.model');
 const { getQuotationById } = require('../models/quotation.model');
 const { updateFuelRequestStatus } = require('../models/fuelRequest.model');
@@ -29,10 +31,10 @@ const {
   sendOrderCompletedEmailToCustomer
 } = require('../utils/email');
 
-// Use memory storage — we'll send the file to Supabase from the buffer
+// Multer Config
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: function(req, file, cb) {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -43,22 +45,70 @@ const upload = multer({
   }
 });
 
+// Middleware for validation error handling
+const handleValidation = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+  next();
+};
+
+// =====================================================
+// 1. SPECIFIC NAMED ROUTES (MUST BE BEFORE PARAMS)
+// =====================================================
+
+// Customer: Get my orders
+router.get('/my-orders', authenticate, async (req, res) => {
+  try {
+    const customer = await getCustomerByUserId(req.user.id);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer profile not found' });
+    }
+
+    const orders = await getOrdersByCustomer(customer.id);
+    res.json({ success: true, count: orders.length, data: orders });
+  } catch (error) {
+    console.error('Error fetching customer orders:', error);
+    res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
+  }
+});
+
+// Admin/Marketing: Get all orders
+router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+  try {
+    const orders = await getAllOrders();
+    res.json({ success: true, count: orders.length, data: orders });
+  } catch (error) {
+    console.error('Error fetching all orders:', error);
+    res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
+  }
+});
+
+// Admin/Marketing: Get pending payment orders
+router.get('/pending-payment', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+  try {
+    const orders = await getPendingPaymentOrders();
+    res.json({ success: true, count: orders.length, data: orders });
+  } catch (error) {
+    console.error('Error fetching pending payments:', error);
+    res.status(500).json({ success: false, message: 'Error fetching pending payment orders', error: error.message });
+  }
+});
+
+// =====================================================
+// 2. CREATION & ACTION ENDPOINTS
+// =====================================================
+
 // Customer: Create order from accepted quotation
 router.post('/create', authenticate, [
   body('quotationId').isInt().withMessage('Quotation ID is required'),
   body('purchaseOrderNumber').optional({ nullable: true }).isString(),
   body('preferredDeliveryDate').optional({ nullable: true }).isString(),
-  body('preferredDeliveryTime').optional({ nullable: true }).isString()
+  body('preferredDeliveryTime').optional({ nullable: true }).isString(),
+  handleValidation
 ], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
     const {
       quotationId,
       purchaseOrderNumber,
@@ -74,44 +124,32 @@ router.post('/create', authenticate, [
 
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'Customer profile not found'
-      });
+      return res.status(404).json({ success: false, message: 'Customer profile not found' });
     }
 
     const quotation = await getQuotationById(quotationId);
     if (!quotation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quotation not found'
-      });
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
     }
 
     if (quotation.customer_id !== customer.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. This quotation does not belong to you.'
-      });
+      return res.status(403).json({ success: false, message: 'Access denied. Quotation does not belong to you.' });
     }
 
     if (quotation.status !== 'accepted') {
-      return res.status(400).json({
-        success: false,
-        message: 'Quotation must be accepted before creating an order'
-      });
+      return res.status(400).json({ success: false, message: 'Quotation must be accepted before creating an order' });
     }
 
     const orderData = {
-      delivery_address: delivery_address || quotation.delivery_address || quotation.deliveryAddress,
-      delivery_city: delivery_city || quotation.delivery_city || quotation.deliveryCity,
-      delivery_state: delivery_state || quotation.delivery_state || quotation.deliveryState,
-      delivery_country: delivery_country || quotation.delivery_country || quotation.deliveryCountry,
-      delivery_postal_code: delivery_postal_code || quotation.delivery_postal_code || quotation.deliveryPostalCode,
+      delivery_address: delivery_address || quotation.delivery_address,
+      delivery_city: delivery_city || quotation.delivery_city,
+      delivery_state: delivery_state || quotation.delivery_state,
+      delivery_country: delivery_country || quotation.delivery_country,
+      delivery_postal_code: delivery_postal_code || quotation.delivery_postal_code,
       preferred_delivery_date: preferredDeliveryDate,
       preferred_delivery_time: preferredDeliveryTime,
       purchase_order_number: purchaseOrderNumber,
-      notes: notes
+      notes
     };
 
     const order = await createOrderFromQuotation(quotationId, req.user.id, orderData);
@@ -127,48 +165,59 @@ router.post('/create', authenticate, [
       console.error('Order notification email failed:', emailError);
     }
 
-    res.status(201).json({
-      success: true,
-      message: 'Order created successfully',
-      data: order
-    });
+    res.status(201).json({ success: true, message: 'Order created successfully', data: order });
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Error creating order'
-    });
+    res.status(500).json({ success: false, message: error.message || 'Error creating order' });
   }
 });
 
-// Customer: Upload Purchase Order file to Supabase
+// =====================================================
+// 3. PARAMETERIZED ROUTES (GET BY ID & MODIFIERS)
+// =====================================================
+
+// Get single order by ID
+router.get('/:id', authenticate, [
+  param('id').isInt().withMessage('Invalid order ID'),
+  handleValidation
+], async (req, res) => {
+  try {
+    const order = await getOrderById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const customer = await getCustomerByUserId(req.user.id);
+    if (req.user.role === 'customer' && order.customer_id !== customer?.id) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    res.json({ success: true, data: order });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({ success: false, message: 'Error fetching order', error: error.message });
+  }
+});
+
+// Upload PO File
 router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
-      });
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
     const order = await getOrderById(orderId);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    if (order.created_by !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not authorized to upload files for this order'
-      });
+    const isStaff = ['admin', 'marketing'].includes(req.user.role);
+    if (order.created_by !== req.user.id && !isStaff) {
+      return res.status(403).json({ success: false, message: 'Unauthorized access to this order' });
     }
 
-    // Upload to Supabase Storage
     const { url, filename } = await uploadToSupabase(
       req.file.buffer,
       req.file.originalname,
@@ -177,51 +226,32 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
     );
 
     const updatedOrder = await addPurchaseOrderFile(orderId, filename, url);
-
-    res.json({
-      success: true,
-      message: 'Purchase Order uploaded successfully',
-      data: updatedOrder
-    });
-
+    res.json({ success: true, message: 'Purchase Order uploaded successfully', data: updatedOrder });
   } catch (error) {
     console.error('Error uploading PO:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error uploading purchase order',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error uploading purchase order', error: error.message });
   }
 });
 
-// Customer: Upload Payment Proof to Supabase
+// Upload Payment Proof
 router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
-      });
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
     const order = await getOrderById(orderId);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    if (order.created_by !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not authorized to upload files for this order'
-      });
+    const isStaff = ['admin', 'marketing'].includes(req.user.role);
+    if (order.created_by !== req.user.id && !isStaff) {
+      return res.status(403).json({ success: false, message: 'Unauthorized access to this order' });
     }
 
-    // Upload to Supabase Storage
     const { url, filename } = await uploadToSupabase(
       req.file.buffer,
       req.file.originalname,
@@ -240,194 +270,56 @@ router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), 
       console.error('Payment proof email failed:', emailError);
     }
 
-    res.json({
-      success: true,
-      message: 'Payment proof uploaded successfully',
-      data: updatedOrder
-    });
-
+    res.json({ success: true, message: 'Payment proof uploaded successfully', data: updatedOrder });
   } catch (error) {
     console.error('Error uploading payment proof:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error uploading payment proof',
-      error: error.message
-    });
-  }
-});
-
-// Customer: Get my orders
-router.get('/my-orders', authenticate, async (req, res) => {
-  try {
-    const customer = await getCustomerByUserId(req.user.id);
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'Customer profile not found'
-      });
-    }
-
-    const orders = await getOrdersByCustomer(customer.id);
-    res.json({
-      success: true,
-      count: orders.length,
-      data: orders
-    });
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching orders',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error uploading payment proof', error: error.message });
   }
 });
 
 // Customer: Update delivery details
 router.put('/:orderId/delivery', authenticate, [
+  param('orderId').isInt().withMessage('Invalid order ID'),
   body('delivery_address').optional({ nullable: true }).isString(),
   body('delivery_city').optional({ nullable: true }).isString(),
   body('delivery_state').optional({ nullable: true }).isString(),
   body('delivery_country').optional({ nullable: true }).isString(),
   body('delivery_postal_code').optional({ nullable: true }).isString(),
   body('preferred_delivery_date').optional({ nullable: true }).isString(),
-  body('preferred_delivery_time').optional({ nullable: true }).isString()
+  body('preferred_delivery_time').optional({ nullable: true }).isString(),
+  handleValidation
 ], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
     const { orderId } = req.params;
     const order = await getOrderById(orderId);
 
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
     if (order.created_by !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not authorized to update this order'
-      });
+      return res.status(403).json({ success: false, message: 'You are not authorized to update this order' });
     }
 
     const updatedOrder = await updateOrderDelivery(orderId, req.body);
-
-    res.json({
-      success: true,
-      message: 'Delivery details updated successfully',
-      data: updatedOrder
-    });
-
+    res.json({ success: true, message: 'Delivery details updated successfully', data: updatedOrder });
   } catch (error) {
     console.error('Error updating delivery details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating delivery details',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error updating delivery details', error: error.message });
   }
 });
 
-// Marketing/Admin: Get all orders
-router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, res) => {
-  try {
-    const orders = await getAllOrders();
-    res.json({
-      success: true,
-      count: orders.length,
-      data: orders
-    });
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching orders',
-      error: error.message
-    });
-  }
-});
-
-// Marketing/Admin: Get pending payment orders
-router.get('/pending-payment', authenticate, authorize('admin', 'marketing'), async (req, res) => {
-  try {
-    const orders = await getPendingPaymentOrders();
-    res.json({
-      success: true,
-      count: orders.length,
-      data: orders
-    });
-  } catch (error) {
-    console.error('Error fetching pending payments:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching pending payment orders',
-      error: error.message
-    });
-  }
-});
-
-// Get single order by ID
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const order = await getOrderById(req.params.id);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    const customer = await getCustomerByUserId(req.user.id);
-    if (req.user.role === 'customer' && order.customer_id !== customer?.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: order
-    });
-  } catch (error) {
-    console.error('Error fetching order:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching order',
-      error: error.message
-    });
-  }
-});
-
-// Marketing/Admin: Update order status
+// Admin/Marketing: Update order status
 router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
+  param('id').isInt().withMessage('Invalid order ID'),
   body('status').isIn(['pending_payment', 'payment_confirmed', 'processing', 'completed', 'cancelled']).withMessage('Invalid status'),
-  body('notes').optional({ nullable: true }).isString()
+  body('notes').optional({ nullable: true }).isString(),
+  handleValidation
 ], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
     const order = await updateOrderStatus(req.params.id, req.body.status, req.body.notes);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
     if (req.body.status === 'completed') {
@@ -441,39 +333,30 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
       }
     }
 
-    res.json({
-      success: true,
-      message: 'Order status updated',
-      data: order
-    });
+    res.json({ success: true, message: 'Order status updated', data: order });
   } catch (error) {
     console.error('Error updating order status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating order status',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error updating order status', error: error.message });
   }
 });
 
-// Marketing/Admin: Confirm payment
+// Admin/Marketing: Confirm payment
 router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing'), [
-  body('notes').optional({ nullable: true }).isString()
+  param('id').isInt().withMessage('Invalid order ID'),
+  body('notes').optional({ nullable: true }).isString(),
+  handleValidation
 ], async (req, res) => {
   try {
     const order = await getOrderById(req.params.id);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
     const updatedOrder = await updatePaymentStatus(
       req.params.id,
       'confirmed',
       req.user.id,
-      req.body.notes || 'Payment confirmed by ' + req.user.first_name + ' ' + req.user.last_name
+      req.body.notes || `Payment confirmed by ${req.user.first_name} ${req.user.last_name}`
     );
 
     try {
@@ -485,18 +368,10 @@ router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing')
       console.error('Payment confirmed email failed:', emailError);
     }
 
-    res.json({
-      success: true,
-      message: 'Payment confirmed successfully',
-      data: updatedOrder
-    });
+    res.json({ success: true, message: 'Payment confirmed successfully', data: updatedOrder });
   } catch (error) {
     console.error('Error confirming payment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error confirming payment',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error confirming payment', error: error.message });
   }
 });
 
