@@ -25,7 +25,7 @@ router.post('/login', async function(req, res) {
     console.log(`[Stytch] Redirect URL: ${BACKEND_URL}/api/stytch/authenticate`);
 
     const response = await stytchClient.magicLinks.email.loginOrCreate({
-      email: email,
+      email: email.toLowerCase().trim(),
       login_magic_link_url: `${BACKEND_URL}/api/stytch/authenticate`,
       signup_magic_link_url: `${BACKEND_URL}/api/stytch/authenticate`,
     });
@@ -40,7 +40,6 @@ router.post('/login', async function(req, res) {
   } catch (error) {
     console.error('[Stytch] Login error:', error);
 
-    // Stytch errors often have a `error_type` and `error_message`
     const message = error.error_message || error.message || 'Failed to send magic link';
 
     res.status(500).json({
@@ -55,7 +54,7 @@ router.post('/login', async function(req, res) {
 // GET /api/stytch/authenticate
 // User lands here after clicking the magic link.
 // Validates the token, upserts the user, and redirects
-// to the frontend with the session JWT.
+// to the frontend with the session JWT/Token.
 // =====================================================
 router.get('/authenticate', async function(req, res) {
   try {
@@ -65,7 +64,7 @@ router.get('/authenticate', async function(req, res) {
 
     if (!token) {
       console.error('[Stytch] Missing token in query params');
-      return res.status(400).send('Missing token');
+      return res.status(400).redirect(`${FRONTEND_URL}/login?error=missing_token`);
     }
 
     const response = await stytchClient.magicLinks.authenticate({
@@ -75,33 +74,37 @@ router.get('/authenticate', async function(req, res) {
 
     const stytchUserId = response.user_id;
 
-    // Stytch returns emails as objects with `email` (and sometimes `email_address`)
+    // Safely parse the primary email address
     const emailObj = response.user.emails && response.user.emails[0];
-    const email = emailObj ? (emailObj.email || emailObj.email_address) : null;
+    const rawEmail = emailObj ? (emailObj.email || emailObj.email_address) : null;
+    const email = rawEmail ? rawEmail.toLowerCase().trim() : null;
 
     console.log(`[Stytch] Authenticated user_id: ${stytchUserId}, email: ${email}`);
 
     if (!email) {
       console.error('[Stytch] No email found on user object');
-      return res.status(500).send('Authentication failed: no email returned from Stytch');
+      return res.redirect(`${FRONTEND_URL}/login?error=no_email_returned`);
     }
 
-    // Upsert user into PostgreSQL
+    // Robust Upsert: Handles unique constraint on either `stytch_user_id` OR `email`
     await pool.query(
       `INSERT INTO users (stytch_user_id, email, created_at)
        VALUES ($1, $2, NOW())
-       ON CONFLICT (stytch_user_id) DO UPDATE SET email = EXCLUDED.email`,
+       ON CONFLICT (email) 
+       DO UPDATE SET stytch_user_id = EXCLUDED.stytch_user_id`,
       [stytchUserId, email]
     );
 
     console.log(`[Stytch] User upserted in DB. Redirecting to frontend...`);
 
-    const sessionJwt = response.session_jwt;
-    res.redirect(`${FRONTEND_URL}/auth/callback?session_jwt=${sessionJwt}`);
+    // Fallback to session_token if session_jwt is not generated
+    const sessionToken = response.session_jwt || response.session_token;
+
+    res.redirect(`${FRONTEND_URL}/auth/callback?session_jwt=${sessionToken}`);
   } catch (error) {
     console.error('[Stytch] Authenticate error:', error);
-    const message = error.error_message || error.message || 'Authentication failed';
-    res.status(500).send('Authentication failed: ' + message);
+    const message = encodeURIComponent(error.error_message || error.message || 'Authentication failed');
+    res.redirect(`${FRONTEND_URL}/login?error=${message}`);
   }
 });
 
