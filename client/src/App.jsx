@@ -11,6 +11,7 @@ import {
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AuthCallback from './pages/AuthCallback'; // IMPORT NEW CALLBACK PAGE
 import CustomerProfile from './pages/CustomerProfile';
 import AdminProfile from './pages/AdminProfile';
 import ContentManagement from './pages/ContentManagement';
@@ -251,6 +252,7 @@ function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/login" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/register" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/auth/callback" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/announcements" element={<Announcements />} />
                 <Route path="/profile" element={<ProfileRoute />} />
@@ -311,6 +313,10 @@ function App() {
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              
+              {/* STYTCH CALLBACK ROUTE FOR GUEST APP */}
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </main>
