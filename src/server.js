@@ -25,7 +25,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // =====================================================
-// CORS - Allow Vercel and localhost
+// CORS CONFIGURATION
 // =====================================================
 const allowedOrigins = [
   'http://localhost:3000',
@@ -33,36 +33,33 @@ const allowedOrigins = [
   'https://glowbulk.vercel.app'
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
 
-    // Check if origin is in allowed list
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check allowed origin list
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    // Allow any vercel.app subdomain
+    // Allow Vercel preview subdomains
     if (origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
 
-    console.log('Blocked by CORS:', origin);
-    return callback(new Error('Not allowed by CORS'));
+    console.warn('Blocked by CORS:', origin);
+    // Return null, false to safely reject without triggering Express 500 error
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  optionsSuccessStatus: 200 // Ensures legacy browser preflight requests succeed
-}));
+  optionsSuccessStatus: 200
+};
 
-// =====================================================
-// TEST ROUTE
-// =====================================================
-app.get('/api/test', function(req, res) {
-  res.json({ success: true, message: 'API is working!' });
-});
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable pre-flight across all routes
 
 // =====================================================
 // SECURITY MIDDLEWARE
@@ -77,7 +74,12 @@ app.use(helmet({
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 1000,
-  message: 'Too many requests, please try again later.'
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests, please try again later.'
+  }
 });
 
 app.use('/api', limiter);
@@ -85,26 +87,48 @@ app.use('/api', limiter);
 // =====================================================
 // BODY PARSING
 // =====================================================
-app.use(express.json({
-  limit: '10mb'
-}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use(express.urlencoded({
-  extended: true,
-  limit: '10mb'
-}));
+// =====================================================
+// UTILITY / HEALTH ROUTES
+// =====================================================
+app.get('/api/test', function(req, res) {
+  res.json({ success: true, message: 'API is working!' });
+});
+
+app.get('/api/health', function(req, res) {
+  res.json({
+    success: true,
+    status: 'OK',
+    message: 'GlowBulk API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/test-db', async function(req, res) {
+  try {
+    const result = await pool.query('SELECT NOW() AS current_time');
+    res.json({
+      success: true,
+      message: 'Database connected successfully!',
+      time: result.rows[0].current_time
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database connection failed',
+      error: error.message
+    });
+  }
+});
 
 // =====================================================
 // API ROUTES
 // =====================================================
-console.log('Registering auth routes...');
 app.use('/api/auth', authRoutes);
-console.log('Auth routes registered');
-
-console.log('Registering Stytch routes...');
 app.use('/api/stytch', stytchRoutes);
-console.log('Stytch routes registered');
-
 app.use('/api/customers', customerRoutes);
 app.use('/api/fuel-requests', fuelRequestRoutes);
 app.use('/api/quotations', quotationRoutes);
@@ -112,8 +136,6 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/export', exportRoutes);
-
-console.log('All routes registered');
 
 // =====================================================
 // HOME / API STATUS
@@ -137,39 +159,6 @@ app.get('/', function(req, res) {
       export: '/api/export/customers, /api/export/monthly-report, /api/export/monthly-orders-report'
     }
   });
-});
-
-// =====================================================
-// HEALTH CHECK
-// =====================================================
-app.get('/api/health', function(req, res) {
-  res.json({
-    success: true,
-    status: 'OK',
-    message: 'GlowBulk API is running',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// =====================================================
-// TEST DATABASE CONNECTION
-// =====================================================
-app.get('/api/test-db', async function(req, res) {
-  try {
-    const result = await pool.query('SELECT NOW() AS current_time');
-    res.json({
-      success: true,
-      message: 'Database connected successfully!',
-      time: result.rows[0].current_time
-    });
-  } catch (error) {
-    console.error('Database error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Database connection failed',
-      error: error.message
-    });
-  }
 });
 
 // =====================================================
