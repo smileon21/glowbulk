@@ -58,11 +58,8 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-// Enable CORS middleware
+// Enable CORS middleware (this also handles OPTIONS preflight automatically)
 app.use(cors(corsOptions));
-
-// Handle preflight requests safely in Express 5 (using regex wildcard)
-app.options('(.*)', cors(corsOptions));
 
 // =====================================================
 // SECURITY MIDDLEWARE
