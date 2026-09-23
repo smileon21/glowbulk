@@ -9,6 +9,7 @@ const Orders = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [uploadingInvoice, setUploadingInvoice] = useState(false);
   const navigate = useNavigate();
 
   const userRole = localStorage.getItem('userRole');
@@ -111,6 +112,47 @@ const Orders = () => {
     }
   };
 
+  // =====================================================
+  // ADMIN: Upload invoice
+  // =====================================================
+  const handleUploadInvoice = async function(orderId, file) {
+    if (!file) return;
+
+    setUploadingInvoice(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('invoiceFile', file);
+
+      const response = await axios.post(
+        API_BASE_URL + '/api/orders/upload-invoice/' + orderId,
+        formData,
+        {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setMessage('Invoice uploaded successfully. Customer has been notified.');
+        await fetchOrders();
+
+        if (selectedOrder && selectedOrder.id === orderId) {
+          setSelectedOrder(response.data.data);
+        }
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error uploading invoice');
+    } finally {
+      setUploadingInvoice(false);
+    }
+  };
+
   var getStatusBadge = function(status) {
     var statusMap = {
       'pending_payment': {
@@ -201,6 +243,14 @@ const Orders = () => {
     if (!amount) return '$0.00';
 
     return '$' + Number(amount).toFixed(2);
+  };
+
+  // Returns true when the current staff user can upload an invoice
+  var canUploadInvoice = function(order) {
+    if (!isStaff) return false;
+    if (!order) return false;
+    if (order.invoice_path) return false; // already uploaded
+    return ['payment_confirmed', 'processing', 'completed'].includes(order.status);
   };
 
   if (loading) {
@@ -322,6 +372,13 @@ const Orders = () => {
                       <p>
                         <strong>Company:</strong>{' '}
                         {order.company_name}
+                      </p>
+                    )}
+
+                    {/* Invoice indicator on the card */}
+                    {order.invoice_path && (
+                      <p style={{ color: '#2f7a3f', fontWeight: 600, fontSize: '13px' }}>
+                         Invoice available
                       </p>
                     )}
 
@@ -675,6 +732,72 @@ const Orders = () => {
 
               )}
 
+              {/* ============================================ */}
+              {/* INVOICE FILE — shown to both customer & admin */}
+              {/* ============================================ */}
+
+              {selectedOrder.invoice_path && (
+
+                <div className="modal-detail-item modal-detail-notes">
+
+                  <span className="detail-label">
+                    Invoice
+                  </span>
+
+                  <div style={{ marginTop: '8px' }}>
+
+                    {selectedOrder.invoice_path
+                      .toLowerCase()
+                      .endsWith('.pdf') ? (
+
+                      <a
+                        href={selectedOrder.invoice_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="glow-btn-small"
+                        style={{
+                          display: 'inline-block',
+                          textDecoration: 'none'
+                        }}
+                      >
+                         Download Invoice (PDF)
+                      </a>
+
+                    ) : (
+
+                      <img
+                        src={selectedOrder.invoice_path}
+                        alt="Invoice"
+                        style={{
+                          maxWidth: '250px',
+                          maxHeight: '250px',
+                          cursor: 'pointer',
+                          borderRadius: '6px',
+                          border: '2px solid #e3dfd2',
+                          display: 'block'
+                        }}
+                        onClick={function() {
+                          window.open(
+                            selectedOrder.invoice_path,
+                            '_blank'
+                          );
+                        }}
+                      />
+
+                    )}
+
+                    {selectedOrder.invoice_uploaded_at && (
+                      <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
+                        Uploaded: {formatDate(selectedOrder.invoice_uploaded_at)}
+                      </p>
+                    )}
+
+                  </div>
+
+                </div>
+
+              )}
+
               <div className="modal-detail-item">
 
                 <span className="detail-label">
@@ -852,14 +975,7 @@ const Orders = () => {
 
               )}
 
-              {/* 
-                CUSTOMER PAYMENT PROOF BUTTON
-
-                Only show the upload button when:
-                1. The order is pending payment
-                2. The user is not staff
-                3. No payment proof has been uploaded yet
-              */}
+              {/* CUSTOMER: Upload Proof of Payment */}
 
               {selectedOrder.status === 'pending_payment' &&
                 !isStaff &&
@@ -878,6 +994,40 @@ const Orders = () => {
                   Upload Proof of Payment
                 </button>
 
+              )}
+
+              {/* ============================================ */}
+              {/* ADMIN: Upload Invoice                       */}
+              {/* ============================================ */}
+
+              {canUploadInvoice(selectedOrder) && (
+                <div style={{ marginTop: '8px' }}>
+                  <label
+                    htmlFor={'invoice-upload-' + selectedOrder.id}
+                    className="glow-btn"
+                    style={{
+                      display: 'inline-block',
+                      cursor: uploadingInvoice ? 'wait' : 'pointer',
+                      opacity: uploadingInvoice ? 0.6 : 1
+                    }}
+                  >
+                    {uploadingInvoice ? 'Uploading...' : ' Upload Invoice'}
+                  </label>
+                  <input
+                    id={'invoice-upload-' + selectedOrder.id}
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/jpg"
+                    style={{ display: 'none' }}
+                    disabled={uploadingInvoice}
+                    onChange={function(e) {
+                      const file = e.target.files && e.target.files[0];
+                      if (file) {
+                        handleUploadInvoice(selectedOrder.id, file);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
               )}
 
             </div>

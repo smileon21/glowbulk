@@ -24,14 +24,8 @@ const createOrderFromQuotation = async (
   orderData = {}
 ) => {
 
-  const getQuotationQuery =
-    'SELECT * FROM quotations WHERE id = $1';
-
-  const quotationResult = await pool.query(
-    getQuotationQuery,
-    [quotationId]
-  );
-
+  const getQuotationQuery = 'SELECT * FROM quotations WHERE id = $1';
+  const quotationResult = await pool.query(getQuotationQuery, [quotationId]);
   const quotation = quotationResult.rows[0];
 
   if (!quotation) {
@@ -39,23 +33,14 @@ const createOrderFromQuotation = async (
   }
 
   if (quotation.status !== 'accepted') {
-    throw new Error(
-      'Quotation must be accepted to create an order'
-    );
+    throw new Error('Quotation must be accepted to create an order');
   }
 
-  const checkOrderQuery =
-    'SELECT * FROM orders WHERE quotation_id = $1';
-
-  const checkResult = await pool.query(
-    checkOrderQuery,
-    [quotationId]
-  );
+  const checkOrderQuery = 'SELECT * FROM orders WHERE quotation_id = $1';
+  const checkResult = await pool.query(checkOrderQuery, [quotationId]);
 
   if (checkResult.rows.length > 0) {
-    throw new Error(
-      'Order already exists for this quotation'
-    );
+    throw new Error('Order already exists for this quotation');
   }
 
   const orderNumber = generateOrderNumber();
@@ -93,9 +78,6 @@ const createOrderFromQuotation = async (
     )
     RETURNING *
   `;
-
-  // Tax has been removed from the application.
-  // The tax_amount column remains for database compatibility.
 
   const values = [
     quotationId,
@@ -140,10 +122,7 @@ const createOrderFromQuotation = async (
     orderData.notes || null
   ];
 
-  const result = await pool.query(
-    query,
-    values
-  );
+  const result = await pool.query(query, values);
 
   return result.rows[0];
 };
@@ -173,10 +152,7 @@ const getOrderById = async (id) => {
     WHERE o.id = $1
   `;
 
-  const result = await pool.query(
-    query,
-    [id]
-  );
+  const result = await pool.query(query, [id]);
 
   return result.rows[0];
 };
@@ -199,10 +175,7 @@ const getOrdersByCustomer = async (customerId) => {
     ORDER BY o.created_at DESC
   `;
 
-  const result = await pool.query(
-    query,
-    [customerId]
-  );
+  const result = await pool.query(query, [customerId]);
 
   return result.rows;
 };
@@ -228,10 +201,7 @@ const getOrdersByUserId = async (userId) => {
     ORDER BY o.created_at DESC
   `;
 
-  const result = await pool.query(
-    query,
-    [userId]
-  );
+  const result = await pool.query(query, [userId]);
 
   return result.rows;
 };
@@ -270,18 +240,6 @@ const getAllOrders = async () => {
 // ============================================================
 // UPDATE ORDER STATUS
 // ============================================================
-// FIX:
-// PostgreSQL was complaining about parameter $1 because it was
-// being used both as the status value and inside the CASE.
-//
-// We explicitly cast $1 to VARCHAR.
-//
-// This fixes:
-// - Cancel Order
-// - Start Processing
-// - Mark as Completed
-// - Any other valid order status update
-// ============================================================
 
 const updateOrderStatus = async (
   id,
@@ -293,34 +251,19 @@ const updateOrderStatus = async (
     UPDATE orders
     SET
       status = $1::varchar,
-
-      notes = COALESCE(
-        $2,
-        notes
-      ),
-
+      notes = COALESCE($2, notes),
       updated_at = CURRENT_TIMESTAMP,
-
       completed_at =
         CASE
           WHEN $1::varchar = 'completed'
             THEN CURRENT_TIMESTAMP
           ELSE completed_at
         END
-
     WHERE id = $3
-
     RETURNING *
   `;
 
-  const result = await pool.query(
-    query,
-    [
-      status,
-      notes,
-      id
-    ]
-  );
+  const result = await pool.query(query, [status, notes, id]);
 
   return result.rows[0];
 };
@@ -337,27 +280,17 @@ const updatePaymentStatus = async (
   notes
 ) => {
 
-  const checkQuery =
-    'SELECT * FROM orders WHERE id = $1';
-
-  const checkResult = await pool.query(
-    checkQuery,
-    [id]
-  );
+  const checkQuery = 'SELECT * FROM orders WHERE id = $1';
+  const checkResult = await pool.query(checkQuery, [id]);
 
   if (checkResult.rows.length === 0) {
     return null;
   }
 
-  const verifiedById = parseInt(
-    verifiedBy,
-    10
-  );
+  const verifiedById = parseInt(verifiedBy, 10);
 
   if (isNaN(verifiedById)) {
-    throw new Error(
-      'Invalid user ID for payment verification'
-    );
+    throw new Error('Invalid user ID for payment verification');
   }
 
   const query = `
@@ -380,10 +313,7 @@ const updatePaymentStatus = async (
     id
   ];
 
-  const result = await pool.query(
-    query,
-    values
-  );
+  const result = await pool.query(query, values);
 
   return result.rows[0];
 };
@@ -393,11 +323,7 @@ const updatePaymentStatus = async (
 // ADD PURCHASE ORDER FILE
 // ============================================================
 
-const addPurchaseOrderFile = async (
-  id,
-  filename,
-  path
-) => {
+const addPurchaseOrderFile = async (id, filename, path) => {
 
   const query = `
     UPDATE orders
@@ -409,14 +335,7 @@ const addPurchaseOrderFile = async (
     RETURNING *
   `;
 
-  const result = await pool.query(
-    query,
-    [
-      filename,
-      path,
-      id
-    ]
-  );
+  const result = await pool.query(query, [filename, path, id]);
 
   return result.rows[0];
 };
@@ -426,11 +345,7 @@ const addPurchaseOrderFile = async (
 // ADD PAYMENT PROOF
 // ============================================================
 
-const addPaymentProof = async (
-  id,
-  filename,
-  path
-) => {
+const addPaymentProof = async (id, filename, path) => {
 
   const query = `
     UPDATE orders
@@ -443,14 +358,31 @@ const addPaymentProof = async (
     RETURNING *
   `;
 
-  const result = await pool.query(
-    query,
-    [
-      filename,
-      path,
-      id
-    ]
-  );
+  const result = await pool.query(query, [filename, path, id]);
+
+  return result.rows[0];
+};
+
+
+// ============================================================
+// ADD INVOICE FILE
+// ============================================================
+
+const addInvoiceFile = async (id, filename, path, uploadedBy) => {
+
+  const query = `
+    UPDATE orders
+    SET
+      invoice_filename = $1,
+      invoice_path = $2,
+      invoice_uploaded_at = CURRENT_TIMESTAMP,
+      invoice_uploaded_by = $3,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $4
+    RETURNING *
+  `;
+
+  const result = await pool.query(query, [filename, path, uploadedBy, id]);
 
   return result.rows[0];
 };
@@ -487,20 +419,43 @@ const getPendingPaymentOrders = async () => {
 
 
 // ============================================================
+// GET ORDERS AWAITING INVOICE
+// ============================================================
+
+const getOrdersAwaitingInvoice = async () => {
+
+  const query = `
+    SELECT
+      o.*,
+      u.first_name,
+      u.last_name,
+      u.email,
+      c.company_name
+    FROM orders o
+    LEFT JOIN users u
+      ON o.created_by = u.id
+    LEFT JOIN customers c
+      ON o.customer_id = c.id
+    WHERE
+      o.status IN ('payment_confirmed', 'processing')
+      AND o.invoice_path IS NULL
+    ORDER BY o.created_at ASC
+  `;
+
+  const result = await pool.query(query);
+
+  return result.rows;
+};
+
+
+// ============================================================
 // GET ORDER BY ORDER NUMBER
 // ============================================================
 
-const getOrderByNumber = async (
-  orderNumber
-) => {
+const getOrderByNumber = async (orderNumber) => {
 
-  const query =
-    'SELECT * FROM orders WHERE order_number = $1';
-
-  const result = await pool.query(
-    query,
-    [orderNumber]
-  );
+  const query = 'SELECT * FROM orders WHERE order_number = $1';
+  const result = await pool.query(query, [orderNumber]);
 
   return result.rows[0];
 };
@@ -510,10 +465,7 @@ const getOrderByNumber = async (
 // UPDATE ORDER DELIVERY DETAILS
 // ============================================================
 
-const updateOrderDelivery = async (
-  id,
-  deliveryData
-) => {
+const updateOrderDelivery = async (id, deliveryData) => {
 
   const {
     delivery_address,
@@ -567,10 +519,7 @@ const updateOrderDelivery = async (
     id
   ];
 
-  const result = await pool.query(
-    query,
-    values
-  );
+  const result = await pool.query(query, values);
 
   return result.rows[0];
 };
@@ -590,7 +539,9 @@ module.exports = {
   updatePaymentStatus,
   addPurchaseOrderFile,
   addPaymentProof,
+  addInvoiceFile,
   getPendingPaymentOrders,
+  getOrdersAwaitingInvoice,
   getOrderByNumber,
   updateOrderDelivery,
   generateOrderNumber
