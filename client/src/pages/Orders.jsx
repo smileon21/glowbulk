@@ -380,7 +380,7 @@ const Orders = () => {
 
                     {order.invoice_path && (
                       <p style={{ color: '#2f7a3f', fontWeight: 600, fontSize: '13px' }}>
-                        📄 Invoice available
+                         Invoice available
                       </p>
                     )}
 
@@ -754,7 +754,7 @@ const Orders = () => {
                           textDecoration: 'none'
                         }}
                       >
-                        📄 Download Invoice (PDF)
+                         Download Invoice (PDF)
                       </a>
 
                     ) : (
@@ -961,7 +961,7 @@ const Orders = () => {
                       opacity: uploadingInvoice ? 0.6 : 1
                     }}
                   >
-                    {uploadingInvoice ? 'Uploading...' : '📄 Upload Invoice & Complete Order'}
+                    {uploadingInvoice ? 'Uploading...' : ' Upload Invoice & Complete Order'}
                   </label>
                   <input
                     id={'invoice-upload-' + selectedOrder.id}
