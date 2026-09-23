@@ -5,7 +5,7 @@ const FROM_EMAIL_ADDRESS = process.env.EMAIL_FROM_ADDRESS || 'your-brevo-login@b
 const FROM_NAME = process.env.EMAIL_FROM_NAME || 'GlowBulk';
 
 // =====================================================
-// BREVO HTTP API SENDER (replaces SMTP — Render blocks SMTP ports)
+// BREVO HTTP API SENDER
 // =====================================================
 
 const sendEmail = async function({ to, subject, html }) {
@@ -280,6 +280,31 @@ const sendPaymentConfirmedEmailToCustomer = async function(order, customer) {
 };
 
 // =====================================================
+// INVOICE READY — Notify customer
+// =====================================================
+
+const sendInvoiceEmailToCustomer = async function(order, customer) {
+  return sendEmail({
+    to: customer.contact_person_email || customer.email,
+    subject: 'Invoice Ready - Order ' + order.order_number,
+    html: '<div style="font-family: sans-serif; padding: 20px;">' +
+      '<h2 style="color: #CC0000;">Your Invoice is Ready</h2>' +
+      '<p>Dear ' + (customer.contact_person_name || customer.first_name) + ',</p>' +
+      '<p>Thank you for your payment. Your invoice for the following order is now available:</p>' +
+      '<table style="border-collapse: collapse; width: 100%; max-width: 500px;">' +
+      '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Order Number:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.order_number + '</td></tr>' +
+      '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Fuel Type:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.fuel_type + '</td></tr>' +
+      '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.quantity + ' ' + order.unit + '</td></tr>' +
+      '<tr><td style="padding: 8px; border-bottom: 2px solid #CC0000;"><strong style="color: #CC0000;">Grand Total:</strong></td><td style="padding: 8px; border-bottom: 2px solid #CC0000; color: #CC0000; font-weight: bold; font-size: 18px;">$' + parseFloat(order.grand_total).toFixed(2) + '</td></tr>' +
+      '</table>' +
+      '<p style="margin-top: 20px;">You can download the invoice from your GlowBulk account:</p>' +
+      '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View Order & Download Invoice</a></p>' +
+      '<p style="color: #6b7280; font-size: 12px;">Keep this invoice for your records.</p>' +
+      '</div>'
+  });
+};
+
+// =====================================================
 // ORDER COMPLETED — Notify customer
 // =====================================================
 
@@ -311,5 +336,6 @@ module.exports = {
   sendOrderConfirmationEmailToCustomer,
   sendPaymentProofEmailToAdmin,
   sendPaymentConfirmedEmailToCustomer,
+  sendInvoiceEmailToCustomer,
   sendOrderCompletedEmailToCustomer
 };

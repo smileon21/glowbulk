@@ -14,7 +14,9 @@ const {
   updatePaymentStatus,
   addPurchaseOrderFile,
   addPaymentProof,
+  addInvoiceFile,
   getPendingPaymentOrders,
+  getOrdersAwaitingInvoice,
   getOrderByNumber,
   updateOrderDelivery
 } = require('../models/order.model');
@@ -28,7 +30,8 @@ const {
   sendOrderConfirmationEmailToCustomer,
   sendPaymentProofEmailToAdmin,
   sendPaymentConfirmedEmailToCustomer,
-  sendOrderCompletedEmailToCustomer
+  sendOrderCompletedEmailToCustomer,
+  sendInvoiceEmailToCustomer
 } = require('../utils/email');
 
 // Multer Config
@@ -93,6 +96,17 @@ router.get('/pending-payment', authenticate, authorize('admin', 'marketing'), as
   } catch (error) {
     console.error('Error fetching pending payments:', error);
     res.status(500).json({ success: false, message: 'Error fetching pending payment orders', error: error.message });
+  }
+});
+
+// Admin/Marketing: Get orders awaiting invoice
+router.get('/awaiting-invoice', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+  try {
+    const orders = await getOrdersAwaitingInvoice();
+    res.json({ success: true, count: orders.length, data: orders });
+  } catch (error) {
+    console.error('Error fetching orders awaiting invoice:', error);
+    res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
   }
 });
 
@@ -274,6 +288,60 @@ router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), 
   } catch (error) {
     console.error('Error uploading payment proof:', error);
     res.status(500).json({ success: false, message: 'Error uploading payment proof', error: error.message });
+  }
+});
+
+// Admin/Marketing: Upload Invoice
+router.post('/upload-invoice/:orderId', authenticate, authorize('admin', 'marketing'), upload.single('invoiceFile'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const order = await getOrderById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (!['payment_confirmed', 'processing', 'completed'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice can only be uploaded after payment is confirmed'
+      });
+    }
+
+    const { url, filename } = await uploadToSupabase(
+      req.file.buffer,
+      req.file.originalname,
+      'invoices',
+      req.file.mimetype
+    );
+
+    const updatedOrder = await addInvoiceFile(orderId, filename, url, req.user.id);
+
+    try {
+      const customer = await getCustomerById(order.customer_id);
+      if (customer) {
+        await sendInvoiceEmailToCustomer(updatedOrder, customer);
+      }
+    } catch (emailError) {
+      console.error('Invoice email failed:', emailError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Invoice uploaded successfully',
+      data: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error uploading invoice:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading invoice',
+      error: error.message
+    });
   }
 });
 
