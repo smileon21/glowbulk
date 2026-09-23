@@ -12,10 +12,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Stytch Magic Link States
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [sendingMagicLink, setSendingMagicLink] = useState(false);
-
   // 2FA state
   const [awaitingOtp, setAwaitingOtp] = useState(false);
   const [pendingUserId, setPendingUserId] = useState(null);
@@ -75,34 +71,6 @@ const Login = () => {
     }
   };
 
-  // Handle Stytch Magic Link Login
-  const handleSendMagicLink = async () => {
-    if (!email.trim()) {
-      setError('Please enter your email address to receive a magic link.');
-      return;
-    }
-
-    setSendingMagicLink(true);
-    setError('');
-
-    try {
-      const response = await axios.post(`${BACKEND_URL}/api/stytch/login`, {
-        email: email.trim()
-      });
-
-      if (response.data.success) {
-        setMagicLinkSent(true);
-      } else {
-        setError(response.data.message || 'Failed to send magic link');
-      }
-    } catch (err) {
-      console.error('Magic link error:', err);
-      setError(err.response?.data?.message || 'Unable to send magic link. Please try again.');
-    } finally {
-      setSendingMagicLink(false);
-    }
-  };
-
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -146,7 +114,6 @@ const Login = () => {
 
   const backToLogin = () => {
     setAwaitingOtp(false);
-    setMagicLinkSent(false);
     setPendingUserId(null);
     setOtpCode('');
     setError('');
@@ -208,39 +175,15 @@ const Login = () => {
     );
   }
 
-  // Magic Link Sent Confirmation Screen
-  if (magicLinkSent) {
-    return (
-      <div className="auth-container">
-        <div className="glow-card auth-card">
-          <h2>Check Your Email</h2>
-          <p className="sub-text">We sent a login magic link to <strong>{email}</strong></p>
-          <p style={{ margin: '15px 0', fontSize: '14px', color: '#4b5563' }}>
-            Click the link in your email to instantly log in to your account.
-          </p>
-          
-          <button
-            type="button"
-            className="glow-btn"
-            onClick={backToLogin}
-            style={{ marginTop: '10px' }}
-          >
-            Back to Password Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Primary Login Screen
   return (
     <div className="auth-container">
       <div className="glow-card auth-card">
         <h2>Login to GlowBulk</h2>
         <p className="sub-text">We Go Further...</p>
-        
+
         {error && <div className="error-message">{error}</div>}
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="glow-label">Email</label>
@@ -254,7 +197,7 @@ const Login = () => {
               autoComplete="email"
             />
           </div>
-          
+
           <div className="form-group">
             <label className="glow-label">Password</label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -299,36 +242,12 @@ const Login = () => {
               </button>
             </div>
           </div>
-          
-          <button type="submit" className="glow-btn" disabled={loading || sendingMagicLink}>
+
+          <button type="submit" className="glow-btn" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
-          <div style={{ flex: 1, borderBottom: '1px solid #e5e7eb' }} />
-          <span style={{ padding: '0 10px', color: '#6b7280', fontSize: '13px' }}>OR</span>
-          <div style={{ flex: 1, borderBottom: '1px solid #e5e7eb' }} />
-        </div>
-
-        <button
-          type="button"
-          onClick={handleSendMagicLink}
-          disabled={sendingMagicLink || loading}
-          style={{
-            width: '100%',
-            padding: '10px',
-            backgroundColor: '#f3f4f6',
-            color: '#1f2937',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          {sendingMagicLink ? 'Sending Link...' : 'Email me a Magic Link'}
-        </button>
-        
         <p className="auth-link">
           Don't have an account? <Link to="/register">Register here</Link>
         </p>
