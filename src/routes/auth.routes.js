@@ -13,7 +13,7 @@ const {
   findUserByIdWithPassword,
   updateLastLogin,
   setTwoFactorOtp,
-  checkTwoFactorOtp,
+  getTwoFactorOtp,
   clearTwoFactorOtp,
   enableTwoFactor,
   disableTwoFactor,
@@ -24,10 +24,10 @@ const {
 } = require('../models/user.model');
 
 const {
-  sendOtpEmail,
-  generateOtp,
   sendPasswordResetEmail
 } = require('../utils/email');
+
+const { sendStytchOtp, verifyStytchOtp } = require('../utils/stytch');
 
 const {
   authenticate,
@@ -37,7 +37,9 @@ const {
 const pool = require('../config/database');
 
 
-// Helper to issue a JWT + build the login response shape
+// =====================================================
+// HELPER — Issue JWT + build login response shape
+// =====================================================
 const issueLoginResponse = (user) => {
   const token = jwt.sign(
     { id: user.id, email: user.email, role: user.role },
@@ -62,7 +64,6 @@ const issueLoginResponse = (user) => {
 // =====================================================
 // REGISTER
 // =====================================================
-
 router.post(
   '/register',
   [
@@ -87,7 +88,6 @@ router.post(
       const email = req.body.email.trim().toLowerCase();
       const password = req.body.password;
       const phone = req.body.phone || null;
-
       const role = 'customer';
 
       const existingUser = await findUserByEmail(email);
@@ -120,7 +120,6 @@ router.post(
 // =====================================================
 // LOGIN
 // =====================================================
-
 router.post(
   '/login',
   [
@@ -173,13 +172,11 @@ router.post(
         });
       }
 
-      // === 2FA CHECK ===
+      // === 2FA CHECK — uses Stytch OTP ===
       if (user.two_factor_enabled) {
-        const otp = generateOtp();
-        await setTwoFactorOtp(user.id, otp);
-
         try {
-          await sendOtpEmail(user.email, otp);
+          const emailId = await sendStytchOtp(user.email);
+          await setTwoFactorOtp(user.id, emailId);
         } catch (emailError) {
           console.error('Error sending OTP email:', emailError);
           return res.status(500).json({
@@ -219,9 +216,8 @@ router.post(
 
 
 // =====================================================
-// VERIFY OTP
+// VERIFY OTP — uses Stytch
 // =====================================================
-
 router.post(
   '/verify-otp',
   [
@@ -241,7 +237,15 @@ router.post(
 
       const { userId, code } = req.body;
 
-      const isValid = await checkTwoFactorOtp(userId, code);
+      const emailId = await getTwoFactorOtp(userId);
+      if (!emailId) {
+        return res.status(401).json({
+          success: false,
+          message: 'No pending verification for this account'
+        });
+      }
+
+      const isValid = await verifyStytchOtp(emailId, code);
       if (!isValid) {
         return res.status(401).json({
           success: false,
@@ -278,9 +282,8 @@ router.post(
 
 
 // =====================================================
-// RESEND OTP
+// RESEND OTP — uses Stytch
 // =====================================================
-
 router.post('/resend-otp', async (req, res) => {
   try {
     const { userId } = req.body;
@@ -293,9 +296,8 @@ router.post('/resend-otp', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const otp = generateOtp();
-    await setTwoFactorOtp(user.id, otp);
-    await sendOtpEmail(user.email, otp);
+    const emailId = await sendStytchOtp(user.email);
+    await setTwoFactorOtp(user.id, emailId);
 
     return res.json({ success: true, message: 'A new code has been sent to your email' });
   } catch (error) {
@@ -306,9 +308,8 @@ router.post('/resend-otp', async (req, res) => {
 
 
 // =====================================================
-// 2FA — SEND SETUP CODE
+// 2FA — SEND SETUP CODE — uses Stytch
 // =====================================================
-
 router.post('/2fa/send-setup-otp', authenticate, async (req, res) => {
   try {
     const user = await findUserByIdWithPassword(req.user.id);
@@ -316,9 +317,8 @@ router.post('/2fa/send-setup-otp', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const otp = generateOtp();
-    await setTwoFactorOtp(user.id, otp);
-    await sendOtpEmail(user.email, otp);
+    const emailId = await sendStytchOtp(user.email);
+    await setTwoFactorOtp(user.id, emailId);
 
     return res.json({ success: true, message: 'Verification code sent to your email' });
   } catch (error) {
@@ -329,9 +329,8 @@ router.post('/2fa/send-setup-otp', authenticate, async (req, res) => {
 
 
 // =====================================================
-// 2FA — CONFIRM ENABLE
+// 2FA — CONFIRM ENABLE — uses Stytch
 // =====================================================
-
 router.post('/2fa/enable', authenticate, async (req, res) => {
   try {
     const { code } = req.body;
@@ -339,7 +338,12 @@ router.post('/2fa/enable', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Code is required' });
     }
 
-    const isValid = await checkTwoFactorOtp(req.user.id, code);
+    const emailId = await getTwoFactorOtp(req.user.id);
+    if (!emailId) {
+      return res.status(401).json({ success: false, message: 'No pending verification found' });
+    }
+
+    const isValid = await verifyStytchOtp(emailId, code);
     if (!isValid) {
       return res.status(401).json({ success: false, message: 'Invalid or expired code' });
     }
@@ -357,7 +361,6 @@ router.post('/2fa/enable', authenticate, async (req, res) => {
 // =====================================================
 // 2FA — DISABLE
 // =====================================================
-
 router.post('/2fa/disable', authenticate, async (req, res) => {
   try {
     const { password } = req.body;
@@ -386,9 +389,8 @@ router.post('/2fa/disable', authenticate, async (req, res) => {
 
 
 // =====================================================
-// FORGOT PASSWORD — Request reset link
+// FORGOT PASSWORD
 // =====================================================
-
 router.post(
   '/forgot-password',
   [
@@ -407,7 +409,6 @@ router.post(
       const email = req.body.email.trim().toLowerCase();
       const user = await findUserByEmail(email);
 
-      // Always return success (don't reveal if email exists)
       if (!user) {
         return res.json({
           success: true,
@@ -416,7 +417,6 @@ router.post(
       }
 
       const resetToken = crypto.randomBytes(32).toString('hex');
-
       await setResetToken(user.id, resetToken);
 
       const frontendUrl = process.env.FRONTEND_URL || 'https://glowbulk.vercel.app';
@@ -449,9 +449,8 @@ router.post(
 
 
 // =====================================================
-// RESET PASSWORD — Set new password
+// RESET PASSWORD
 // =====================================================
-
 router.post(
   '/reset-password',
   [
@@ -480,7 +479,6 @@ router.post(
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-
       await updatePassword(user.id, hashedPassword);
       await clearResetToken(user.id);
 
@@ -501,9 +499,8 @@ router.post(
 
 
 // =====================================================
-// ADMIN MANAGEMENT — Create new admin
+// ADMIN — Create new admin
 // =====================================================
-
 router.post(
   '/admin/create',
   authenticate,
@@ -566,9 +563,8 @@ router.post(
 
 
 // =====================================================
-// ADMIN MANAGEMENT — Update admin status
+// ADMIN — Update status
 // =====================================================
-
 router.put(
   '/admin/:id/status',
   authenticate,
@@ -619,9 +615,8 @@ router.put(
 
 
 // =====================================================
-// ADMIN MANAGEMENT — Reset user password (admin only)
+// ADMIN — Reset user password
 // =====================================================
-
 router.put(
   '/admin/:id/reset-password',
   authenticate,
@@ -679,7 +674,6 @@ router.put(
 // =====================================================
 // CURRENT USER
 // =====================================================
-
 router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await findUserById(req.user.id);
@@ -695,9 +689,8 @@ router.get('/me', authenticate, async (req, res) => {
 
 
 // =====================================================
-// GET ALL USERS - ADMIN ONLY
+// GET ALL USERS — ADMIN ONLY
 // =====================================================
-
 router.get('/users', authenticate, authorize('admin'), async (req, res) => {
   try {
     const query = `
@@ -707,7 +700,6 @@ router.get('/users', authenticate, authorize('admin'), async (req, res) => {
     `;
 
     const result = await pool.query(query);
-
     return res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('ERROR FETCHING USERS:', error);
