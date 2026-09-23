@@ -34,7 +34,6 @@ export default function AuthCallback() {
       return;
     }
 
-    // Decode to extract user details
     const payload = decodeJwt(appJwt);
 
     // Store token under the key your app uses ('token')
@@ -47,11 +46,15 @@ export default function AuthCallback() {
       localStorage.setItem('userEmail', payload.email || '');
       if (payload.first_name) localStorage.setItem('firstName', payload.first_name);
       if (payload.last_name) localStorage.setItem('lastName', payload.last_name);
+      localStorage.setItem(
+        'userName',
+        `${payload.first_name || ''} ${payload.last_name || ''}`.trim()
+      );
     } else {
       localStorage.setItem('userRole', 'customer');
     }
 
-    // Notify App state listener to switch from guest to authenticated view
+    // Notify App.jsx that auth state just changed (same-tab)
     window.dispatchEvent(new Event('authChange'));
 
     // Redirect user to dashboard
