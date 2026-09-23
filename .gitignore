@@ -22,3 +22,4 @@ Thumbs.db
 
 # Editor
 .vscode/node_modules/ 
+  # Database backups -- never commit  glowbulk_backup_before_wipe.sql  *_backup_*.sql 
