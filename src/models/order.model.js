@@ -6,44 +6,72 @@ const generateOrderNumber = () => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const random = Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, '0');
+
   return `ORD-${year}${month}${day}-${random}`;
 };
 
-// Create order from accepted quotation with all fields
-const createOrderFromQuotation = async (quotationId, userId, orderData = {}) => {
-  const getQuotationQuery = 'SELECT * FROM quotations WHERE id = $1';
-  const quotationResult = await pool.query(getQuotationQuery, [quotationId]);
+
+// ============================================================
+// CREATE ORDER FROM ACCEPTED QUOTATION
+// ============================================================
+
+const createOrderFromQuotation = async (
+  quotationId,
+  userId,
+  orderData = {}
+) => {
+
+  const getQuotationQuery =
+    'SELECT * FROM quotations WHERE id = $1';
+
+  const quotationResult = await pool.query(
+    getQuotationQuery,
+    [quotationId]
+  );
+
   const quotation = quotationResult.rows[0];
-  
+
   if (!quotation) {
     throw new Error('Quotation not found');
   }
-  
+
   if (quotation.status !== 'accepted') {
-    throw new Error('Quotation must be accepted to create an order');
+    throw new Error(
+      'Quotation must be accepted to create an order'
+    );
   }
-  
-  const checkOrderQuery = 'SELECT * FROM orders WHERE quotation_id = $1';
-  const checkResult = await pool.query(checkOrderQuery, [quotationId]);
+
+  const checkOrderQuery =
+    'SELECT * FROM orders WHERE quotation_id = $1';
+
+  const checkResult = await pool.query(
+    checkOrderQuery,
+    [quotationId]
+  );
+
   if (checkResult.rows.length > 0) {
-    throw new Error('Order already exists for this quotation');
+    throw new Error(
+      'Order already exists for this quotation'
+    );
   }
-  
+
   const orderNumber = generateOrderNumber();
-  
+
   const query = `
     INSERT INTO orders (
-      quotation_id, 
-      customer_id, 
+      quotation_id,
+      customer_id,
       created_by,
       order_number,
-      fuel_type, 
-      quantity, 
+      fuel_type,
+      quantity,
       unit,
-      unit_price, 
-      total_amount, 
-      tax_amount, 
+      unit_price,
+      total_amount,
+      tax_amount,
       grand_total,
       delivery_address,
       delivery_city,
@@ -53,19 +81,25 @@ const createOrderFromQuotation = async (quotationId, userId, orderData = {}) => 
       preferred_delivery_date,
       preferred_delivery_time,
       purchase_order_number,
-      status, 
+      status,
       payment_status,
       notes
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+    VALUES (
+      $1, $2, $3, $4, $5, $6,
+      $7, $8, $9, $10, $11, $12,
+      $13, $14, $15, $16, $17, $18,
+      $19, $20, $21, $22
+    )
     RETURNING *
   `;
-  
-  // tax_amount is hardcoded to 0 — column kept for DB compatibility.
-  // Tax feature has been removed from the app; this column stays dormant.
+
+  // Tax has been removed from the application.
+  // The tax_amount column remains for database compatibility.
+
   const values = [
-    quotationId, 
-    quotation.customer_id, 
+    quotationId,
+    quotation.customer_id,
     userId,
     orderNumber,
     quotation.fuel_type,
@@ -73,120 +107,262 @@ const createOrderFromQuotation = async (quotationId, userId, orderData = {}) => 
     quotation.unit || 'L',
     quotation.unit_price,
     quotation.total_amount || quotation.total,
-    0, // tax_amount — tax removed
+    0,
     quotation.grand_total,
-    orderData.delivery_address || quotation.delivery_address || quotation.deliveryAddress,
-    orderData.delivery_city || quotation.delivery_city || quotation.deliveryCity,
-    orderData.delivery_state || quotation.delivery_state || quotation.deliveryState,
-    orderData.delivery_country || quotation.delivery_country || quotation.deliveryCountry,
-    orderData.delivery_postal_code || quotation.delivery_postal_code || quotation.deliveryPostalCode,
+
+    orderData.delivery_address ||
+      quotation.delivery_address ||
+      quotation.deliveryAddress,
+
+    orderData.delivery_city ||
+      quotation.delivery_city ||
+      quotation.deliveryCity,
+
+    orderData.delivery_state ||
+      quotation.delivery_state ||
+      quotation.deliveryState,
+
+    orderData.delivery_country ||
+      quotation.delivery_country ||
+      quotation.deliveryCountry,
+
+    orderData.delivery_postal_code ||
+      quotation.delivery_postal_code ||
+      quotation.deliveryPostalCode,
+
     orderData.preferred_delivery_date || null,
     orderData.preferred_delivery_time || null,
     orderData.purchase_order_number || null,
+
     'pending_payment',
     'pending',
+
     orderData.notes || null
   ];
-  
-  const result = await pool.query(query, values);
+
+  const result = await pool.query(
+    query,
+    values
+  );
+
   return result.rows[0];
 };
 
-// Get order by ID with customer and user details
+
+// ============================================================
+// GET ORDER BY ID
+// ============================================================
+
 const getOrderById = async (id) => {
+
   const query = `
-    SELECT o.*, 
-           u.first_name, u.last_name, u.email,
-           c.company_name,
-           q.quotation_number
+    SELECT
+      o.*,
+      u.first_name,
+      u.last_name,
+      u.email,
+      c.company_name,
+      q.quotation_number
     FROM orders o
-    LEFT JOIN users u ON o.created_by = u.id
-    LEFT JOIN customers c ON o.customer_id = c.id
-    LEFT JOIN quotations q ON o.quotation_id = q.id
+    LEFT JOIN users u
+      ON o.created_by = u.id
+    LEFT JOIN customers c
+      ON o.customer_id = c.id
+    LEFT JOIN quotations q
+      ON o.quotation_id = q.id
     WHERE o.id = $1
   `;
-  const result = await pool.query(query, [id]);
+
+  const result = await pool.query(
+    query,
+    [id]
+  );
+
   return result.rows[0];
 };
 
-// Get orders by customer ID
+
+// ============================================================
+// GET ORDERS BY CUSTOMER
+// ============================================================
+
 const getOrdersByCustomer = async (customerId) => {
+
   const query = `
-    SELECT o.*, q.quotation_number
+    SELECT
+      o.*,
+      q.quotation_number
     FROM orders o
-    LEFT JOIN quotations q ON o.quotation_id = q.id
-    WHERE o.customer_id = $1 
+    LEFT JOIN quotations q
+      ON o.quotation_id = q.id
+    WHERE o.customer_id = $1
     ORDER BY o.created_at DESC
   `;
-  const result = await pool.query(query, [customerId]);
+
+  const result = await pool.query(
+    query,
+    [customerId]
+  );
+
   return result.rows;
 };
 
-// Get orders by user ID (created_by)
+
+// ============================================================
+// GET ORDERS BY USER ID
+// ============================================================
+
 const getOrdersByUserId = async (userId) => {
+
   const query = `
-    SELECT o.*, 
-           c.company_name,
-           q.quotation_number
+    SELECT
+      o.*,
+      c.company_name,
+      q.quotation_number
     FROM orders o
-    LEFT JOIN customers c ON o.customer_id = c.id
-    LEFT JOIN quotations q ON o.quotation_id = q.id
+    LEFT JOIN customers c
+      ON o.customer_id = c.id
+    LEFT JOIN quotations q
+      ON o.quotation_id = q.id
     WHERE o.created_by = $1
     ORDER BY o.created_at DESC
   `;
-  const result = await pool.query(query, [userId]);
+
+  const result = await pool.query(
+    query,
+    [userId]
+  );
+
   return result.rows;
 };
 
-// Get all orders (for marketing/admin)
+
+// ============================================================
+// GET ALL ORDERS
+// ============================================================
+
 const getAllOrders = async () => {
+
   const query = `
-    SELECT o.*, 
-           u.first_name, u.last_name, u.email,
-           c.company_name,
-           q.quotation_number
+    SELECT
+      o.*,
+      u.first_name,
+      u.last_name,
+      u.email,
+      c.company_name,
+      q.quotation_number
     FROM orders o
-    LEFT JOIN users u ON o.created_by = u.id
-    LEFT JOIN customers c ON o.customer_id = c.id
-    LEFT JOIN quotations q ON o.quotation_id = q.id
+    LEFT JOIN users u
+      ON o.created_by = u.id
+    LEFT JOIN customers c
+      ON o.customer_id = c.id
+    LEFT JOIN quotations q
+      ON o.quotation_id = q.id
     ORDER BY o.created_at DESC
   `;
+
   const result = await pool.query(query);
+
   return result.rows;
 };
 
-// Update order status
-const updateOrderStatus = async (id, status, notes = null) => {
+
+// ============================================================
+// UPDATE ORDER STATUS
+// ============================================================
+// FIX:
+// PostgreSQL was complaining about parameter $1 because it was
+// being used both as the status value and inside the CASE.
+//
+// We explicitly cast $1 to VARCHAR.
+//
+// This fixes:
+// - Cancel Order
+// - Start Processing
+// - Mark as Completed
+// - Any other valid order status update
+// ============================================================
+
+const updateOrderStatus = async (
+  id,
+  status,
+  notes = null
+) => {
+
   const query = `
-    UPDATE orders 
-    SET status = $1, 
-        notes = COALESCE($2, notes),
-        updated_at = CURRENT_TIMESTAMP,
-        completed_at = CASE WHEN $1 = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END
+    UPDATE orders
+    SET
+      status = $1::varchar,
+
+      notes = COALESCE(
+        $2,
+        notes
+      ),
+
+      updated_at = CURRENT_TIMESTAMP,
+
+      completed_at =
+        CASE
+          WHEN $1::varchar = 'completed'
+            THEN CURRENT_TIMESTAMP
+          ELSE completed_at
+        END
+
     WHERE id = $3
+
     RETURNING *
   `;
-  const result = await pool.query(query, [status, notes, id]);
+
+  const result = await pool.query(
+    query,
+    [
+      status,
+      notes,
+      id
+    ]
+  );
+
   return result.rows[0];
 };
 
-// Update payment status with verification
-const updatePaymentStatus = async (id, paymentStatus, verifiedBy, notes) => {
-  const checkQuery = 'SELECT * FROM orders WHERE id = $1';
-  const checkResult = await pool.query(checkQuery, [id]);
-  
+
+// ============================================================
+// UPDATE PAYMENT STATUS
+// ============================================================
+
+const updatePaymentStatus = async (
+  id,
+  paymentStatus,
+  verifiedBy,
+  notes
+) => {
+
+  const checkQuery =
+    'SELECT * FROM orders WHERE id = $1';
+
+  const checkResult = await pool.query(
+    checkQuery,
+    [id]
+  );
+
   if (checkResult.rows.length === 0) {
     return null;
   }
-  
-  const verifiedById = parseInt(verifiedBy);
+
+  const verifiedById = parseInt(
+    verifiedBy,
+    10
+  );
+
   if (isNaN(verifiedById)) {
-    throw new Error('Invalid user ID for payment verification');
+    throw new Error(
+      'Invalid user ID for payment verification'
+    );
   }
-  
+
   const query = `
-    UPDATE orders 
-    SET 
+    UPDATE orders
+    SET
       payment_status = $1,
       payment_verified_by = $2,
       payment_verified_at = CURRENT_TIMESTAMP,
@@ -196,66 +372,149 @@ const updatePaymentStatus = async (id, paymentStatus, verifiedBy, notes) => {
     WHERE id = $4
     RETURNING *
   `;
-  
-  const values = [paymentStatus, verifiedById, notes || 'Payment confirmed by marketing', id];
-  const result = await pool.query(query, values);
+
+  const values = [
+    paymentStatus,
+    verifiedById,
+    notes || 'Payment confirmed by marketing',
+    id
+  ];
+
+  const result = await pool.query(
+    query,
+    values
+  );
+
   return result.rows[0];
 };
 
-// Add purchase order file
-const addPurchaseOrderFile = async (id, filename, path) => {
+
+// ============================================================
+// ADD PURCHASE ORDER FILE
+// ============================================================
+
+const addPurchaseOrderFile = async (
+  id,
+  filename,
+  path
+) => {
+
   const query = `
-    UPDATE orders 
-    SET purchase_order_filename = $1,
-        purchase_order_path = $2,
-        updated_at = CURRENT_TIMESTAMP
+    UPDATE orders
+    SET
+      purchase_order_filename = $1,
+      purchase_order_path = $2,
+      updated_at = CURRENT_TIMESTAMP
     WHERE id = $3
     RETURNING *
   `;
-  const result = await pool.query(query, [filename, path, id]);
+
+  const result = await pool.query(
+    query,
+    [
+      filename,
+      path,
+      id
+    ]
+  );
+
   return result.rows[0];
 };
 
-// Add payment proof
-const addPaymentProof = async (id, filename, path) => {
+
+// ============================================================
+// ADD PAYMENT PROOF
+// ============================================================
+
+const addPaymentProof = async (
+  id,
+  filename,
+  path
+) => {
+
   const query = `
-    UPDATE orders 
-    SET payment_proof_filename = $1,
-        payment_proof_path = $2,
-        payment_status = 'proof_uploaded',
-        updated_at = CURRENT_TIMESTAMP
+    UPDATE orders
+    SET
+      payment_proof_filename = $1,
+      payment_proof_path = $2,
+      payment_status = 'proof_uploaded',
+      updated_at = CURRENT_TIMESTAMP
     WHERE id = $3
     RETURNING *
   `;
-  const result = await pool.query(query, [filename, path, id]);
+
+  const result = await pool.query(
+    query,
+    [
+      filename,
+      path,
+      id
+    ]
+  );
+
   return result.rows[0];
 };
 
-// Get orders pending payment verification
+
+// ============================================================
+// GET ORDERS PENDING PAYMENT VERIFICATION
+// ============================================================
+
 const getPendingPaymentOrders = async () => {
+
   const query = `
-    SELECT o.*, 
-           u.first_name, u.last_name, u.email,
-           c.company_name
+    SELECT
+      o.*,
+      u.first_name,
+      u.last_name,
+      u.email,
+      c.company_name
     FROM orders o
-    LEFT JOIN users u ON o.created_by = u.id
-    LEFT JOIN customers c ON o.customer_id = c.id
-    WHERE o.payment_status = 'pending' OR o.payment_status = 'proof_uploaded'
+    LEFT JOIN users u
+      ON o.created_by = u.id
+    LEFT JOIN customers c
+      ON o.customer_id = c.id
+    WHERE
+      o.payment_status = 'pending'
+      OR o.payment_status = 'proof_uploaded'
     ORDER BY o.created_at ASC
   `;
+
   const result = await pool.query(query);
+
   return result.rows;
 };
 
-// Get order by order number
-const getOrderByNumber = async (orderNumber) => {
-  const query = 'SELECT * FROM orders WHERE order_number = $1';
-  const result = await pool.query(query, [orderNumber]);
+
+// ============================================================
+// GET ORDER BY ORDER NUMBER
+// ============================================================
+
+const getOrderByNumber = async (
+  orderNumber
+) => {
+
+  const query =
+    'SELECT * FROM orders WHERE order_number = $1';
+
+  const result = await pool.query(
+    query,
+    [orderNumber]
+  );
+
   return result.rows[0];
 };
 
-// Update order delivery details
-const updateOrderDelivery = async (id, deliveryData) => {
+
+// ============================================================
+// UPDATE ORDER DELIVERY DETAILS
+// ============================================================
+
+const updateOrderDelivery = async (
+  id,
+  deliveryData
+) => {
+
   const {
     delivery_address,
     delivery_city,
@@ -265,22 +524,38 @@ const updateOrderDelivery = async (id, deliveryData) => {
     preferred_delivery_date,
     preferred_delivery_time
   } = deliveryData;
-  
+
   const query = `
-    UPDATE orders 
-    SET 
-      delivery_address = COALESCE($1, delivery_address),
-      delivery_city = COALESCE($2, delivery_city),
-      delivery_state = COALESCE($3, delivery_state),
-      delivery_country = COALESCE($4, delivery_country),
-      delivery_postal_code = COALESCE($5, delivery_postal_code),
-      preferred_delivery_date = COALESCE($6, preferred_delivery_date),
-      preferred_delivery_time = COALESCE($7, preferred_delivery_time),
+    UPDATE orders
+    SET
+      delivery_address =
+        COALESCE($1, delivery_address),
+
+      delivery_city =
+        COALESCE($2, delivery_city),
+
+      delivery_state =
+        COALESCE($3, delivery_state),
+
+      delivery_country =
+        COALESCE($4, delivery_country),
+
+      delivery_postal_code =
+        COALESCE($5, delivery_postal_code),
+
+      preferred_delivery_date =
+        COALESCE($6, preferred_delivery_date),
+
+      preferred_delivery_time =
+        COALESCE($7, preferred_delivery_time),
+
       updated_at = CURRENT_TIMESTAMP
+
     WHERE id = $8
+
     RETURNING *
   `;
-  
+
   const values = [
     delivery_address,
     delivery_city,
@@ -291,10 +566,19 @@ const updateOrderDelivery = async (id, deliveryData) => {
     preferred_delivery_time,
     id
   ];
-  
-  const result = await pool.query(query, values);
+
+  const result = await pool.query(
+    query,
+    values
+  );
+
   return result.rows[0];
 };
+
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   createOrderFromQuotation,
