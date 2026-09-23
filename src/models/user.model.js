@@ -1,18 +1,22 @@
 const pool = require('../config/database');
 const bcrypt = require('bcryptjs');
 
+// =====================================================
+// USER CRUD
+// =====================================================
+
 // Create a new user
 const createUser = async (userData) => {
   const { firstName, lastName, email, password, role = 'customer', phone } = userData;
-  
+
   const hashedPassword = await bcrypt.hash(password, 10);
-  
+
   const query = `
     INSERT INTO users (first_name, last_name, email, password, role, phone)
     VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING id, first_name, last_name, email, role, phone, created_at
   `;
-  
+
   const values = [firstName, lastName, email, hashedPassword, role, phone];
   const result = await pool.query(query, values);
   return result.rows[0];
@@ -60,7 +64,7 @@ const getAllUsers = async () => {
 const updateUser = async (id, userData) => {
   const { firstName, lastName, phone, role, isActive } = userData;
   const query = `
-    UPDATE users 
+    UPDATE users
     SET first_name = $1, last_name = $2, phone = $3, role = $4, is_active = $5, updated_at = CURRENT_TIMESTAMP
     WHERE id = $6
     RETURNING id, first_name, last_name, email, role, phone, is_active
@@ -70,7 +74,9 @@ const updateUser = async (id, userData) => {
   return result.rows[0];
 };
 
-// ===== 2FA HELPERS =====
+// =====================================================
+// 2FA HELPERS
+// =====================================================
 
 // Save a fresh OTP + expiry (5 min) for a user
 const setTwoFactorOtp = async (id, otp) => {
@@ -83,7 +89,15 @@ const setTwoFactorOtp = async (id, otp) => {
   await pool.query(query, [otp, id]);
 };
 
+// Fetch the stored Stytch email_id for a user (used during verification)
+const getTwoFactorOtp = async (id) => {
+  const query = 'SELECT two_factor_otp FROM users WHERE id = $1';
+  const result = await pool.query(query, [id]);
+  return result.rows[0] ? result.rows[0].two_factor_otp : null;
+};
+
 // Check a submitted OTP against the stored one for a user
+// (Legacy local comparison — kept for compatibility)
 const checkTwoFactorOtp = async (id, code) => {
   const query = `
     SELECT two_factor_otp, two_factor_otp_expires
@@ -129,7 +143,9 @@ const disableTwoFactor = async (id) => {
   await pool.query(query, [id]);
 };
 
-// ===== PASSWORD RESET HELPERS =====
+// =====================================================
+// PASSWORD RESET HELPERS
+// =====================================================
 
 // Save a reset token + expiry (1 hour) for a user
 const setResetToken = async (id, token) => {
@@ -175,7 +191,9 @@ const updatePassword = async (id, hashedPassword) => {
   await pool.query(query, [hashedPassword, id]);
 };
 
-// ===== NOTIFICATION HELPERS =====
+// =====================================================
+// NOTIFICATION HELPERS
+// =====================================================
 
 // Get all active admin emails (for email notifications)
 const getAllAdminEmails = async () => {
@@ -189,6 +207,10 @@ const getAllAdminEmails = async () => {
   return result.rows;
 };
 
+// =====================================================
+// EXPORTS
+// =====================================================
+
 module.exports = {
   createUser,
   findUserByEmail,
@@ -198,6 +220,7 @@ module.exports = {
   getAllUsers,
   updateUser,
   setTwoFactorOtp,
+  getTwoFactorOtp,
   checkTwoFactorOtp,
   clearTwoFactorOtp,
   enableTwoFactor,
