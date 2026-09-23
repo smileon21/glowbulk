@@ -33,10 +33,17 @@ const Orders = () => {
       };
 
       let response;
+
       if (isStaff) {
-        response = await axios.get(API_BASE_URL + '/api/orders/all', config);
+        response = await axios.get(
+          API_BASE_URL + '/api/orders/all',
+          config
+        );
       } else {
-        response = await axios.get(API_BASE_URL + '/api/orders/my-orders', config);
+        response = await axios.get(
+          API_BASE_URL + '/api/orders/my-orders',
+          config
+        );
       }
 
       if (response.data.success) {
@@ -58,7 +65,7 @@ const Orders = () => {
       const config = {
         headers: { 'Authorization': 'Bearer ' + token }
       };
-      
+
       const response = await axios.put(
         API_BASE_URL + '/api/orders/' + id + '/confirm-payment',
         { notes: 'Payment verified in company bank account' },
@@ -71,7 +78,10 @@ const Orders = () => {
         setSelectedOrder(null);
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error confirming payment');
+      setError(
+        error.response?.data?.message ||
+        'Error confirming payment'
+      );
     }
   };
 
@@ -81,7 +91,7 @@ const Orders = () => {
       const config = {
         headers: { 'Authorization': 'Bearer ' + token }
       };
-      
+
       const response = await axios.put(
         API_BASE_URL + '/api/orders/' + id + '/status',
         { status: status },
@@ -94,36 +104,92 @@ const Orders = () => {
         setSelectedOrder(null);
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error updating order status');
+      setError(
+        error.response?.data?.message ||
+        'Error updating order status'
+      );
     }
   };
 
   var getStatusBadge = function(status) {
     var statusMap = {
-      'pending_payment': { color: '#E8A33D', text: 'Pending Payment' },
-      'payment_confirmed': { color: '#2f7ea8', text: 'Payment Confirmed' },
-      'processing': { color: '#6f42c1', text: 'Processing' },
-      'completed': { color: '#2f7a3f', text: 'Completed' },
-      'cancelled': { color: '#8f0000', text: 'Cancelled' }
+      'pending_payment': {
+        color: '#E8A33D',
+        text: 'Pending Payment'
+      },
+      'payment_confirmed': {
+        color: '#2f7ea8',
+        text: 'Payment Confirmed'
+      },
+      'processing': {
+        color: '#6f42c1',
+        text: 'Processing'
+      },
+      'completed': {
+        color: '#2f7a3f',
+        text: 'Completed'
+      },
+      'cancelled': {
+        color: '#8f0000',
+        text: 'Cancelled'
+      }
     };
-    var s = statusMap[status] || { color: '#6b7280', text: status };
-    return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
+
+    var s = statusMap[status] || {
+      color: '#6b7280',
+      text: status
+    };
+
+    return (
+      <span
+        className="status-badge"
+        style={{ background: s.color }}
+      >
+        {s.text}
+      </span>
+    );
   };
 
   var getPaymentStatusBadge = function(status) {
     var statusMap = {
-      'pending': { color: '#E8A33D', text: 'Pending' },
-      'confirmed': { color: '#2f7a3f', text: 'Confirmed' },
-      'proof_uploaded': { color: '#4f46e5', text: 'Proof Uploaded' }
+      'pending': {
+        color: '#E8A33D',
+        text: 'Pending'
+      },
+      'confirmed': {
+        color: '#2f7a3f',
+        text: 'Confirmed'
+      },
+      'proof_uploaded': {
+        color: '#4f46e5',
+        text: 'Proof Uploaded'
+      }
     };
-    var s = statusMap[status] || { color: '#6b7280', text: status };
-    return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
+
+    var s = statusMap[status] || {
+      color: '#6b7280',
+      text: status
+    };
+
+    return (
+      <span
+        className="status-badge"
+        style={{ background: s.color }}
+      >
+        {s.text}
+      </span>
+    );
   };
 
   var formatDate = function(dateString) {
     if (!dateString) return 'Not specified';
+
     var date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Invalid date';
+
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+
     return date.toLocaleDateString('en-ZW', {
       year: 'numeric',
       month: 'short',
@@ -133,6 +199,7 @@ const Orders = () => {
 
   var formatCurrency = function(amount) {
     if (!amount) return '$0.00';
+
     return '$' + Number(amount).toFixed(2);
   };
 
@@ -142,13 +209,17 @@ const Orders = () => {
 
   return (
     <div className="orders-page">
+
       <div className="page-header">
         <h2>Orders</h2>
+
         <div style={{ display: 'flex', gap: '10px' }}>
           {!isStaff && (
-            <button 
-              className="glow-btn" 
-              onClick={function() { navigate('/create-order'); }}
+            <button
+              className="glow-btn"
+              onClick={function() {
+                navigate('/create-order');
+              }}
             >
               + Create Order
             </button>
@@ -156,277 +227,667 @@ const Orders = () => {
         </div>
       </div>
 
-      {message && <div className="success-message">{message}</div>}
-      {error && <div className="error-message">{error}</div>}
+      {message && (
+        <div className="success-message">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
 
       <div className="orders-list">
+
         {orders.length === 0 ? (
+
           <div className="glow-card no-content">
+
             <p>No orders yet.</p>
+
             {!isStaff && (
-              <p>Accept a quotation to create an order.</p>
+              <p>
+                Accept a quotation to create an order.
+              </p>
             )}
-            <button 
-              className="glow-btn" 
-              onClick={function() { navigate('/quotations'); }}
-              style={{ width: 'auto', marginTop: '15px' }}
+
+            <button
+              className="glow-btn"
+              onClick={function() {
+                navigate('/quotations');
+              }}
+              style={{
+                width: 'auto',
+                marginTop: '15px'
+              }}
             >
               View Quotations
             </button>
+
           </div>
+
         ) : (
+
           <div className="orders-grid">
+
             {orders.map(function(order) {
+
               return (
                 <div
                   key={order.id}
                   className="order-card"
-                  onClick={function() { setSelectedOrder(order); }}
+                  onClick={function() {
+                    setSelectedOrder(order);
+                  }}
                   style={{ cursor: 'pointer' }}
                 >
+
                   <div className="order-header">
-                    <h3> {order.order_number}</h3>
+
+                    <h3>
+                      {order.order_number}
+                    </h3>
+
                     {getStatusBadge(order.status)}
+
                   </div>
+
                   <div className="order-details">
-                    <p><strong>Fuel Type:</strong> {order.fuel_type}</p>
-                    <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
-                    <p><strong>Grand Total:</strong> {formatCurrency(order.grand_total)}</p>
-                    <p><strong>Payment:</strong> {getPaymentStatusBadge(order.payment_status)}</p>
+
+                    <p>
+                      <strong>Fuel Type:</strong>{' '}
+                      {order.fuel_type}
+                    </p>
+
+                    <p>
+                      <strong>Quantity:</strong>{' '}
+                      {order.quantity} {order.unit}
+                    </p>
+
+                    <p>
+                      <strong>Grand Total:</strong>{' '}
+                      {formatCurrency(order.grand_total)}
+                    </p>
+
+                    <p>
+                      <strong>Payment:</strong>{' '}
+                      {getPaymentStatusBadge(
+                        order.payment_status
+                      )}
+                    </p>
+
                     {order.company_name && (
-                      <p><strong>Company:</strong> {order.company_name}</p>
+                      <p>
+                        <strong>Company:</strong>{' '}
+                        {order.company_name}
+                      </p>
                     )}
+
                   </div>
+
                   <div className="order-footer">
-                    <small>Created: {formatDate(order.created_at)}</small>
-                    <span className="stat-btn">View Details →</span>
+
+                    <small>
+                      Created: {formatDate(order.created_at)}
+                    </small>
+
+                    <span className="stat-btn">
+                      View Details →
+                    </span>
+
                   </div>
+
                 </div>
               );
+
             })}
+
           </div>
+
         )}
+
       </div>
 
       {selectedOrder && (
-        <div className="modal-overlay" onClick={function() { setSelectedOrder(null); }}>
-          <div className="modal-content" onClick={function(e) { e.stopPropagation(); }}>
+
+        <div
+          className="modal-overlay"
+          onClick={function() {
+            setSelectedOrder(null);
+          }}
+        >
+
+          <div
+            className="modal-content"
+            onClick={function(e) {
+              e.stopPropagation();
+            }}
+          >
+
             <div className="modal-header">
-              <h3> {selectedOrder.order_number}</h3>
-              <button className="modal-close" onClick={function() { setSelectedOrder(null); }}>✕</button>
+
+              <h3>
+                {selectedOrder.order_number}
+              </h3>
+
+              <button
+                className="modal-close"
+                onClick={function() {
+                  setSelectedOrder(null);
+                }}
+              >
+                ✕
+              </button>
+
             </div>
 
             <div className="modal-status-row">
+
               {getStatusBadge(selectedOrder.status)}
-              <span>Payment: {getPaymentStatusBadge(selectedOrder.payment_status)}</span>
+
+              <span>
+                Payment:{' '}
+                {getPaymentStatusBadge(
+                  selectedOrder.payment_status
+                )}
+              </span>
+
             </div>
 
             <div className="modal-details">
+
               {selectedOrder.company_name && (
                 <div className="modal-detail-item">
-                  <span className="detail-label">Customer</span>
-                  <span className="detail-value">{selectedOrder.company_name}</span>
+
+                  <span className="detail-label">
+                    Customer
+                  </span>
+
+                  <span className="detail-value">
+                    {selectedOrder.company_name}
+                  </span>
+
                 </div>
               )}
+
               <div className="modal-detail-item">
-                <span className="detail-label">Fuel Type</span>
-                <span className="detail-value">{selectedOrder.fuel_type}</span>
+
+                <span className="detail-label">
+                  Fuel Type
+                </span>
+
+                <span className="detail-value">
+                  {selectedOrder.fuel_type}
+                </span>
+
               </div>
+
               <div className="modal-detail-item">
-                <span className="detail-label">Quantity</span>
-                <span className="detail-value">{selectedOrder.quantity} {selectedOrder.unit}</span>
+
+                <span className="detail-label">
+                  Quantity
+                </span>
+
+                <span className="detail-value">
+                  {selectedOrder.quantity}{' '}
+                  {selectedOrder.unit}
+                </span>
+
               </div>
+
               <div className="modal-detail-item">
-                <span className="detail-label">Unit Price</span>
-                <span className="detail-value">{formatCurrency(selectedOrder.unit_price)}</span>
+
+                <span className="detail-label">
+                  Unit Price
+                </span>
+
+                <span className="detail-value">
+                  {formatCurrency(
+                    selectedOrder.unit_price
+                  )}
+                </span>
+
               </div>
+
               <div className="modal-detail-item">
-                <span className="detail-label">Total Amount</span>
-                <span className="detail-value">{formatCurrency(selectedOrder.total_amount)}</span>
+
+                <span className="detail-label">
+                  Total Amount
+                </span>
+
+                <span className="detail-value">
+                  {formatCurrency(
+                    selectedOrder.total_amount
+                  )}
+                </span>
+
               </div>
-             
+
               <div className="modal-detail-item modal-detail-highlight">
-                <span className="detail-label">Grand Total</span>
-                <span className="detail-value">{formatCurrency(selectedOrder.grand_total)}</span>
+
+                <span className="detail-label">
+                  Grand Total
+                </span>
+
+                <span className="detail-value">
+                  {formatCurrency(
+                    selectedOrder.grand_total
+                  )}
+                </span>
+
               </div>
-              
+
               {selectedOrder.delivery_address && (
+
                 <>
                   <div className="modal-detail-item">
-                    <span className="detail-label">Delivery Address</span>
-                    <span className="detail-value">{selectedOrder.delivery_address}</span>
+
+                    <span className="detail-label">
+                      Delivery Address
+                    </span>
+
+                    <span className="detail-value">
+                      {selectedOrder.delivery_address}
+                    </span>
+
                   </div>
+
                   {selectedOrder.delivery_city && (
                     <div className="modal-detail-item">
-                      <span className="detail-label">City</span>
-                      <span className="detail-value">{selectedOrder.delivery_city}</span>
+
+                      <span className="detail-label">
+                        City
+                      </span>
+
+                      <span className="detail-value">
+                        {selectedOrder.delivery_city}
+                      </span>
+
                     </div>
                   )}
+
                   {selectedOrder.delivery_country && (
                     <div className="modal-detail-item">
-                      <span className="detail-label">Country</span>
-                      <span className="detail-value">{selectedOrder.delivery_country}</span>
+
+                      <span className="detail-label">
+                        Country
+                      </span>
+
+                      <span className="detail-value">
+                        {selectedOrder.delivery_country}
+                      </span>
+
                     </div>
                   )}
+
                   {selectedOrder.preferred_delivery_date && (
                     <div className="modal-detail-item">
-                      <span className="detail-label">Preferred Delivery</span>
-                      <span className="detail-value">{formatDate(selectedOrder.preferred_delivery_date)} {selectedOrder.preferred_delivery_time}</span>
+
+                      <span className="detail-label">
+                        Preferred Delivery
+                      </span>
+
+                      <span className="detail-value">
+                        {formatDate(
+                          selectedOrder.preferred_delivery_date
+                        )}{' '}
+                        {selectedOrder.preferred_delivery_time}
+                      </span>
+
                     </div>
                   )}
+
                 </>
+
               )}
 
               {selectedOrder.purchase_order_number && (
+
                 <div className="modal-detail-item">
-                  <span className="detail-label">PO Number</span>
-                  <span className="detail-value">{selectedOrder.purchase_order_number}</span>
+
+                  <span className="detail-label">
+                    PO Number
+                  </span>
+
+                  <span className="detail-value">
+                    {selectedOrder.purchase_order_number}
+                  </span>
+
                 </div>
+
               )}
 
               {/* Purchase Order File - Supabase URL */}
+
               {selectedOrder.purchase_order_path && (
+
                 <div className="modal-detail-item modal-detail-notes">
-                  <span className="detail-label">Purchase Order File</span>
+
+                  <span className="detail-label">
+                    Purchase Order File
+                  </span>
+
                   <div style={{ marginTop: '8px' }}>
-                    {selectedOrder.purchase_order_path.toLowerCase().endsWith('.pdf') ? (
-                      <a 
-                        href={selectedOrder.purchase_order_path} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+
+                    {selectedOrder.purchase_order_path
+                      .toLowerCase()
+                      .endsWith('.pdf') ? (
+
+                      <a
+                        href={selectedOrder.purchase_order_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="glow-btn-small"
-                        style={{ display: 'inline-block', textDecoration: 'none' }}
+                        style={{
+                          display: 'inline-block',
+                          textDecoration: 'none'
+                        }}
                       >
                         View PDF
                       </a>
+
                     ) : (
-                      <img 
-                        src={selectedOrder.purchase_order_path} 
-                        alt="Purchase Order" 
-                        style={{ 
-                          maxWidth: '250px', 
-                          maxHeight: '250px', 
-                          cursor: 'pointer', 
-                          borderRadius: '6px', 
+
+                      <img
+                        src={selectedOrder.purchase_order_path}
+                        alt="Purchase Order"
+                        style={{
+                          maxWidth: '250px',
+                          maxHeight: '250px',
+                          cursor: 'pointer',
+                          borderRadius: '6px',
                           border: '2px solid #e3dfd2',
                           display: 'block'
                         }}
-                        onClick={function() { window.open(selectedOrder.purchase_order_path, '_blank'); }}
+                        onClick={function() {
+                          window.open(
+                            selectedOrder.purchase_order_path,
+                            '_blank'
+                          );
+                        }}
                       />
+
                     )}
+
                   </div>
+
                 </div>
+
               )}
 
               {/* Payment Proof File - Supabase URL */}
+
               {selectedOrder.payment_proof_path && (
+
                 <div className="modal-detail-item modal-detail-notes">
-                  <span className="detail-label">Payment Proof</span>
+
+                  <span className="detail-label">
+                    Payment Proof
+                  </span>
+
                   <div style={{ marginTop: '8px' }}>
-                    {selectedOrder.payment_proof_path.toLowerCase().endsWith('.pdf') ? (
-                      <a 
-                        href={selectedOrder.payment_proof_path} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+
+                    {selectedOrder.payment_proof_path
+                      .toLowerCase()
+                      .endsWith('.pdf') ? (
+
+                      <a
+                        href={selectedOrder.payment_proof_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="glow-btn-small"
-                        style={{ display: 'inline-block', textDecoration: 'none' }}
+                        style={{
+                          display: 'inline-block',
+                          textDecoration: 'none'
+                        }}
                       >
                         View PDF
                       </a>
+
                     ) : (
-                      <img 
-                        src={selectedOrder.payment_proof_path} 
-                        alt="Payment Proof" 
-                        style={{ 
-                          maxWidth: '250px', 
-                          maxHeight: '250px', 
-                          cursor: 'pointer', 
-                          borderRadius: '6px', 
+
+                      <img
+                        src={selectedOrder.payment_proof_path}
+                        alt="Payment Proof"
+                        style={{
+                          maxWidth: '250px',
+                          maxHeight: '250px',
+                          cursor: 'pointer',
+                          borderRadius: '6px',
                           border: '2px solid #e3dfd2',
                           display: 'block'
                         }}
-                        onClick={function() { window.open(selectedOrder.payment_proof_path, '_blank'); }}
+                        onClick={function() {
+                          window.open(
+                            selectedOrder.payment_proof_path,
+                            '_blank'
+                          );
+                        }}
                       />
+
                     )}
+
                   </div>
+
                 </div>
+
               )}
 
               <div className="modal-detail-item">
-                <span className="detail-label">Status</span>
-                <span className="detail-value">{selectedOrder.status}</span>
+
+                <span className="detail-label">
+                  Status
+                </span>
+
+                <span className="detail-value">
+                  {selectedOrder.status}
+                </span>
+
               </div>
+
               <div className="modal-detail-item">
-                <span className="detail-label">Payment Status</span>
-                <span className="detail-value">{selectedOrder.payment_status}</span>
+
+                <span className="detail-label">
+                  Payment Status
+                </span>
+
+                <span className="detail-value">
+                  {selectedOrder.payment_status}
+                </span>
+
               </div>
+
               {selectedOrder.payment_verified_at && (
+
                 <div className="modal-detail-item">
-                  <span className="detail-label">Payment Verified</span>
-                  <span className="detail-value">{formatDate(selectedOrder.payment_verified_at)}</span>
+
+                  <span className="detail-label">
+                    Payment Verified
+                  </span>
+
+                  <span className="detail-value">
+                    {formatDate(
+                      selectedOrder.payment_verified_at
+                    )}
+                  </span>
+
                 </div>
+
               )}
+
               {selectedOrder.payment_notes && (
+
                 <div className="modal-detail-item modal-detail-notes">
-                  <span className="detail-label">Payment Notes</span>
-                  <span className="detail-value">{selectedOrder.payment_notes}</span>
+
+                  <span className="detail-label">
+                    Payment Notes
+                  </span>
+
+                  <span className="detail-value">
+                    {selectedOrder.payment_notes}
+                  </span>
+
                 </div>
+
               )}
+
               {selectedOrder.notes && (
+
                 <div className="modal-detail-item modal-detail-notes">
-                  <span className="detail-label">Notes</span>
-                  <span className="detail-value">{selectedOrder.notes}</span>
+
+                  <span className="detail-label">
+                    Notes
+                  </span>
+
+                  <span className="detail-value">
+                    {selectedOrder.notes}
+                  </span>
+
                 </div>
+
               )}
+
               <div className="modal-detail-item">
-                <span className="detail-label">Created</span>
-                <span className="detail-value">{formatDate(selectedOrder.created_at)}</span>
+
+                <span className="detail-label">
+                  Created
+                </span>
+
+                <span className="detail-value">
+                  {formatDate(
+                    selectedOrder.created_at
+                  )}
+                </span>
+
               </div>
+
               {selectedOrder.completed_at && (
+
                 <div className="modal-detail-item">
-                  <span className="detail-label">Completed</span>
-                  <span className="detail-value">{formatDate(selectedOrder.completed_at)}</span>
+
+                  <span className="detail-label">
+                    Completed
+                  </span>
+
+                  <span className="detail-value">
+                    {formatDate(
+                      selectedOrder.completed_at
+                    )}
+                  </span>
+
                 </div>
+
               )}
+
             </div>
 
             <div className="modal-actions">
-              {selectedOrder.status === 'pending_payment' && isStaff && (
-                <button className="glow-btn" onClick={function() { confirmPayment(selectedOrder.id); }}>
+
+              {selectedOrder.status === 'pending_payment' &&
+                isStaff && (
+
+                <button
+                  className="glow-btn"
+                  onClick={function() {
+                    confirmPayment(selectedOrder.id);
+                  }}
+                >
                   Confirm Payment
                 </button>
+
               )}
-              {selectedOrder.status === 'payment_confirmed' && isStaff && (
-                <button className="glow-btn" onClick={function() { updateStatus(selectedOrder.id, 'processing'); }}>
+
+              {selectedOrder.status === 'payment_confirmed' &&
+                isStaff && (
+
+                <button
+                  className="glow-btn"
+                  onClick={function() {
+                    updateStatus(
+                      selectedOrder.id,
+                      'processing'
+                    );
+                  }}
+                >
                   Start Processing
                 </button>
+
               )}
-              {selectedOrder.status === 'processing' && isStaff && (
-                <button className="glow-btn" onClick={function() { updateStatus(selectedOrder.id, 'completed'); }}>
+
+              {selectedOrder.status === 'processing' &&
+                isStaff && (
+
+                <button
+                  className="glow-btn"
+                  onClick={function() {
+                    updateStatus(
+                      selectedOrder.id,
+                      'completed'
+                    );
+                  }}
+                >
                   Mark as Completed
                 </button>
+
               )}
-              {(selectedOrder.status === 'pending_payment' || selectedOrder.status === 'payment_confirmed' || selectedOrder.status === 'processing') && isStaff && (
-                <button 
-                  className="glow-btn glow-btn-secondary" 
-                  onClick={function() { updateStatus(selectedOrder.id, 'cancelled'); }}
+
+              {(selectedOrder.status === 'pending_payment' ||
+                selectedOrder.status === 'payment_confirmed' ||
+                selectedOrder.status === 'processing') &&
+                isStaff && (
+
+                <button
+                  className="glow-btn glow-btn-secondary"
+                  onClick={function() {
+                    updateStatus(
+                      selectedOrder.id,
+                      'cancelled'
+                    );
+                  }}
                 >
                   Cancel Order
                 </button>
+
               )}
 
-              {selectedOrder.status === 'pending_payment' && !isStaff && (
-                <button 
+              {/* 
+                CUSTOMER PAYMENT PROOF BUTTON
+
+                Only show the upload button when:
+                1. The order is pending payment
+                2. The user is not staff
+                3. No payment proof has been uploaded yet
+              */}
+
+              {selectedOrder.status === 'pending_payment' &&
+                !isStaff &&
+                !selectedOrder.payment_proof_path &&
+                !selectedOrder.payment_proof_filename && (
+
+                <button
                   className="glow-btn"
-                  onClick={function() { navigate('/upload-proof/' + selectedOrder.id); }}
+                  onClick={function() {
+                    navigate(
+                      '/upload-proof/' +
+                      selectedOrder.id
+                    );
+                  }}
                 >
-                  Upload Payment Proof
+                  Upload Proof of Payment
                 </button>
+
               )}
+
             </div>
+
           </div>
+
         </div>
+
       )}
+
     </div>
   );
 };
