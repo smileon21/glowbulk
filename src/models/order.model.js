@@ -366,6 +366,7 @@ const addPaymentProof = async (id, filename, path) => {
 
 // ============================================================
 // ADD INVOICE FILE
+// Uploading the invoice ALSO marks the order as completed.
 // ============================================================
 
 const addInvoiceFile = async (id, filename, path, uploadedBy) => {
@@ -377,6 +378,8 @@ const addInvoiceFile = async (id, filename, path, uploadedBy) => {
       invoice_path = $2,
       invoice_uploaded_at = CURRENT_TIMESTAMP,
       invoice_uploaded_by = $3,
+      status = 'completed',
+      completed_at = CURRENT_TIMESTAMP,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = $4
     RETURNING *
@@ -437,7 +440,7 @@ const getOrdersAwaitingInvoice = async () => {
     LEFT JOIN customers c
       ON o.customer_id = c.id
     WHERE
-      o.status IN ('payment_confirmed', 'processing')
+      o.status = 'payment_confirmed'
       AND o.invoice_path IS NULL
     ORDER BY o.created_at ASC
   `;

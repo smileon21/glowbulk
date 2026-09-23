@@ -86,7 +86,9 @@ const Orders = () => {
     }
   };
 
-  const updateStatus = async function(id, status) {
+  const cancelOrder = async function(id) {
+    if (!window.confirm('Cancel this order? This cannot be undone.')) return;
+
     try {
       const token = localStorage.getItem('token');
       const config = {
@@ -95,25 +97,25 @@ const Orders = () => {
 
       const response = await axios.put(
         API_BASE_URL + '/api/orders/' + id + '/status',
-        { status: status },
+        { status: 'cancelled' },
         config
       );
 
       if (response.data.success) {
-        setMessage('Order ' + status + ' successfully!');
+        setMessage('Order cancelled');
         fetchOrders();
         setSelectedOrder(null);
       }
     } catch (error) {
       setError(
         error.response?.data?.message ||
-        'Error updating order status'
+        'Error cancelling order'
       );
     }
   };
 
   // =====================================================
-  // ADMIN: Upload invoice
+  // ADMIN: Upload invoice (auto-completes the order)
   // =====================================================
   const handleUploadInvoice = async function(orderId, file) {
     if (!file) return;
@@ -139,7 +141,7 @@ const Orders = () => {
       );
 
       if (response.data.success) {
-        setMessage('Invoice uploaded successfully. Customer has been notified.');
+        setMessage('Invoice uploaded successfully. Order marked as completed.');
         await fetchOrders();
 
         if (selectedOrder && selectedOrder.id === orderId) {
@@ -245,12 +247,13 @@ const Orders = () => {
     return '$' + Number(amount).toFixed(2);
   };
 
-  // Returns true when the current staff user can upload an invoice
+  // Invoice can be uploaded by staff when payment is confirmed and no invoice yet.
+  // Uploading the invoice will automatically mark the order as completed.
   var canUploadInvoice = function(order) {
     if (!isStaff) return false;
     if (!order) return false;
-    if (order.invoice_path) return false; // already uploaded
-    return ['payment_confirmed', 'processing', 'completed'].includes(order.status);
+    if (order.invoice_path) return false;
+    return order.status === 'payment_confirmed';
   };
 
   if (loading) {
@@ -375,10 +378,9 @@ const Orders = () => {
                       </p>
                     )}
 
-                    {/* Invoice indicator on the card */}
                     {order.invoice_path && (
                       <p style={{ color: '#2f7a3f', fontWeight: 600, fontSize: '13px' }}>
-                         Invoice available
+                        📄 Invoice available
                       </p>
                     )}
 
@@ -616,8 +618,6 @@ const Orders = () => {
 
               )}
 
-              {/* Purchase Order File - Supabase URL */}
-
               {selectedOrder.purchase_order_path && (
 
                 <div className="modal-detail-item modal-detail-notes">
@@ -673,8 +673,6 @@ const Orders = () => {
                 </div>
 
               )}
-
-              {/* Payment Proof File - Supabase URL */}
 
               {selectedOrder.payment_proof_path && (
 
@@ -732,10 +730,6 @@ const Orders = () => {
 
               )}
 
-              {/* ============================================ */}
-              {/* INVOICE FILE — shown to both customer & admin */}
-              {/* ============================================ */}
-
               {selectedOrder.invoice_path && (
 
                 <div className="modal-detail-item modal-detail-notes">
@@ -760,7 +754,7 @@ const Orders = () => {
                           textDecoration: 'none'
                         }}
                       >
-                         Download Invoice (PDF)
+                        📄 Download Invoice (PDF)
                       </a>
 
                     ) : (
@@ -922,60 +916,20 @@ const Orders = () => {
 
               )}
 
-              {selectedOrder.status === 'payment_confirmed' &&
-                isStaff && (
-
-                <button
-                  className="glow-btn"
-                  onClick={function() {
-                    updateStatus(
-                      selectedOrder.id,
-                      'processing'
-                    );
-                  }}
-                >
-                  Start Processing
-                </button>
-
-              )}
-
-              {selectedOrder.status === 'processing' &&
-                isStaff && (
-
-                <button
-                  className="glow-btn"
-                  onClick={function() {
-                    updateStatus(
-                      selectedOrder.id,
-                      'completed'
-                    );
-                  }}
-                >
-                  Mark as Completed
-                </button>
-
-              )}
-
               {(selectedOrder.status === 'pending_payment' ||
-                selectedOrder.status === 'payment_confirmed' ||
-                selectedOrder.status === 'processing') &&
+                selectedOrder.status === 'payment_confirmed') &&
                 isStaff && (
 
                 <button
                   className="glow-btn glow-btn-secondary"
                   onClick={function() {
-                    updateStatus(
-                      selectedOrder.id,
-                      'cancelled'
-                    );
+                    cancelOrder(selectedOrder.id);
                   }}
                 >
                   Cancel Order
                 </button>
 
               )}
-
-              {/* CUSTOMER: Upload Proof of Payment */}
 
               {selectedOrder.status === 'pending_payment' &&
                 !isStaff &&
@@ -996,10 +950,6 @@ const Orders = () => {
 
               )}
 
-              {/* ============================================ */}
-              {/* ADMIN: Upload Invoice                       */}
-              {/* ============================================ */}
-
               {canUploadInvoice(selectedOrder) && (
                 <div style={{ marginTop: '8px' }}>
                   <label
@@ -1011,7 +961,7 @@ const Orders = () => {
                       opacity: uploadingInvoice ? 0.6 : 1
                     }}
                   >
-                    {uploadingInvoice ? 'Uploading...' : ' Upload Invoice'}
+                    {uploadingInvoice ? 'Uploading...' : '📄 Upload Invoice & Complete Order'}
                   </label>
                   <input
                     id={'invoice-upload-' + selectedOrder.id}
