@@ -130,6 +130,7 @@ const sendNewFuelRequestEmailToAdmin = async function(request, customer) {
 
 // =====================================================
 // QUOTATION — Notify customer
+// Tax row removed; Total Amount replaces Grand Total.
 // =====================================================
 
 const sendQuotationEmailToCustomer = async function(quotation, customer) {
@@ -145,9 +146,7 @@ const sendQuotationEmailToCustomer = async function(quotation, customer) {
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Fuel Type:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + quotation.fuel_type + '</td></tr>' +
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + quotation.quantity + ' ' + quotation.unit + '</td></tr>' +
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Unit Price:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$' + parseFloat(quotation.unit_price).toFixed(2) + '</td></tr>' +
-      '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Subtotal:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$' + parseFloat(quotation.subtotal || quotation.total_amount).toFixed(2) + '</td></tr>' +
-      '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Tax:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$' + parseFloat(quotation.tax_amount || 0).toFixed(2) + '</td></tr>' +
-      '<tr><td style="padding: 8px; border-bottom: 2px solid #CC0000;"><strong style="color: #CC0000;">Grand Total:</strong></td><td style="padding: 8px; border-bottom: 2px solid #CC0000; color: #CC0000; font-weight: bold; font-size: 18px;">$' + parseFloat(quotation.grand_total).toFixed(2) + '</td></tr>' +
+      '<tr><td style="padding: 8px; border-bottom: 2px solid #CC0000;"><strong style="color: #CC0000;">Total Amount:</strong></td><td style="padding: 8px; border-bottom: 2px solid #CC0000; color: #CC0000; font-weight: bold; font-size: 18px;">$' + parseFloat(quotation.total_amount || 0).toFixed(2) + '</td></tr>' +
       '</table>' +
       '<p style="margin-top: 20px;"><strong>Valid Until:</strong> ' + new Date(quotation.valid_until).toLocaleDateString() + '</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/quotations" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View & Accept Quotation</a></p>' +
@@ -175,7 +174,7 @@ const sendQuotationResponseEmailToAdmin = async function(quotation, customer, ac
       '<p><strong>Customer:</strong> ' + (customer.company_name || (customer.first_name + ' ' + customer.last_name)) + '</p>' +
       '<p><strong>Quotation Number:</strong> ' + quotation.quotation_number + '</p>' +
       '<p><strong>Fuel Type:</strong> ' + quotation.fuel_type + '</p>' +
-      '<p><strong>Grand Total:</strong> $' + parseFloat(quotation.grand_total).toFixed(2) + '</p>' +
+      '<p><strong>Total Amount:</strong> $' + parseFloat(quotation.total_amount || 0).toFixed(2) + '</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/quotations" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View in Dashboard</a></p>' +
       '</div>'
   });
@@ -201,7 +200,7 @@ const sendNewOrderEmailToAdmin = async function(order, customer) {
       '<p><strong>Customer:</strong> ' + (customer.company_name || (customer.first_name + ' ' + customer.last_name)) + '</p>' +
       '<p><strong>Fuel Type:</strong> ' + order.fuel_type + '</p>' +
       '<p><strong>Quantity:</strong> ' + order.quantity + ' ' + order.unit + '</p>' +
-      '<p><strong>Grand Total:</strong> $' + parseFloat(order.grand_total).toFixed(2) + '</p>' +
+      '<p><strong>Total Amount:</strong> $' + parseFloat(order.total_amount || 0).toFixed(2) + '</p>' +
       '<p><strong>Status:</strong> ' + order.status + '</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View Order</a></p>' +
       '</div>'
@@ -224,7 +223,7 @@ const sendOrderConfirmationEmailToCustomer = async function(order, customer) {
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Order Number:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.order_number + '</td></tr>' +
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Fuel Type:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.fuel_type + '</td></tr>' +
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.quantity + ' ' + order.unit + '</td></tr>' +
-      '<tr><td style="padding: 8px; border-bottom: 2px solid #CC0000;"><strong style="color: #CC0000;">Amount Due:</strong></td><td style="padding: 8px; border-bottom: 2px solid #CC0000; color: #CC0000; font-weight: bold; font-size: 18px;">$' + parseFloat(order.grand_total).toFixed(2) + '</td></tr>' +
+      '<tr><td style="padding: 8px; border-bottom: 2px solid #CC0000;"><strong style="color: #CC0000;">Amount Due:</strong></td><td style="padding: 8px; border-bottom: 2px solid #CC0000; color: #CC0000; font-weight: bold; font-size: 18px;">$' + parseFloat(order.total_amount || 0).toFixed(2) + '</td></tr>' +
       '</table>' +
       '<p style="margin-top: 20px;"><strong>Next Steps:</strong></p>' +
       '<ol><li>Make payment via your usual company channel</li><li>Upload proof of payment in your GlowBulk account</li><li>Wait for our team to verify your payment</li></ol>' +
@@ -251,7 +250,7 @@ const sendPaymentProofEmailToAdmin = async function(order, customer) {
       '<h2 style="color: #E8A33D;">Payment Proof Uploaded</h2>' +
       '<p><strong>Order Number:</strong> ' + order.order_number + '</p>' +
       '<p><strong>Customer:</strong> ' + (customer.company_name || (customer.first_name + ' ' + customer.last_name)) + '</p>' +
-      '<p><strong>Amount:</strong> $' + parseFloat(order.grand_total).toFixed(2) + '</p>' +
+      '<p><strong>Amount:</strong> $' + parseFloat(order.total_amount || 0).toFixed(2) + '</p>' +
       '<p>A customer has uploaded proof of payment. Please verify the payment in your company records and confirm it in the system.</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">Verify Payment</a></p>' +
       '</div>'
@@ -271,7 +270,7 @@ const sendPaymentConfirmedEmailToCustomer = async function(order, customer) {
       '<p>Dear ' + (customer.contact_person_name || customer.first_name) + ',</p>' +
       '<p>Great news! Your payment has been verified and your order is now being prepared.</p>' +
       '<p><strong>Order Number:</strong> ' + order.order_number + '</p>' +
-      '<p><strong>Amount:</strong> $' + parseFloat(order.grand_total).toFixed(2) + '</p>' +
+      '<p><strong>Amount:</strong> $' + parseFloat(order.total_amount || 0).toFixed(2) + '</p>' +
       '<p>Your invoice will be uploaded once your order is complete.</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View Order</a></p>' +
       '</div>'
@@ -294,7 +293,7 @@ const sendInvoiceEmailToCustomer = async function(order, customer) {
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Order Number:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.order_number + '</td></tr>' +
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Fuel Type:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.fuel_type + '</td></tr>' +
       '<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">' + order.quantity + ' ' + order.unit + '</td></tr>' +
-      '<tr><td style="padding: 8px; border-bottom: 2px solid #CC0000;"><strong style="color: #CC0000;">Grand Total:</strong></td><td style="padding: 8px; border-bottom: 2px solid #CC0000; color: #CC0000; font-weight: bold; font-size: 18px;">$' + parseFloat(order.grand_total).toFixed(2) + '</td></tr>' +
+      '<tr><td style="padding: 8px; border-bottom: 2px solid #CC0000;"><strong style="color: #CC0000;">Total Amount:</strong></td><td style="padding: 8px; border-bottom: 2px solid #CC0000; color: #CC0000; font-weight: bold; font-size: 18px;">$' + parseFloat(order.total_amount || 0).toFixed(2) + '</td></tr>' +
       '</table>' +
       '<p style="margin-top: 20px;">Download your invoice from your GlowBulk account:</p>' +
       '<p><a href="' + (process.env.FRONTEND_URL || 'https://glowbulk.vercel.app') + '/orders" style="display: inline-block; background: #CC0000; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; font-weight: bold;">View Order & Download Invoice</a></p>' +

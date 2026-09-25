@@ -45,6 +45,16 @@ const createOrderFromQuotation = async (
 
   const orderNumber = generateOrderNumber();
 
+  // ==========================================
+  // PRICING — no tax, no separate grand total.
+  // grand_total is forced to equal total_amount so
+  // old inflated quotation values are never inherited.
+  // ==========================================
+  const totalAmount = parseFloat(
+    quotation.total_amount || quotation.total || 0
+  );
+  const grandTotal = totalAmount;
+
   const query = `
     INSERT INTO orders (
       quotation_id,
@@ -88,9 +98,9 @@ const createOrderFromQuotation = async (
     quotation.quantity,
     quotation.unit || 'L',
     quotation.unit_price,
-    quotation.total_amount || quotation.total,
-    0,
-    quotation.grand_total,
+    totalAmount,
+    0,             // tax_amount — always 0 now
+    grandTotal,    // grand_total — always equals total_amount
 
     orderData.delivery_address ||
       quotation.delivery_address ||

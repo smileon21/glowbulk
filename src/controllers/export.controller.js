@@ -345,13 +345,14 @@ const exportMonthlyReport = async (req, res) => {
   }
 };
 
-// Export monthly orders report - SIMPLIFIED VERSION
+// Export monthly orders report - GRAND TOTAL REMOVED
 const exportMonthlyOrdersReport = async (req, res) => {
   try {
     const { month, year } = req.query;
     const selectedMonth = month || new Date().getMonth() + 1;
     const selectedYear = year || new Date().getFullYear();
 
+    // Tax columns removed from query — only total_amount is used now.
     const query = `
       SELECT 
         o.order_number,
@@ -360,8 +361,6 @@ const exportMonthlyOrdersReport = async (req, res) => {
         o.unit,
         o.unit_price,
         o.total_amount,
-        o.tax_amount,
-        o.grand_total,
         o.status,
         o.payment_status,
         o.created_at,
@@ -399,7 +398,7 @@ const exportMonthlyOrdersReport = async (req, res) => {
 
     // Title
     worksheet.addRow(['MONTHLY CUSTOMER ORDERS REPORT']);
-    worksheet.mergeCells(`A1:P1`);
+    worksheet.mergeCells(`A1:N1`);
     const titleRow = worksheet.getRow(1);
     titleRow.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFCC0000' } };
     titleRow.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -407,7 +406,7 @@ const exportMonthlyOrdersReport = async (req, res) => {
 
     // Subtitle
     worksheet.addRow([`Report Period: ${selectedMonth}/${selectedYear}`]);
-    worksheet.mergeCells(`A2:P2`);
+    worksheet.mergeCells(`A2:N2`);
     const subRow = worksheet.getRow(2);
     subRow.font = { name: 'Arial', size: 12, bold: true };
     subRow.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -415,9 +414,9 @@ const exportMonthlyOrdersReport = async (req, res) => {
     // Empty row
     worksheet.addRow([]);
 
-    // Summary
+    // Summary — uses total_amount instead of grand_total
     const totalOrders = orders.length;
-    const totalRevenue = orders.reduce((sum, order) => sum + parseFloat(order.grand_total || 0), 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0);
     worksheet.addRow([`Total Orders: ${totalOrders}`, `Total Revenue: $${totalRevenue.toFixed(2)}`]);
     worksheet.mergeCells(`A4:B4`);
     const sumRow = worksheet.getRow(4);
@@ -428,11 +427,11 @@ const exportMonthlyOrdersReport = async (req, res) => {
     worksheet.addRow([]);
 
     // =============================================
-    // HEADERS - Add as a simple row
+    // HEADERS - Tax and Grand Total columns removed
     // =============================================
     const headers = [
       'Order Number', 'Customer', 'Company', 'Fuel Type', 'Quantity', 'Unit',
-      'Unit Price', 'Subtotal', 'Tax', 'Grand Total', 'Status', 'Payment',
+      'Unit Price', 'Total Amount', 'Status', 'Payment',
       'PO Number', 'Delivery Address', 'Order Date', 'Completed'
     ];
     
@@ -450,15 +449,13 @@ const exportMonthlyOrdersReport = async (req, res) => {
     worksheet.getColumn(5).width = 10;
     worksheet.getColumn(6).width = 8;
     worksheet.getColumn(7).width = 12;
-    worksheet.getColumn(8).width = 12;
-    worksheet.getColumn(9).width = 10;
+    worksheet.getColumn(8).width = 14;
+    worksheet.getColumn(9).width = 14;
     worksheet.getColumn(10).width = 14;
-    worksheet.getColumn(11).width = 14;
-    worksheet.getColumn(12).width = 14;
-    worksheet.getColumn(13).width = 16;
-    worksheet.getColumn(14).width = 25;
-    worksheet.getColumn(15).width = 14;
-    worksheet.getColumn(16).width = 14;
+    worksheet.getColumn(11).width = 16;
+    worksheet.getColumn(12).width = 25;
+    worksheet.getColumn(13).width = 14;
+    worksheet.getColumn(14).width = 14;
 
     // =============================================
     // DATA ROWS
@@ -473,8 +470,6 @@ const exportMonthlyOrdersReport = async (req, res) => {
         order.unit || 'L',
         parseFloat(order.unit_price || 0).toFixed(2),
         parseFloat(order.total_amount || 0).toFixed(2),
-        parseFloat(order.tax_amount || 0).toFixed(2),
-        parseFloat(order.grand_total || 0).toFixed(2),
         order.status || '',
         order.payment_status || '',
         order.purchase_order_number || '',
@@ -509,10 +504,10 @@ const exportMonthlyOrdersReport = async (req, res) => {
     });
 
     // =============================================
-    // GRAND TOTAL
+    // TOTAL ROW — uses Total Amount column (H)
     // =============================================
     worksheet.addRow([]);
-    const totalRowData = ['', '', '', '', '', '', '', 'TOTAL:', '', `$${totalRevenue.toFixed(2)}`];
+    const totalRowData = ['', '', '', '', '', '', 'TOTAL:', `$${totalRevenue.toFixed(2)}`];
     const totalRow = worksheet.addRow(totalRowData);
     totalRow.font = { name: 'Arial', size: 11, bold: true };
     totalRow.eachCell((cell) => {
