@@ -28,14 +28,22 @@ app.set('trust proxy', 1);
 // CORS CONFIGURATION
 // =====================================================
 const allowedOrigins = [
+  // Web frontend — local dev
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://glowbulk.vercel.app'
+
+  // Web frontend — production (Vercel)
+  'https://glowbulk.vercel.app',
+
+  // Capacitor mobile app origins
+  'http://localhost',        // Android Capacitor
+  'https://localhost',       // Android Capacitor (secure scheme)
+  'capacitor://localhost'    // iOS Capacitor
 ];
 
 const corsOptions = {
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+    // Allow requests with no origin (mobile native, curl, Postman)
     if (!origin) return callback(null, true);
 
     // Check allowed origin list
@@ -45,6 +53,11 @@ const corsOptions = {
 
     // Allow Vercel preview subdomains
     if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+
+    // Allow localhost on any port for local dev (Vite sometimes uses 5174, etc.)
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) {
       return callback(null, true);
     }
 
