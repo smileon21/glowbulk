@@ -11,7 +11,6 @@ const createQuotation = async (quotationData) => {
     unit,
     unitPrice,
     totalAmount, // Subtotal
-    grandTotal,
     validUntil,
     deliveryTerms,
     paymentTerms,
@@ -32,8 +31,10 @@ const createQuotation = async (quotationData) => {
     RETURNING *
   `;
 
-  // tax_rate and tax_amount are hardcoded to 0 — columns kept for DB compatibility.
-  // Tax feature has been removed from the app; these columns stay dormant.
+  // Tax feature removed. grand_total is forced to equal total_amount.
+  // tax_rate and tax_amount columns kept dormant for DB compatibility.
+  const grandTotal = totalAmount;
+
   const values = [
     fuelRequestId, customerId, quotationNumber,
     fuelType, quantity, unit,
@@ -85,16 +86,16 @@ const getAllQuotations = async () => {
 const updateQuotationStatus = async (id, status) => {
   const checkQuery = 'SELECT * FROM quotations WHERE id = $1';
   const checkResult = await pool.query(checkQuery, [id]);
-  
+
   if (checkResult.rows.length === 0) {
     return null;
   }
-  
+
   let query = 'UPDATE quotations SET status = $1, updated_at = CURRENT_TIMESTAMP';
   if (status === 'accepted') {
     query = 'UPDATE quotations SET status = $1, accepted_date = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP';
   }
-  
+
   query += ' WHERE id = $2 RETURNING *';
   const result = await pool.query(query, [status, id]);
   return result.rows[0];
@@ -105,12 +106,14 @@ const updateQuotation = async (id, quotationData) => {
   const {
     unitPrice,
     totalAmount,
-    grandTotal,
     validUntil,
     deliveryTerms,
     paymentTerms,
     notes
   } = quotationData;
+
+  // Tax feature removed. grand_total is forced to equal total_amount.
+  const grandTotal = totalAmount;
 
   const query = `
     UPDATE quotations 

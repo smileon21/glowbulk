@@ -30,8 +30,7 @@ const generateQuotationNumber = () => {
 router.post('/', authenticate, authorize('admin', 'marketing'), [
   body('fuelRequestId').isNumeric().withMessage('Fuel request ID is required'),
   body('unitPrice').isNumeric().withMessage('Unit price is required'),
-  body('validUntil').notEmpty().withMessage('Valid until date is required'),
-  body('taxRate').optional().isNumeric().withMessage('Tax rate must be a valid number')
+  body('validUntil').notEmpty().withMessage('Valid until date is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -51,17 +50,12 @@ router.post('/', authenticate, authorize('admin', 'marketing'), [
       });
     }
 
-    // Dynamic Calculations
+    // ==========================================
+    // PRICING — no tax, no grand total
+    // ==========================================
     const quantity = parseFloat(fuelRequest.quantity) || 0;
     const unitPrice = parseFloat(req.body.unitPrice) || 0;
-
-    const taxRate = req.body.taxRate !== undefined && req.body.taxRate !== ''
-      ? parseFloat(req.body.taxRate)
-      : 15;
-
     const totalAmount = quantity * unitPrice;
-    const taxAmount = totalAmount * (taxRate / 100);
-    const grandTotal = totalAmount + taxAmount;
 
     const quotation = await createQuotation({
       fuelRequestId: fuelRequest.id,
@@ -72,9 +66,6 @@ router.post('/', authenticate, authorize('admin', 'marketing'), [
       unit: fuelRequest.unit,
       unitPrice: unitPrice,
       totalAmount: totalAmount,
-      taxRate: taxRate,
-      taxAmount: taxAmount,
-      grandTotal: grandTotal,
       validUntil: req.body.validUntil,
       deliveryTerms: req.body.deliveryTerms,
       paymentTerms: req.body.paymentTerms,
