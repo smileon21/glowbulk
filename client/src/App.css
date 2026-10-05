@@ -353,6 +353,11 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-image: linear-gradient(rgba(20, 20, 31, 0.75), rgba(20, 20, 31, 0.75)), url('/station-bg.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .guest-header {
@@ -2132,4 +2137,8 @@ body {
   color: #9ca3af;
   opacity: 1;
   font-weight: 400;
+}
+
+.guest-app .auth-card {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
 }
