@@ -22,27 +22,41 @@
   --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
 }
 
-/* Force input text visibility */
+/* ============================================
+   INPUT TEXT 
+   ============================================ */
+
 .glow-input,
 input.glow-input {
-  color: #14141f !important;
-  background: #ffffff !important;
+  color: #14141f;
+  background: #ffffff;
+}
+
+/* Placeholder text  */
+.glow-input::placeholder,
+input.glow-input::placeholder,
+.glow-input::-webkit-input-placeholder,
+input.glow-input::-webkit-input-placeholder {
+  color: #9ca3af !important;
+  -webkit-text-fill-color: #9ca3af !important;
+  opacity: 1 !important;
+  font-weight: 400 !important;
+}
+
+/* Chrome autofill  */
+.glow-input:-webkit-autofill,
+.glow-input:-webkit-autofill:hover,
+.glow-input:-webkit-autofill:focus,
+.glow-input:-webkit-autofill:active,
+input.glow-input:-webkit-autofill,
+input.glow-input:-webkit-autofill:hover,
+input.glow-input:-webkit-autofill:focus,
+input.glow-input:-webkit-autofill:active {
   -webkit-text-fill-color: #14141f !important;
-}
-
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  font-family: var(--sans);
-  background: var(--paper);
-  width: 100%;
-  color: var(--ink);
-}
-
-.App {
-  min-height: 100vh;
-  width: 100%;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  caret-color: #14141f;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* ============================================
@@ -2131,12 +2145,6 @@ body {
 .security-page .sub-text {
   text-align: left;
   margin-bottom: 24px;
-}
-
-.glow-input::placeholder {
-  color: #9ca3af;
-  opacity: 1;
-  font-weight: 400;
 }
 
 .guest-app .auth-card {
