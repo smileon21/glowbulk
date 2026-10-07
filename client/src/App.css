@@ -1203,7 +1203,7 @@ input.glow-input:-webkit-autofill:active {
 
 .quotations-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: 22px;
   width: 100%;
 }
@@ -2007,6 +2007,102 @@ input.glow-input:-webkit-autofill:active {
 
 .guest-app .auth-card {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   PAGE LAYOUT — consistent spacing & alignment
+   ============================================ */
+
+/* Every list page stacks its blocks (header, form card, cards grid)
+   with the same gap, so nothing touches. */
+.fuel-requests-page,
+.quotations-page,
+.orders-page,
+.content-management,
+.announcements-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 0 24px;
+}
+
+.page-header,
+.content-header,
+.quotation-form,
+.content-form,
+.announcements-filters {
+  margin-bottom: 0;
+}
+
+/* Card rows: label on the left, value on the right */
+.request-details,
+.quote-details,
+.order-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 16px;
+}
+
+.request-details p,
+.quote-details p,
+.order-details p {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin: 0;
+  padding: 9px 0;
+  border-bottom: 1px dotted var(--line);
+  font-size: 14px;
+  color: var(--ink);
+  text-align: right;
+}
+
+.request-details p:last-child,
+.quote-details p:last-child,
+.order-details p:last-child {
+  border-bottom: none;
+}
+
+.request-details strong,
+.quote-details strong,
+.order-details strong {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--steel);
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Profile & security: same left edge as the other pages */
+.profile-container {
+  max-width: 800px;
+  margin: 0;
+  padding: 8px 0 24px;
+}
+
+.profile-form {
+  margin-top: 0;
+}
+
+.form-section {
+  margin-bottom: 20px;
+}
+
+.form-actions {
+  margin-top: 4px;
+  margin-bottom: 24px;
+}
+
+.security-page {
+  padding: 8px 0 24px;
+}
+
+.security-page .form-section,
+.security-page .glow-card {
+  margin-bottom: 20px;
 }
 
 /* ============================================
