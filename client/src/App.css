@@ -20,6 +20,32 @@
   --sans: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
   --display: 'Oswald', 'Segoe UI', Arial, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+   color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f1f1f4;
+    --navy: #0d0d1a;
+    --navy-2: #16162b;
+    --red: #E63333;
+    --red-dark: #b81f1f;
+    --amber: #F0B45C;
+    --paper: #12121c;
+    --white: #1c1c2b;
+    --steel: #9aa0aa;
+    --line: #2a2a3d;
+    --line-dark: rgba(255, 255, 255, 0.08);
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* ============================================
@@ -28,8 +54,8 @@
 
 .glow-input,
 input.glow-input {
-  color: #14141f;
-  background: #ffffff;
+  color: var(--ink);
+  background: var(--white);
 }
 
 /* Placeholder text  */
