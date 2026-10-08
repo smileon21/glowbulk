@@ -2474,6 +2474,71 @@ input[type="file"]::file-selector-button:hover {
 }
 
 /* ============================================
+   FUEL REQUEST FORM BUTTON
+   ============================================ */
+
+/* Submit button: sized to its text, aligned right (full width on phones) */
+.fuel-requests-page form .glow-btn {
+  display: block;
+  width: auto;
+  margin-left: auto;
+  padding: 12px 34px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .fuel-requests-page form .glow-btn {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   FUEL REQUEST FORM CARD
+   ============================================ */
+
+.request-form {
+  width: 100%;
+  max-width: 900px;
+}
+
+.request-form h3 {
+  font-family: var(--display);
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed var(--line);
+}
+
+/* Priority shown as a tag */
+.priority-tag {
+  text-transform: capitalize;
+}
+
+.priority-tag.urgent {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.priority-tag.normal {
+  color: var(--green-text);
+}
+
+/* Three fields on one row (Fuel type, Quantity, Priority) */
+.request-form .form-row.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 768px) {
+  .request-form .form-row,
+  .request-form .form-row.three {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* ============================================
    RESPONSIVE
    ============================================ */
 

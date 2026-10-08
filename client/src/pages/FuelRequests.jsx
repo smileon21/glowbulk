@@ -7,6 +7,7 @@ const FuelRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
@@ -26,6 +27,14 @@ const FuelRequests = () => {
   const navigate = useNavigate();
   const userRole = localStorage.getItem('userRole');
   const isStaff = userRole === 'admin' || userRole === 'marketing';
+
+  // Today's date (local time) in YYYY-MM-DD, so past delivery dates can't be picked
+  const todayStr = (function() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  })();
 
   useEffect(() => {
     fetchRequests();
@@ -60,15 +69,17 @@ const FuelRequests = () => {
 
   const handleSubmit = async function(e) {
     e.preventDefault();
+    if (submitting) return; // stops double-clicks creating duplicate requests
     setMessage('');
     setError('');
+    setSubmitting(true);
 
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
-      
+
       const response = await axios.post(API_BASE_URL + '/api/fuel-requests', formData);
-      
+
       if (response.data.success) {
         setMessage('Fuel request submitted successfully!');
         setShowForm(false);
@@ -88,6 +99,8 @@ const FuelRequests = () => {
       }
     } catch (error) {
       setError(error.response?.data?.message || 'Error submitting request');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -123,14 +136,18 @@ const FuelRequests = () => {
 
   const getStatusBadge = function(status) {
     var statusMap = {
-      'pending': { color: '#E8A33D', text: 'Pending' },
+      'pending': { color: '#E8A33D', text: 'Pending', textColor: '#5a3d0a' },
       'quoted': { color: '#2f7ea8', text: 'Quoted' },
       'accepted': { color: '#2f7a3f', text: 'Accepted' },
       'rejected': { color: '#8f0000', text: 'Rejected' },
       'expired': { color: '#6b7280', text: 'Expired' }
     };
     var s = statusMap[status] || { color: '#6b7280', text: status };
-    return <span className="status-badge" style={{ background: s.color }}>{s.text}</span>;
+    return (
+      <span className="status-badge" style={{ background: s.color, color: s.textColor || 'white' }}>
+        {s.text}
+      </span>
+    );
   };
 
   var formatDate = function(dateString) {
@@ -146,7 +163,7 @@ const FuelRequests = () => {
 
   var formatTime = function(timeString) {
     if (!timeString) return 'Not specified';
-    
+
     var parts = timeString.split(':');
     if (parts.length >= 2) {
       var hours = parseInt(parts[0]);
@@ -156,8 +173,13 @@ const FuelRequests = () => {
       hours = hours ? hours : 12;
       return hours + ':' + minutes + ' ' + ampm;
     }
-    
+
     return timeString;
+  };
+
+  var formatQuantity = function(q) {
+    var n = Number(q);
+    return isNaN(n) ? q : n.toLocaleString();
   };
 
   if (loading) {
@@ -182,7 +204,7 @@ const FuelRequests = () => {
         <div className="request-form glow-card">
           <h3>Submit Fuel Request</h3>
           <form onSubmit={handleSubmit}>
-            <div className="form-row">
+            <div className="form-row three">
               <div className="form-group">
                 <label className="glow-label">Fuel Type *</label>
                 <select
@@ -194,13 +216,10 @@ const FuelRequests = () => {
                 >
                   <option value="Diesel">Diesel</option>
                   <option value="Petrol">Petrol</option>
-                  <option value="Jet A1">Jet A1</option>
-                  <option value="LPG">LPG</option>
-                  <option value="Furnace Oil">Furnace Oil</option>
                 </select>
               </div>
               <div className="form-group">
-                <label className="glow-label">Quantity *</label>
+                <label className="glow-label">Quantity (Liters) *</label>
                 <input
                   type="number"
                   name="quantity"
@@ -208,25 +227,9 @@ const FuelRequests = () => {
                   value={formData.quantity}
                   onChange={handleChange}
                   required
-                  placeholder="Enter quantity"
+                  placeholder="e.g. 5000"
                   min="1"
                 />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="glow-label">Unit</label>
-                <select
-                  name="unit"
-                  className="glow-input"
-                  value={formData.unit}
-                  onChange={handleChange}
-                >
-                  <option value="Liters">Liters</option>
-                  <option value="Gallons">Gallons</option>
-                  <option value="Metric Tons">Metric Tons</option>
-                </select>
               </div>
               <div className="form-group">
                 <label className="glow-label">Priority</label>
@@ -288,6 +291,7 @@ const FuelRequests = () => {
                   className="glow-input"
                   value={formData.preferredDeliveryDate}
                   onChange={handleChange}
+                  min={todayStr}
                   required
                 />
               </div>
@@ -315,7 +319,9 @@ const FuelRequests = () => {
               />
             </div>
 
-            <button type="submit" className="glow-btn">Submit Request</button>
+            <button type="submit" className="glow-btn" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit Request'}
+            </button>
           </form>
         </div>
       )}
@@ -337,15 +343,18 @@ const FuelRequests = () => {
                   </div>
                   <div className="request-details">
                     {isStaff && (
-                      <p><strong>Customer:</strong> {request.company_name || 'N/A'}</p>
+                      <p><strong>Customer:</strong> <span>{request.company_name || 'N/A'}</span></p>
                     )}
-                    <p><strong>Quantity:</strong> {request.quantity} {request.unit}</p>
-                    <p><strong>Priority:</strong> {request.priority}</p>
-                    <p><strong>Delivery Date:</strong> {formatDate(request.preferred_delivery_date)}</p>
-                    <p><strong>Time:</strong> {formatTime(request.preferred_delivery_time)}</p>
-                    <p><strong>Address:</strong> {request.delivery_address || 'Not specified'}</p>
+                    <p><strong>Quantity:</strong> <span>{formatQuantity(request.quantity)} {request.unit}</span></p>
+                    <p>
+                      <strong>Priority:</strong>{' '}
+                      <span className={'priority-tag ' + request.priority}>{request.priority}</span>
+                    </p>
+                    <p><strong>Delivery Date:</strong> <span>{formatDate(request.preferred_delivery_date)}</span></p>
+                    <p><strong>Time:</strong> <span>{formatTime(request.preferred_delivery_time)}</span></p>
+                    <p><strong>Address:</strong> <span>{request.delivery_address || 'Not specified'}</span></p>
                     {request.special_instructions && (
-                      <p><strong>Instructions:</strong> {request.special_instructions}</p>
+                      <p><strong>Instructions:</strong> <span>{request.special_instructions}</span></p>
                     )}
                   </div>
                   <div className="request-footer">
