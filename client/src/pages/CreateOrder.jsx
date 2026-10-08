@@ -6,11 +6,12 @@ import { API_BASE_URL } from '../config';
 const CreateOrder = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [loading, setLoading] = useState(false);
+  // Start as true so the "No Quotation Selected" box doesn't flash before loading begins
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  
+
   const [quotation, setQuotation] = useState(null);
   const [orderData, setOrderData] = useState({
     quotationId: '',
@@ -42,7 +43,7 @@ const CreateOrder = () => {
   useEffect(function() {
     var params = new URLSearchParams(location.search);
     var quotationId = params.get('quotationId');
-    
+
     if (quotationId) {
       fetchQuotation(quotationId);
     } else {
@@ -58,7 +59,7 @@ const CreateOrder = () => {
       var config = {
         headers: { 'Authorization': 'Bearer ' + token }
       };
-      
+
       var response = await axios.get(API_BASE_URL + '/api/quotations/' + quotationId, config);
       if (response.data.success) {
         var quote = response.data.data;
@@ -118,7 +119,7 @@ const CreateOrder = () => {
       var config = {
         headers: { 'Authorization': 'Bearer ' + token }
       };
-      
+
       var submitData = {
         quotationId: parseInt(orderData.quotationId),
         purchaseOrderNumber: orderData.purchaseOrderNumber || null,
@@ -140,11 +141,11 @@ const CreateOrder = () => {
 
       if (orderResponse.data.success) {
         var order = orderResponse.data.data;
-        
+
         if (poFile) {
           var formData = new FormData();
           formData.append('poFile', poFile);
-          
+
           await axios.post(
             API_BASE_URL + '/api/orders/upload-po/' + order.id,
             formData,
@@ -158,7 +159,7 @@ const CreateOrder = () => {
         }
 
         setMessage('Order created successfully!\nOrder Number: ' + order.order_number + '\nStatus: Pending Payment');
-        
+
         setTimeout(function() {
           navigate('/orders');
         }, 3000);
@@ -185,7 +186,7 @@ const CreateOrder = () => {
         <div className="error-message">
           <h3>No Quotation Selected</h3>
           <p>Please select an accepted quotation to create an order.</p>
-          <button className="glow-btn" onClick={goBack} style={{ width: 'auto', marginTop: '15px' }}>
+          <button className="glow-btn glow-btn-small" onClick={goBack} style={{ marginTop: '15px' }}>
             View Quotations
           </button>
         </div>
@@ -220,7 +221,7 @@ const CreateOrder = () => {
             </div>
             <div className="info-item">
               <span className="label">Quantity</span>
-              <span className="value">{quantity} {quotation?.unit || 'L'}</span>
+              <span className="value">{quantity.toLocaleString()} {quotation?.unit || 'L'}</span>
             </div>
             <div className="info-item">
               <span className="label">Unit Price</span>
@@ -228,7 +229,7 @@ const CreateOrder = () => {
             </div>
             <div className="info-item highlight">
               <span className="label">Grand Total</span>
-              <span className="value grand-total">${grandTotal.toFixed(2)}</span>
+              <span className="value grand-total">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         </div>
@@ -254,7 +255,7 @@ const CreateOrder = () => {
               className="glow-input"
               onChange={handleFileChange}
             />
-            <small style={{ color: '#6b7280', fontSize: '12px' }}>PDF, JPG, PNG (Max 5MB)</small>
+            <small className="form-hint">PDF, JPG, PNG (Max 5MB)</small>
             {poFile && <span className="file-name">📎 {poFile.name}</span>}
           </div>
           <div className="form-group">
@@ -274,19 +275,18 @@ const CreateOrder = () => {
         <div className="order-summary">
           <div className="summary-total">
             <span>Grand Total</span>
-            <span className="total-amount">${grandTotal.toFixed(2)}</span>
+            <span className="total-amount">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              type="button" 
+          <div className="order-actions">
+            <button
+              type="button"
               className="glow-btn glow-btn-secondary"
               onClick={goBack}
-              style={{ width: 'auto', padding: '14px 30px' }}
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="glow-btn order-btn"
               disabled={submitting}
             >
