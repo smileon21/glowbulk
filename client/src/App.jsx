@@ -23,7 +23,7 @@ import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import NotificationBell from './components/NotificationBell';
-import { enablePush } from './utils/push';
+import { enablePush } from './components/push';
 
 import './App.css';
 
