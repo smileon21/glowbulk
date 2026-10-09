@@ -22,6 +22,7 @@ import CreateOrder from './pages/CreateOrder';
 import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
+import NotificationBell from './components/NotificationBell';
 
 import './App.css';
 
@@ -195,6 +196,9 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
     )}
 
     <div className="main-wrapper">
+      <div className="app-topbar">
+        <NotificationBell />
+      </div>
       <main className="glow-container">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
