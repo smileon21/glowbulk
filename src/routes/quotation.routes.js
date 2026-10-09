@@ -9,12 +9,9 @@ const {
   getAllQuotations,
   updateQuotationStatus
 } = require('../models/quotation.model');
-const { getCustomerByUserId, getCustomerById } = require('../models/customer.model');
+const { getCustomerByUserId } = require('../models/customer.model');
 const { getFuelRequestById, updateFuelRequestStatus } = require('../models/fuelRequest.model');
-const {
-  sendQuotationEmailToCustomer,
-  sendQuotationResponseEmailToAdmin
-} = require('../utils/email');
+const { notifyStaff, notifyCustomer } = require('../services/notification.service');
 
 // Generate quotation number
 const generateQuotationNumber = () => {
@@ -24,6 +21,27 @@ const generateQuotationNumber = () => {
   const day = String(date.getDate()).padStart(2, '0');
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `Q-${year}${month}${day}-${random}`;
+};
+
+// Tell the customer their quotation is ready (never breaks the request if it fails)
+const notifyQuotationReady = (quotation) => {
+  notifyCustomer(quotation.customer_id, {
+    type: 'quotation_ready',
+    title: 'New response from Glow Petroleum',
+    message: `Your quotation ${quotation.quotation_number} is ready.`,
+    link: '/quotations'
+  }).catch((err) => console.error('Quotation notification failed:', err));
+};
+
+// Tell all staff how the customer responded (never breaks the request if it fails)
+const notifyQuotationResponse = (quotation, customer, accepted) => {
+  const who = customer.company_name || customer.contact_person_name || 'A customer';
+  notifyStaff({
+    type: accepted ? 'quotation_accepted' : 'quotation_rejected',
+    title: accepted ? 'Quotation accepted' : 'Quotation rejected',
+    message: `${who} ${accepted ? 'accepted' : 'rejected'} quotation ${quotation.quotation_number}.`,
+    link: '/quotations'
+  }).catch((err) => console.error('Quotation response notification failed:', err));
 };
 
 // Marketing/Admin: Create quotation
@@ -79,14 +97,7 @@ router.post('/', authenticate, authorize('admin', 'marketing'), [
 
     // If quotation was created with status 'sent', notify the customer
     if (quotation.status === 'sent') {
-      try {
-        const customer = await getCustomerById(quotation.customer_id);
-        if (customer) {
-          await sendQuotationEmailToCustomer(quotation, customer);
-        }
-      } catch (emailError) {
-        console.error('Quotation email notification failed:', emailError);
-      }
+      notifyQuotationReady(quotation);
     }
 
     res.status(201).json({
@@ -219,12 +230,8 @@ router.put('/:id/accept', authenticate, async (req, res) => {
     const updatedQuotation = await updateQuotationStatus(quotation.id, 'accepted');
     await updateFuelRequestStatus(quotation.fuel_request_id, 'accepted');
 
-    // Notify all admins about the acceptance
-    try {
-      await sendQuotationResponseEmailToAdmin(updatedQuotation, customer, true);
-    } catch (emailError) {
-      console.error('Quotation acceptance email failed:', emailError);
-    }
+    // Notify all staff about the acceptance
+    notifyQuotationResponse(updatedQuotation, customer, true);
 
     res.json({
       success: true,
@@ -277,12 +284,8 @@ router.put('/:id/reject', authenticate, async (req, res) => {
     const updatedQuotation = await updateQuotationStatus(quotation.id, 'rejected');
     await updateFuelRequestStatus(quotation.fuel_request_id, 'rejected');
 
-    // Notify all admins about the rejection
-    try {
-      await sendQuotationResponseEmailToAdmin(updatedQuotation, customer, false);
-    } catch (emailError) {
-      console.error('Quotation rejection email failed:', emailError);
-    }
+    // Notify all staff about the rejection
+    notifyQuotationResponse(updatedQuotation, customer, false);
 
     res.json({
       success: true,
@@ -333,16 +336,9 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
     if (req.body.status === 'sent') {
       await updateFuelRequestStatus(quotation.fuel_request_id, 'quoted');
 
-      // Only send email if the quotation wasn't already 'sent' before
+      // Only notify if the quotation wasn't already 'sent' before
       if (originalQuotation.status !== 'sent') {
-        try {
-          const customer = await getCustomerById(quotation.customer_id);
-          if (customer) {
-            await sendQuotationEmailToCustomer(quotation, customer);
-          }
-        } catch (emailError) {
-          console.error('Quotation email notification failed:', emailError);
-        }
+        notifyQuotationReady(quotation);
       }
     }
 

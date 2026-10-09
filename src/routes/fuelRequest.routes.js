@@ -11,12 +11,14 @@ const {
   updateFuelRequest
 } = require('../models/fuelRequest.model');
 const { getCustomerByUserId } = require('../models/customer.model');
-const { sendNewFuelRequestEmailToAdmin } = require('../utils/email');
+const { notifyStaff } = require('../services/notification.service');
 const pool = require('../config/database');
 
 // Customer: Create fuel request
 router.post('/', authenticate, [
-  body('fuelType').notEmpty().withMessage('Fuel type is required'),
+  body('fuelType')
+    .notEmpty().withMessage('Fuel type is required')
+    .isIn(['Diesel', 'Petrol']).withMessage('Fuel type must be Diesel or Petrol'),
   body('quantity').isNumeric().withMessage('Quantity must be a number'),
   body('preferredDeliveryDate').notEmpty().withMessage('Delivery date is required')
 ], async (req, res) => {
@@ -40,15 +42,22 @@ router.post('/', authenticate, [
 
     const fuelRequest = await createFuelRequest({
       customerId: customer.id,
-      ...req.body
+      ...req.body,
+      unit: 'Liters' // quantity is always in liters
     });
 
-    // Send email notification to all admins (don't fail if email fails)
-    try {
-      await sendNewFuelRequestEmailToAdmin(fuelRequest, customer);
-    } catch (emailError) {
-      console.error('Fuel request email notification failed:', emailError);
-    }
+    // Tell all admin + marketing users about the new request.
+    // Not awaited and wrapped in .catch so a notification problem never breaks the request.
+    const who = customer.company_name || customer.contact_person_name || 'A customer';
+    const isUrgent = fuelRequest.priority === 'urgent';
+    notifyStaff({
+      type: 'fuel_request_created',
+      title: isUrgent ? 'URGENT fuel request' : 'New fuel request',
+      message: who + ' requested ' + Number(fuelRequest.quantity).toLocaleString() + ' liters of ' + fuelRequest.fuel_type + '.',
+      link: '/fuel-requests'
+    }).catch(function(err) {
+      console.error('Fuel request notification failed:', err);
+    });
 
     res.status(201).json({
       success: true,
