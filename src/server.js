@@ -17,6 +17,7 @@ const contentRoutes = require('./routes/content.routes');
 const adminRoutes = require('./routes/admin.routes');
 const exportRoutes = require('./routes/export.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const pushRoutes = require('./routes/push.routes');
 
 const app = express();
 
@@ -151,6 +152,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/push', require('./src/routes/push.routes'));
 
 // =====================================================
 // HOME / API STATUS

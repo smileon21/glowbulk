@@ -23,6 +23,7 @@ import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import NotificationBell from './components/NotificationBell';
+import { enablePush } from './utils/push';
 
 import './App.css';
 
@@ -71,6 +72,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     setSidebarOpen(false);
   }, [location.pathname, setSidebarOpen]);
 
+  
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/announcements', label: 'News & Updates' },
@@ -305,6 +307,12 @@ function App() {
       window.removeEventListener('authChange', checkAuthentication);
     };
   }, []);
+
+   useEffect(() => {
+  if (isAuthenticated) {
+    enablePush();
+  }
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');

@@ -25,14 +25,9 @@ const { getCustomerByUserId, getCustomerById } = require('../models/customer.mod
 const { getQuotationById } = require('../models/quotation.model');
 const { updateFuelRequestStatus } = require('../models/fuelRequest.model');
 const { uploadToSupabase } = require('../utils/supabaseUpload');
-const {
-  sendNewOrderEmailToAdmin,
-  sendOrderConfirmationEmailToCustomer,
-  sendPaymentProofEmailToAdmin,
-  sendPaymentConfirmedEmailToCustomer,
-  sendOrderCompletedEmailToCustomer,
-  sendInvoiceEmailToCustomer
-} = require('../utils/email');
+
+// === NEW: notification service (replaces email helpers) ===
+const { notifyStaff, notifyCustomer } = require('../services/notification.service');
 
 // Multer Config
 const upload = multer({
@@ -48,7 +43,6 @@ const upload = multer({
   }
 });
 
-// Middleware for validation error handling
 const handleValidation = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -58,17 +52,15 @@ const handleValidation = (req, res, next) => {
 };
 
 // =====================================================
-// 1. SPECIFIC NAMED ROUTES (MUST BE BEFORE PARAMS)
+// 1. SPECIFIC NAMED ROUTES
 // =====================================================
 
-// Customer: Get my orders
 router.get('/my-orders', authenticate, async (req, res) => {
   try {
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer profile not found' });
     }
-
     const orders = await getOrdersByCustomer(customer.id);
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
@@ -77,7 +69,6 @@ router.get('/my-orders', authenticate, async (req, res) => {
   }
 });
 
-// Admin/Marketing: Get all orders
 router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, res) => {
   try {
     const orders = await getAllOrders();
@@ -88,7 +79,6 @@ router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, re
   }
 });
 
-// Admin/Marketing: Get pending payment orders
 router.get('/pending-payment', authenticate, authorize('admin', 'marketing'), async (req, res) => {
   try {
     const orders = await getPendingPaymentOrders();
@@ -99,14 +89,13 @@ router.get('/pending-payment', authenticate, authorize('admin', 'marketing'), as
   }
 });
 
-// Admin/Marketing: Get orders awaiting invoice
 router.get('/awaiting-invoice', authenticate, authorize('admin', 'marketing'), async (req, res) => {
   try {
     const orders = await getOrdersAwaitingInvoice();
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     console.error('Error fetching orders awaiting invoice:', error);
-    res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching orders awaiting invoice', error: error.message });
   }
 });
 
@@ -172,11 +161,22 @@ router.post('/create', authenticate, [
       await updateFuelRequestStatus(quotation.fuel_request_id, 'ordered');
     }
 
+    // === NEW: notify every admin + marketing user ===
     try {
-      await sendNewOrderEmailToAdmin(order, customer);
-      await sendOrderConfirmationEmailToCustomer(order, customer);
-    } catch (emailError) {
-      console.error('Order notification email failed:', emailError);
+      const companyName =
+        (customer && (customer.company_name || customer.company)) ||
+        'A customer';
+      const orderRef = order.order_number || ('#' + order.id);
+      await notifyStaff({
+        type: 'order_created',
+        title: 'New order placed: ' + orderRef,
+        message: companyName + ' placed an order for ' +
+                 (quotation.quantity || '') + ' ' + (quotation.unit || 'Liters') +
+                 ' of ' + (quotation.fuel_type || 'fuel') + '.',
+        link: '/orders'
+      });
+    } catch (notifyErr) {
+      console.error('Order-created notification failed:', notifyErr);
     }
 
     res.status(201).json({ success: true, message: 'Order created successfully', data: order });
@@ -187,10 +187,9 @@ router.post('/create', authenticate, [
 });
 
 // =====================================================
-// 3. PARAMETERIZED ROUTES (GET BY ID & MODIFIERS)
+// 3. PARAMETERIZED ROUTES
 // =====================================================
 
-// Get single order by ID
 router.get('/:id', authenticate, [
   param('id').isInt().withMessage('Invalid order ID'),
   handleValidation
@@ -275,13 +274,21 @@ router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), 
 
     const updatedOrder = await addPaymentProof(orderId, filename, url);
 
+    // === NEW: notify every admin + marketing user ===
     try {
       const customer = await getCustomerById(order.customer_id);
-      if (customer) {
-        await sendPaymentProofEmailToAdmin(updatedOrder, customer);
-      }
-    } catch (emailError) {
-      console.error('Payment proof email failed:', emailError);
+      const companyName =
+        (customer && (customer.company_name || customer.company)) ||
+        'A customer';
+      const orderRef = updatedOrder.order_number || order.order_number || ('#' + orderId);
+      await notifyStaff({
+        type: 'payment_proof_uploaded',
+        title: 'Payment proof uploaded: ' + orderRef,
+        message: companyName + ' uploaded payment proof for order ' + orderRef + '.',
+        link: '/orders'
+      });
+    } catch (notifyErr) {
+      console.error('Payment-proof notification failed:', notifyErr);
     }
 
     res.json({ success: true, message: 'Payment proof uploaded successfully', data: updatedOrder });
@@ -321,13 +328,17 @@ router.post('/upload-invoice/:orderId', authenticate, authorize('admin', 'market
 
     const updatedOrder = await addInvoiceFile(orderId, filename, url, req.user.id);
 
+    // === NEW: notify the customer ===
     try {
-      const customer = await getCustomerById(order.customer_id);
-      if (customer) {
-        await sendInvoiceEmailToCustomer(updatedOrder, customer);
-      }
-    } catch (emailError) {
-      console.error('Invoice email failed:', emailError);
+      const orderRef = updatedOrder.order_number || order.order_number || ('#' + orderId);
+      await notifyCustomer(order.customer_id, {
+        type: 'invoice_uploaded',
+        title: 'Your invoice is ready',
+        message: 'Invoice for order ' + orderRef + ' is now available. Download it from the order page.',
+        link: '/orders'
+      });
+    } catch (notifyErr) {
+      console.error('Invoice notification failed:', notifyErr);
     }
 
     res.json({
@@ -390,14 +401,18 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    // === NEW: notify the customer when their order is marked completed ===
     if (req.body.status === 'completed') {
       try {
-        const customer = await getCustomerById(order.customer_id);
-        if (customer) {
-          await sendOrderCompletedEmailToCustomer(order, customer);
-        }
-      } catch (emailError) {
-        console.error('Order completed email failed:', emailError);
+        const orderRef = order.order_number || ('#' + order.id);
+        await notifyCustomer(order.customer_id, {
+          type: 'order_completed',
+          title: 'Order completed: ' + orderRef,
+          message: 'Your order ' + orderRef + ' has been marked as completed.',
+          link: '/orders'
+        });
+      } catch (notifyErr) {
+        console.error('Order-completed notification failed:', notifyErr);
       }
     }
 
@@ -427,13 +442,17 @@ router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing')
       req.body.notes || `Payment confirmed by ${req.user.first_name} ${req.user.last_name}`
     );
 
+    // === NEW: notify the customer ===
     try {
-      const customer = await getCustomerById(order.customer_id);
-      if (customer) {
-        await sendPaymentConfirmedEmailToCustomer(updatedOrder, customer);
-      }
-    } catch (emailError) {
-      console.error('Payment confirmed email failed:', emailError);
+      const orderRef = updatedOrder.order_number || order.order_number || ('#' + order.id);
+      await notifyCustomer(order.customer_id, {
+        type: 'payment_confirmed',
+        title: 'Payment confirmed: ' + orderRef,
+        message: 'We have received and confirmed your payment for order ' + orderRef + '.',
+        link: '/orders'
+      });
+    } catch (notifyErr) {
+      console.error('Payment-confirmed notification failed:', notifyErr);
     }
 
     res.json({ success: true, message: 'Payment confirmed successfully', data: updatedOrder });
