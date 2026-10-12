@@ -79,7 +79,6 @@ const NotificationBell = () => {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [permission, setPermission] = useState(
     CAN_NOTIFY ? Notification.permission : 'unsupported'
   );
@@ -179,13 +178,11 @@ const NotificationBell = () => {
     const onDown = event => {
       if (wrapRef.current && !wrapRef.current.contains(event.target)) {
         setOpen(false);
-        setMenuOpen(false);
       }
     };
 
     const onKeyDown = event => {
       if (event.key === 'Escape') {
-        setMenuOpen(false);
         setOpen(false);
       }
     };
@@ -198,17 +195,6 @@ const NotificationBell = () => {
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
-
-  /* Close the “...” menu when clicking anywhere else. */
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-
-    const close = () => setMenuOpen(false);
-
-    document.addEventListener('mousedown', close);
-
-    return () => document.removeEventListener('mousedown', close);
-  }, [menuOpen]);
 
   const handleItemClick = async n => {
     setActionError('');
@@ -235,13 +221,11 @@ const NotificationBell = () => {
     }
 
     setOpen(false);
-    setMenuOpen(false);
     if (n.link) navigate(n.link);
   };
 
   const markAllRead = async () => {
     setActionError('');
-    setMenuOpen(false);
 
     const previousItems = items;
     const previousUnread = unread;
@@ -290,8 +274,6 @@ const NotificationBell = () => {
   };
 
   const clearAllNotifications = async () => {
-    setMenuOpen(false);
-
     if (items.length === 0 || clearing) return;
 
     const confirmed = window.confirm(
@@ -336,15 +318,6 @@ const NotificationBell = () => {
     });
   };
 
-  const sendTestAlert = () => {
-    showDesktopAlert({
-      id: 'test-' + Date.now(),
-      title: 'GlowBulk test',
-      message: 'Desktop alerts are working.',
-      link: null
-    });
-  };
-
   return (
     <div className="notif-bar">
       <div className="notif-wrap" ref={wrapRef}>
@@ -359,7 +332,6 @@ const NotificationBell = () => {
             if (!open) {
               load();
               setActionError('');
-              setMenuOpen(false);
               if (CAN_NOTIFY) setPermission(Notification.permission);
             }
           }}
@@ -411,67 +383,6 @@ const NotificationBell = () => {
               {unread > 0 && (
                 <span className="notif-new-badge">{unread} new</span>
               )}
-
-              <div className="notif-menu-wrap">
-                <button
-                  type="button"
-                  className="notif-menu-btn"
-                  aria-label="Notification options"
-                  aria-expanded={menuOpen}
-                  onClick={event => {
-                    event.stopPropagation();
-                    setMenuOpen(prev => !prev);
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <circle cx="12" cy="5" r="1.8" />
-                    <circle cx="12" cy="12" r="1.8" />
-                    <circle cx="12" cy="19" r="1.8" />
-                  </svg>
-                </button>
-
-                {menuOpen && (
-                  <div
-                    className="notif-menu"
-                    onMouseDown={event => event.stopPropagation()}
-                  >
-                    {CAN_NOTIFY && permission === 'default' && (
-                      <button
-                        type="button"
-                        className="notif-menu-item"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          turnOnDesktopAlerts();
-                        }}
-                      >
-                        Enable desktop alerts
-                      </button>
-                    )}
-
-                    {CAN_NOTIFY && permission === 'granted' && (
-                      <button
-                        type="button"
-                        className="notif-menu-item"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          sendTestAlert();
-                        }}
-                      >
-                        Send test alert
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className="notif-menu-item notif-menu-danger"
-                      onClick={clearAllNotifications}
-                      disabled={clearing || items.length === 0}
-                    >
-                      {clearing ? 'Clearing…' : 'Clear all notifications'}
-                    </button>
-                  </div>
-                )}
-              </div>
             </header>
 
             {/* Sub-header: mark all read (left) + clear all (right) */}
@@ -622,9 +533,22 @@ const NotificationBell = () => {
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
               </span>
-              <button type="button" className="notif-foot-link">
-                Notification preferences
-              </button>
+
+              {CAN_NOTIFY && permission === 'default' && (
+                <button
+                  type="button"
+                  className="notif-foot-link"
+                  onClick={turnOnDesktopAlerts}
+                >
+                  Enable desktop alerts
+                </button>
+              )}
+
+              {(!CAN_NOTIFY || permission !== 'default') && (
+                <button type="button" className="notif-foot-link">
+                  Notification preferences
+                </button>
+              )}
             </footer>
           </section>
         )}
