@@ -23,7 +23,6 @@ import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import NotificationBell from './components/NotificationBell';
-import { enablePush } from './components/push';
 
 import './App.css';
 
@@ -198,9 +197,7 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
     )}
 
     <div className="main-wrapper">
-      <div className="app-topbar">
-        <NotificationBell />
-      </div>
+      <NotificationBell />
       <main className="glow-container">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -307,12 +304,6 @@ function App() {
       window.removeEventListener('authChange', checkAuthentication);
     };
   }, []);
-
-   useEffect(() => {
-  if (isAuthenticated) {
-    enablePush();
-  }
-  }, [isAuthenticated]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');

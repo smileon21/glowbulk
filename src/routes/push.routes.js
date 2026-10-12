@@ -13,12 +13,12 @@ router.post('/subscribe', authenticate, async (req, res) => {
 
     // Upsert: same endpoint = same browser, update the user_id in case they logged in as someone else
     await pool.query(
-      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth_key)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (endpoint) DO UPDATE
-         SET user_id = EXCLUDED.user_id,
-             p256dh  = EXCLUDED.p256dh,
-             auth    = EXCLUDED.auth`,
+         SET user_id  = EXCLUDED.user_id,
+             p256dh   = EXCLUDED.p256dh,
+             auth_key = EXCLUDED.auth_key`,
       [req.user.id, endpoint, keys.p256dh, keys.auth]
     );
 

@@ -152,7 +152,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/push', require('./src/routes/push.routes'));
+app.use('/api/push', pushRoutes);
 
 // =====================================================
 // HOME / API STATUS
