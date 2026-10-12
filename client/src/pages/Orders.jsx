@@ -378,6 +378,24 @@ const Orders = () => {
                       </p>
                     )}
 
+                    {isStaff && order.contact_person_email && (
+                      <p>
+                        <strong>Email:</strong>{' '}
+                        <a
+                          href={'mailto:' + order.contact_person_email}
+                          onClick={function(e) {
+                            e.stopPropagation();
+                          }}
+                          style={{
+                            color: '#2f7ea8',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          {order.contact_person_email}
+                        </a>
+                      </p>
+                    )}
+
                     {order.invoice_path && (
                       <p style={{ color: '#2f7a3f', fontWeight: 600, fontSize: '13px' }}>
                          Invoice available
@@ -469,6 +487,59 @@ const Orders = () => {
                   </span>
 
                 </div>
+              )}
+
+              {isStaff &&
+                (selectedOrder.contact_person_name ||
+                  selectedOrder.contact_person_email ||
+                  selectedOrder.contact_person_phone) && (
+
+                <div className="modal-detail-item modal-detail-notes">
+
+                  <span className="detail-label">
+                    Customer Contact
+                  </span>
+
+                  <span className="detail-value">
+
+                    {selectedOrder.contact_person_name && (
+                      <div>
+                        {selectedOrder.contact_person_name}
+                      </div>
+                    )}
+
+                    {selectedOrder.contact_person_email && (
+                      <div style={{ marginTop: '4px' }}>
+                        <a
+                          href={'mailto:' + selectedOrder.contact_person_email}
+                          style={{
+                            color: '#2f7ea8',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          {selectedOrder.contact_person_email}
+                        </a>
+                      </div>
+                    )}
+
+                    {selectedOrder.contact_person_phone && (
+                      <div style={{ marginTop: '4px' }}>
+                        <a
+                          href={'tel:' + selectedOrder.contact_person_phone}
+                          style={{
+                            color: '#2f7ea8',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          {selectedOrder.contact_person_phone}
+                        </a>
+                      </div>
+                    )}
+
+                  </span>
+
+                </div>
+
               )}
 
               <div className="modal-detail-item">

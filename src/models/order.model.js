@@ -151,6 +151,9 @@ const getOrderById = async (id) => {
       u.last_name,
       u.email,
       c.company_name,
+      c.contact_person_name,
+      c.contact_person_email,
+      c.contact_person_phone,
       q.quotation_number
     FROM orders o
     LEFT JOIN users u
@@ -230,6 +233,9 @@ const getAllOrders = async () => {
       u.last_name,
       u.email,
       c.company_name,
+      c.contact_person_name,
+      c.contact_person_email,
+      c.contact_person_phone,
       q.quotation_number
     FROM orders o
     LEFT JOIN users u
@@ -413,7 +419,9 @@ const getPendingPaymentOrders = async () => {
       u.first_name,
       u.last_name,
       u.email,
-      c.company_name
+      c.company_name,
+      c.contact_person_name,
+      c.contact_person_email
     FROM orders o
     LEFT JOIN users u
       ON o.created_by = u.id
@@ -443,7 +451,9 @@ const getOrdersAwaitingInvoice = async () => {
       u.first_name,
       u.last_name,
       u.email,
-      c.company_name
+      c.company_name,
+      c.contact_person_name,
+      c.contact_person_email
     FROM orders o
     LEFT JOIN users u
       ON o.created_by = u.id
