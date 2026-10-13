@@ -71,7 +71,6 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     setSidebarOpen(false);
   }, [location.pathname, setSidebarOpen]);
 
-  
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/announcements', label: 'News & Updates' },
@@ -109,7 +108,6 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
             to={item.to}
             className={`sidebar-link ${location.pathname === item.to ? 'active' : ''}`}
           >
-            <span className="sidebar-link-icon">{item.icon}</span>
             <span>{item.label}</span>
           </Link>
         ))}

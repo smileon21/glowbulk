@@ -2125,8 +2125,10 @@ input::-webkit-contacts-auto-fill-button {
    NOTIFICATIONS (bell + dropdown)
    ============================================ */
 
-/* Notification bar (holds the bell) */
-.notif-bar {
+/* Notification bar (holds the bell).
+   NOTE: deliberately NOT named "notif-bar" — ad blockers such as Brave
+   Shields hide elements with that generic class name. */
+.glow-alerts-bar {
   position: sticky;
   top: 0;
   z-index: 140;
@@ -2598,7 +2600,7 @@ input::-webkit-contacts-auto-fill-button {
 
 /* Responsive */
 @media (max-width: 900px) {
-  .notif-bar {
+  .glow-alerts-bar {
     position: static;
     padding: 10px 18px;
   }

@@ -10,8 +10,19 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export async function enablePush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('Push not supported (needs https or localhost)');
+    return;
+  }
+  if (!('Notification' in window)) {
+    console.warn('Notifications are not supported in this browser');
+    return;
+  }
   if (!localStorage.getItem('token')) return;
+  if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+    console.warn('VITE_VAPID_PUBLIC_KEY is missing from the build');
+    return;
+  }
 
   try {
     const reg = await navigator.serviceWorker.register('/sw.js');

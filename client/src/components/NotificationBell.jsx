@@ -171,6 +171,14 @@ const NotificationBell = () => {
     load();
   }, [location.pathname, load]);
 
+  /* Once permission is granted, make sure THIS browser/laptop is subscribed
+     to push. Each device has its own subscription. */
+  useEffect(() => {
+    if (CAN_NOTIFY && Notification.permission === 'granted') {
+      enablePush().catch(() => {});
+    }
+  }, []);
+
   /* Close on outside click + Esc while the dropdown is open. */
   useEffect(() => {
     if (!open) return undefined;
@@ -319,7 +327,7 @@ const NotificationBell = () => {
   };
 
   return (
-    <div className="notif-bar">
+    <div className="glow-alerts-bar">
       <div className="notif-wrap" ref={wrapRef}>
         <button
           type="button"
@@ -362,7 +370,7 @@ const NotificationBell = () => {
             role="dialog"
             aria-label="Notifications"
           >
-            {/* Header: bell + title + “N new” badge + “...” menu */}
+            {/* Header: bell + title + “N new” badge */}
             <header className="notif-panel-header">
               <span className="notif-head-icon" aria-hidden="true">
                 <svg
