@@ -113,9 +113,8 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     navItems.push({ to: '/content', label: 'Content' });
   }
 
-  if (userRole === 'customer') {
-    navItems.push({ to: '/create-order', label: 'Create Order' });
-  }
+  // No "Create Order" link: orders are created from an accepted quotation
+  // on the Quotations page (the /create-order route still exists for that).
 
   return (
     <aside className={`glow-sidebar ${sidebarOpen ? 'open' : ''}`}>
