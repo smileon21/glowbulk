@@ -3425,6 +3425,107 @@ input[type="file"]::file-selector-button:hover {
   padding-right: 56px;
 }
 
+/* The bell button itself */
+.notif-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--steel);
+  border: 1px solid var(--line);
+  box-shadow:
+    0 1px 2px rgba(20, 20, 31, 0.05),
+    0 4px 12px rgba(20, 20, 31, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.notif-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.notif-btn:hover {
+  color: var(--ink);
+  border-color: var(--steel);
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(20, 20, 31, 0.06),
+    0 8px 18px rgba(20, 20, 31, 0.1);
+}
+
+.notif-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--red);
+}
+
+/* Unread: darker icon with a soft filled body */
+.notif-btn.has-unread {
+  color: var(--ink);
+}
+
+.notif-btn.has-unread .notif-bell-body {
+  fill: currentColor;
+  fill-opacity: 0.12;
+}
+
+/* Open: tinted so it's clear the panel belongs to it */
+.notif-btn[aria-expanded="true"] {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-tint);
+  transform: none;
+}
+
+/* Badge: red pill with a cut-out ring in the page colour */
+.notif-badge {
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  border: 2px solid var(--paper);
+  font-size: 10px;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(204, 0, 0, 0.35);
+}
+
+/* Wiggle when something new arrives */
+.notif-btn.ringing .notif-bell-icon {
+  animation: bellRing 0.9s ease;
+  transform-origin: 50% 8%;
+}
+
+.notif-btn.ringing .notif-badge {
+  animation: badgePop 0.4s ease;
+}
+
+@keyframes bellRing {
+  0%   { transform: rotate(0); }
+  15%  { transform: rotate(16deg); }
+  30%  { transform: rotate(-14deg); }
+  45%  { transform: rotate(10deg); }
+  60%  { transform: rotate(-6deg); }
+  75%  { transform: rotate(3deg); }
+  100% { transform: rotate(0); }
+}
+
+@keyframes badgePop {
+  0%   { transform: scale(0.6); }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif-btn,
+  .notif-btn.ringing .notif-bell-icon,
+  .notif-btn.ringing .notif-badge {
+    animation: none;
+    transition: none;
+  }
+}
+
 @media (max-width: 900px) {
   /* On phones the bell sits inside the navy top bar */
   .glow-alerts-bar {
@@ -3435,14 +3536,19 @@ input[type="file"]::file-selector-button:hover {
   }
 
   .glow-alerts-bar .notif-wrap {
-    top: 9px;
+    top: 7px;
     right: 14px;
   }
 
   .glow-alerts-bar .notif-btn {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.06);
     color: #ffffff;
     border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: none;
+  }
+
+  .glow-alerts-bar .notif-badge {
+    border-color: var(--navy);
   }
 
   .dashboard-welcome,

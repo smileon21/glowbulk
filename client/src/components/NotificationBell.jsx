@@ -85,9 +85,12 @@ const NotificationBell = () => {
   const [deletingIds, setDeletingIds] = useState([]);
   const [clearing, setClearing] = useState(false);
   const [actionError, setActionError] = useState('');
+  // Short wiggle on the bell whenever the unread count goes up
+  const [ringing, setRinging] = useState(false);
 
   const wrapRef = useRef(null);
   const lastIdRef = useRef(null);
+  const prevUnreadRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -170,6 +173,18 @@ const NotificationBell = () => {
   useEffect(() => {
     load();
   }, [location.pathname, load]);
+
+  /* Wiggle the bell when new unread notifications arrive (not on first load). */
+  useEffect(() => {
+    if (prevUnreadRef.current !== null && unread > prevUnreadRef.current) {
+      setRinging(true);
+      const id = setTimeout(() => setRinging(false), 1000);
+      prevUnreadRef.current = unread;
+      return () => clearTimeout(id);
+    }
+    prevUnreadRef.current = unread;
+    return undefined;
+  }, [unread]);
 
   /* Once permission is granted, make sure THIS browser/laptop is subscribed
      to push. Each device has its own subscription. */
@@ -326,14 +341,20 @@ const NotificationBell = () => {
     });
   };
 
+  const bellClass =
+    'notif-btn' +
+    (unread > 0 ? ' has-unread' : '') +
+    (ringing ? ' ringing' : '');
+
   return (
     <div className="glow-alerts-bar">
       <div className="notif-wrap" ref={wrapRef}>
         <button
           type="button"
-          className="notif-btn"
+          className={bellClass}
           aria-label={'Notifications' + (unread ? ', ' + unread + ' unread' : '')}
           aria-expanded={open}
+          title="Notifications"
           onClick={() => {
             setOpen(prev => !prev);
 
@@ -345,6 +366,7 @@ const NotificationBell = () => {
           }}
         >
           <svg
+            className="notif-bell-icon"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -353,13 +375,13 @@ const NotificationBell = () => {
             strokeLinejoin="round"
             aria-hidden="true"
           >
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path className="notif-bell-body" d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.7 21a2 2 0 0 1-3.4 0" />
           </svg>
 
           {unread > 0 && (
             <span className="notif-badge">
-              {unread > 99 ? '99+' : unread}
+              {unread > 9 ? '9+' : unread}
             </span>
           )}
         </button>
