@@ -3298,6 +3298,105 @@ input[type="file"]::file-selector-button:hover {
 .stat-card-header::before { clip-path: inset(0 0 0 50%); }
 .stat-card-header::after  { clip-path: inset(0 50% 0 0); }
 
+/* ---------- Buttons: one consistent system across the app ---------- */
+
+/* Primary — solid red, the ONE main action on a screen */
+.glow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+  background: linear-gradient(180deg, var(--red) 0%, var(--red-dark) 140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 2px 6px rgba(204, 0, 0, 0.22);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.glow-btn:hover {
+  background: linear-gradient(180deg, var(--red-dark) 0%, var(--red-dark) 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 6px 14px rgba(204, 0, 0, 0.28);
+}
+
+.glow-btn:active {
+  transform: translateY(0);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.glow-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--red);
+}
+
+.glow-btn:disabled,
+.glow-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--steel);
+  opacity: 0.45;
+}
+
+/* Secondary — neutral outline, for everything that isn't the main action */
+.glow-btn-secondary {
+  background: var(--white);
+  color: var(--ink);
+  border: 1.5px solid var(--line);
+  box-shadow: 0 1px 2px rgba(20, 20, 31, 0.06);
+}
+
+.glow-btn-secondary:hover {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--steel);
+  box-shadow: 0 4px 10px rgba(20, 20, 31, 0.08);
+}
+
+.glow-btn-secondary:active {
+  box-shadow: inset 0 2px 4px rgba(20, 20, 31, 0.08);
+}
+
+.glow-btn-secondary:disabled,
+.glow-btn-secondary:disabled:hover {
+  background: var(--white);
+  color: var(--steel);
+}
+
+/* Small buttons (cards, tables, messages) */
+.glow-btn-small {
+  border-radius: 6px;
+  padding: 8px 16px;
+}
+
+/* Danger — only for destructive actions (delete, reject) */
+.glow-btn-danger {
+  background: var(--white);
+  color: var(--red-text);
+  border: 1.5px solid rgba(204, 0, 0, 0.35);
+  box-shadow: none;
+}
+
+.glow-btn-danger:hover {
+  background: var(--red);
+  color: #ffffff;
+  border-color: var(--red);
+  box-shadow: 0 4px 10px rgba(204, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-btn,
+  .glow-btn:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
 /* ---------- 2. Bell floats top-right instead of using a whole row ---------- */
 
 /* Scrolls away with the page so it never covers cards */
@@ -3539,6 +3638,187 @@ input[type="file"]::file-selector-button:hover {
 
 .success-with-action .glow-btn-small:hover {
   background: var(--green-text);
+}
+
+/* ---------- Profile page ---------- */
+
+.profile-container {
+  max-width: 900px;
+}
+
+/* Calm grey subtitle instead of red caps (profile + security) */
+.profile-container .sub-text,
+.security-page .sub-text {
+  color: var(--steel);
+  font-family: var(--sans);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Summary card */
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(20, 20, 31, 0.06);
+}
+
+.profile-summary-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--navy);
+  color: #ffffff;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
+  text-transform: uppercase;
+  box-shadow: inset 0 -3px 0 var(--red);
+}
+
+.profile-summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.profile-summary-name {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profile-summary-company {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.profile-summary-email {
+  font-size: 13px;
+  color: var(--steel);
+}
+
+.profile-summary-email strong {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.profile-summary-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.profile-2fa {
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.profile-2fa::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.profile-2fa.on::before  { background: var(--green); }
+.profile-2fa.off::before { background: var(--amber); }
+
+.profile-2fa:hover {
+  color: var(--red);
+}
+
+/* Form sections: neutral border, title with dashed divider */
+.profile-form .form-section {
+  border: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.profile-form .form-section h3 {
+  margin: 0 0 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed var(--line);
+}
+
+.profile-form .form-section .form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Sticky save bar */
+.profile-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(20, 20, 31, 0.1);
+}
+
+.profile-actions-status {
+  font-size: 13px;
+  color: var(--steel);
+}
+
+.profile-actions-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.profile-actions-buttons .glow-btn {
+  width: auto;
+  padding: 11px 24px;
+}
+
+@media (max-width: 768px) {
+  .profile-summary-side {
+    align-items: flex-start;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .profile-form .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .profile-actions-buttons {
+    width: 100%;
+  }
+
+  .profile-actions-buttons .glow-btn {
+    flex: 1;
+  }
 }
 
 /* ---------- 4. Compact announcements on the dashboard ---------- */

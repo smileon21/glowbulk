@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-import TwoFactorSettings from '../components/TwoFactorSettings';
+import { formatName } from '../utils/format';
+
+// Fields shown on this form; used to detect unsaved changes
+const EDITABLE_FIELDS = [
+  'company_name',
+  'company_registration',
+  'industry',
+  'contact_person_name',
+  'contact_person_phone',
+  'contact_person_email'
+];
 
 const CustomerProfile = () => {
   const [profile, setProfile] = useState({
@@ -19,6 +30,8 @@ const CustomerProfile = () => {
     delivery_country: '',
     preferred_fuel_types: []
   });
+  // Last saved version, so Cancel can restore it and Save knows if anything changed
+  const [savedProfile, setSavedProfile] = useState(null);
   const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,12 +51,13 @@ const CustomerProfile = () => {
         setLoading(false);
         return;
       }
-      
+
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
       var response = await axios.get(API_BASE_URL + '/api/customers/profile/me');
-      
+
       if (response.data.success) {
         setProfile(response.data.data);
+        setSavedProfile(response.data.data);
         setProfileExists(true);
         setError('');
       }
@@ -85,6 +99,16 @@ const CustomerProfile = () => {
     });
   };
 
+  var handleCancel = function() {
+    if (savedProfile) setProfile(savedProfile);
+    setMessage('');
+    setError('');
+  };
+
+  var isDirty = !profileExists || !savedProfile || EDITABLE_FIELDS.some(function(field) {
+    return (profile[field] || '') !== (savedProfile[field] || '');
+  });
+
   var handleSubmit = async function(e) {
     e.preventDefault();
     setSaving(true);
@@ -94,17 +118,18 @@ const CustomerProfile = () => {
     try {
       var token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
-      
+
       var response;
       if (profileExists) {
         response = await axios.put(API_BASE_URL + '/api/customers/profile/me', profile);
       } else {
         response = await axios.post(API_BASE_URL + '/api/customers/profile', profile);
       }
-      
+
       if (response.data.success) {
         setMessage(profileExists ? 'Profile updated successfully!' : 'Profile created successfully!');
         setProfile(response.data.data);
+        setSavedProfile(response.data.data);
         setProfileExists(true);
         setError('');
       }
@@ -119,6 +144,16 @@ const CustomerProfile = () => {
     return <div className="loading">Loading profile...</div>;
   }
 
+  var displayName = formatName(
+    (savedProfile && savedProfile.contact_person_name) || localStorage.getItem('userName')
+  ) || 'Customer';
+  var companyLine = [
+    savedProfile && savedProfile.company_name,
+    savedProfile && savedProfile.industry
+  ].filter(Boolean).join(' · ');
+  var signInEmail = (account && account.email) || localStorage.getItem('userEmail') || '';
+  var twoFactorOn = !!(account && account.two_factor_enabled);
+
   return (
     <div className="profile-container">
       <div className="page-header">
@@ -126,13 +161,33 @@ const CustomerProfile = () => {
       </div>
       <p className="sub-text">Update your company and contact information</p>
 
+      {/* Summary card */}
+      <div className="profile-summary">
+        <span className="profile-summary-avatar">{displayName.charAt(0)}</span>
+        <div className="profile-summary-info">
+          <span className="profile-summary-name">{displayName}</span>
+          {companyLine && <span className="profile-summary-company">{companyLine}</span>}
+          {signInEmail && (
+            <span className="profile-summary-email">
+              Signs in as <strong>{signInEmail}</strong>
+            </span>
+          )}
+        </div>
+        <div className="profile-summary-side">
+          <span className="role-badge customer">Customer</span>
+          <Link to="/security" className={'profile-2fa ' + (twoFactorOn ? 'on' : 'off')}>
+            {twoFactorOn ? '2FA on' : '2FA off'} · Security <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+      </div>
+
       {message && <div className="success-message">{message}</div>}
       {error && <div className="error-message">{error}</div>}
 
       <form onSubmit={handleSubmit} className="profile-form">
         <div className="form-section">
           <h3>Company Information</h3>
-          
+
           <div className="form-group">
             <label className="glow-label">Company Name *</label>
             <input
@@ -146,28 +201,29 @@ const CustomerProfile = () => {
             />
           </div>
 
-          <div className="form-group">
-            <label className="glow-label">Company Registration</label>
-            <input
-              type="text"
-              name="company_registration"
-              className="glow-input"
-              value={profile.company_registration || ''}
-              onChange={handleChange}
-              placeholder="Enter company registration number"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="glow-label">Industry</label>
-            <input
-              type="text"
-              name="industry"
-              className="glow-input"
-              value={profile.industry || ''}
-              onChange={handleChange}
-              placeholder="e.g., Oil & Gas, Mining, Transport"
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label className="glow-label">Company Registration</label>
+              <input
+                type="text"
+                name="company_registration"
+                className="glow-input"
+                value={profile.company_registration || ''}
+                onChange={handleChange}
+                placeholder="Registration number"
+              />
+            </div>
+            <div className="form-group">
+              <label className="glow-label">Industry</label>
+              <input
+                type="text"
+                name="industry"
+                className="glow-input"
+                value={profile.industry || ''}
+                onChange={handleChange}
+                placeholder="e.g., Oil & Gas, Mining, Transport"
+              />
+            </div>
           </div>
         </div>
 
@@ -190,7 +246,7 @@ const CustomerProfile = () => {
             <div className="form-group">
               <label className="glow-label">Phone Number</label>
               <input
-                type="text"
+                type="tel"
                 name="contact_person_phone"
                 className="glow-input"
                 value={profile.contact_person_phone || ''}
@@ -201,7 +257,7 @@ const CustomerProfile = () => {
           </div>
 
           <div className="form-group">
-            <label className="glow-label">Email Address *</label>
+            <label className="glow-label">Contact Email *</label>
             <input
               type="email"
               name="contact_person_email"
@@ -211,17 +267,34 @@ const CustomerProfile = () => {
               required
               placeholder="email@company.com"
             />
+            <span className="form-hint">
+              Who our team contacts about your orders. This doesn't change your sign-in email
+              — to change that, contact support.
+            </span>
           </div>
         </div>
 
-        <div className="form-actions">
-          <button type="submit" className="glow-btn" disabled={saving}>
-            {saving ? 'Saving...' : (profileExists ? 'Update Profile' : 'Create Profile')}
-          </button>
+        <div className="profile-actions">
+          <span className="profile-actions-status">
+            {saving ? 'Saving…' : isDirty ? 'You have unsaved changes' : 'All changes saved'}
+          </span>
+          <div className="profile-actions-buttons">
+            {profileExists && (
+              <button
+                type="button"
+                className="glow-btn glow-btn-secondary"
+                onClick={handleCancel}
+                disabled={!isDirty || saving}
+              >
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="glow-btn" disabled={!isDirty || saving}>
+              {saving ? 'Saving…' : (profileExists ? 'Save changes' : 'Create Profile')}
+            </button>
+          </div>
         </div>
       </form>
-
-      <TwoFactorSettings initialEnabled={account?.two_factor_enabled} />
     </div>
   );
 };
