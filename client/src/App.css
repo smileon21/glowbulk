@@ -3080,44 +3080,162 @@ input[type="file"]::file-selector-button:hover {
 }
 
 /* ============================================
-   USER MENU (sidebar profile dropdown) — polish
-   Paste at the very END of your stylesheet so it
-   overrides the earlier .dropdown-* rules.
+   USER MENU (sidebar profile dropdown)
    ============================================ */
 
 .sidebar-profile-menu {
   padding: 6px;
   border-radius: 10px;
+  border-top: 3px solid var(--red);
   box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.35);
+  animation: menuRiseIn 0.16s ease-out;
+  transform-origin: bottom center;
 }
 
+/* Menu opens upward, so it rises from the toggle */
+@keyframes menuRiseIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* "Signed in as" header */
+.menu-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.menu-head-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.menu-head-email {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Items */
 .dropdown-item {
-  padding: 11px 12px;
+  padding: 8px 10px;
   border-radius: 6px;
   font-weight: 500;
+  gap: 12px;
 }
 
+/* Override the old ".dropdown-item span" rule */
+.dropdown-item span {
+  width: auto;
+  font-size: inherit;
+}
+
+.menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px !important;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--steel);
+  transition: all 0.18s ease;
+}
+
+.menu-icon svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.18s ease;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+.dropdown-item:hover .menu-icon {
+  color: var(--ink);
+}
+
+/* Ticket-style tear line before logout */
 .dropdown-divider {
+  height: 0;
+  background: none;
+  border-top: 2px dashed var(--line);
   margin: 6px 4px;
 }
 
-/* Logout: clearly the "leave" action */
+/* Logout */
 .dropdown-item.dropdown-logout {
   color: var(--red-text);
   font-weight: 600;
-  letter-spacing: 0.3px;
+}
+
+.dropdown-logout .menu-icon {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.menu-hint {
+  font-family: var(--mono);
+  font-size: 9.5px !important;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--steel);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.18s ease;
 }
 
 .dropdown-item.dropdown-logout:hover {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.dropdown-logout:hover .menu-icon {
+  background: var(--red);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(204, 0, 0, 0.45);
+}
+
+.dropdown-logout:hover .menu-icon svg {
+  transform: translateX(2px);
+}
+
+.dropdown-logout:hover .menu-hint {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.dropdown-item.dropdown-logout:active {
   background: var(--red);
   color: #ffffff;
 }
 
-.dropdown-item.dropdown-logout:active {
-  background: var(--red-dark);
+.dropdown-item.dropdown-logout:active .menu-hint {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .dropdown-item:focus-visible {
   outline: 2px solid var(--red);
   outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-profile-menu,
+  .menu-icon,
+  .menu-icon svg,
+  .menu-hint {
+    animation: none;
+    transition: none;
+  }
 }

@@ -49,6 +49,24 @@ const ProfileRoute = () => {
 };
 
 // =====================================================
+// MENU ICONS
+// =====================================================
+const ProfileIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);
+
+const LogoutIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="M16 17l5-5-5-5" />
+    <path d="M21 12H9" />
+  </svg>
+);
+
+// =====================================================
 // SIDEBAR
 // =====================================================
 const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
@@ -56,6 +74,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   const profileRef = useRef(null);
   const location = useLocation();
   const userName = localStorage.getItem('userName');
+  const userEmail = localStorage.getItem('userEmail');
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -63,12 +82,20 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         setProfileOpen(false);
       }
     };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setProfileOpen(false);
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   useEffect(() => {
     setSidebarOpen(false);
+    setProfileOpen(false);
   }, [location.pathname, setSidebarOpen]);
 
   const navItems = [
@@ -115,17 +142,43 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
 
       <div className="sidebar-profile" ref={profileRef}>
         {profileOpen && (
-          <div className="sidebar-profile-menu">
-            <Link to="/profile" className="dropdown-item" onClick={() => setProfileOpen(false)}>
-              My Profile
+          <div className="sidebar-profile-menu" role="menu">
+            <div className="menu-head">
+              <span className="menu-head-label">Signed in as</span>
+              <span className="menu-head-email">{userEmail || userName || 'User'}</span>
+            </div>
+
+            <Link
+              to="/profile"
+              className="dropdown-item"
+              role="menuitem"
+              onClick={() => setProfileOpen(false)}
+            >
+              <span className="menu-icon"><ProfileIcon /></span>
+              <span className="menu-label">My Profile</span>
             </Link>
-            <div className="dropdown-divider"></div>
-            <button className="dropdown-item dropdown-logout" onClick={handleLogout}>
-              Logout
+
+            <div className="dropdown-divider" />
+
+            <button
+              type="button"
+              className="dropdown-item dropdown-logout"
+              role="menuitem"
+              onClick={handleLogout}
+            >
+              <span className="menu-icon"><LogoutIcon /></span>
+              <span className="menu-label">Log out</span>
+              <span className="menu-hint">End session</span>
             </button>
           </div>
         )}
-        <button className="sidebar-profile-toggle" onClick={() => setProfileOpen(!profileOpen)}>
+        <button
+          type="button"
+          className="sidebar-profile-toggle"
+          onClick={() => setProfileOpen((prev) => !prev)}
+          aria-haspopup="menu"
+          aria-expanded={profileOpen}
+        >
           <span className="user-avatar">
             {userName ? userName.charAt(0).toUpperCase() : 'U'}
           </span>
