@@ -141,8 +141,20 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="welcome-actions">
-            <button className="glow-btn" onClick={() => navigate('/fuel-requests')}>
-              + Request Fuel
+            <button className="request-cta" onClick={() => navigate('/fuel-requests')}>
+              <span className="request-cta-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 22V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16" />
+                  <line x1="3" y1="10" x2="13" y2="10" />
+                  <line x1="2" y1="22" x2="14" y2="22" />
+                  <path d="M13 12h4a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3" />
+                </svg>
+              </span>
+              <span className="request-cta-text">
+                <span className="request-cta-title">Request Fuel</span>
+                <span className="request-cta-sub">Bulk delivery to your site</span>
+              </span>
+              <span className="request-cta-arrow" aria-hidden="true">→</span>
             </button>
           </div>
         </div>

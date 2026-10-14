@@ -3386,6 +3386,118 @@ input[type="file"]::file-selector-button:hover {
   }
 }
 
+/* Customer "Request Fuel" call-to-action */
+.request-cta {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px 10px 10px;
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(204, 0, 0, 0.28);
+  font-family: var(--sans);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Soft shine that sweeps across on hover */
+.request-cta::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.6s ease;
+}
+
+.request-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(204, 0, 0, 0.38);
+}
+
+.request-cta:hover::after {
+  left: 120%;
+}
+
+.request-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(204, 0, 0, 0.3);
+}
+
+.request-cta:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.request-cta-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.request-cta-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.request-cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.request-cta-title {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  line-height: 1.1;
+}
+
+.request-cta-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.request-cta-arrow {
+  font-size: 18px;
+  margin-left: 6px;
+  transition: transform 0.2s ease;
+}
+
+.request-cta:hover .request-cta-arrow {
+  transform: translateX(4px);
+}
+
+@media (max-width: 768px) {
+  .request-cta {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-cta,
+  .request-cta::after,
+  .request-cta-arrow {
+    transition: none;
+  }
+}
+
 /* ---------- 4. Compact announcements on the dashboard ---------- */
 
 .announcements-section .announcement-card {
@@ -3413,3 +3525,4 @@ input[type="file"]::file-selector-button:hover {
   padding-top: 0;
   border-top: none;
 }
+
