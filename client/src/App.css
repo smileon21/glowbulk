@@ -3689,6 +3689,51 @@ input[type="file"]::file-selector-button:hover {
   transform: translateX(4px);
 }
 
+/* Secondary version (white card) — e.g. admin "Manage Content" */
+.request-cta-secondary {
+  background: var(--white);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(20, 20, 31, 0.06);
+}
+
+.request-cta-secondary::after {
+  background: linear-gradient(100deg, transparent, rgba(20, 20, 31, 0.05), transparent);
+}
+
+.request-cta-secondary:hover {
+  border-color: var(--steel);
+  box-shadow: 0 10px 22px rgba(20, 20, 31, 0.1);
+}
+
+.request-cta-secondary:active {
+  box-shadow: 0 3px 8px rgba(20, 20, 31, 0.08);
+}
+
+.request-cta-secondary .request-cta-icon {
+  background: var(--amber-tint);
+  border-color: rgba(232, 163, 61, 0.35);
+  color: var(--amber);
+}
+
+.request-cta-secondary .request-cta-sub {
+  color: var(--steel);
+}
+
+.request-cta-secondary .request-cta-arrow {
+  color: var(--steel);
+}
+
+.request-cta-secondary:hover .request-cta-arrow {
+  color: var(--ink);
+}
+
+/* Admin tagline: calm, not red */
+.role-indicator.admin {
+  background: var(--white);
+  border-left-color: var(--slate);
+}
+
 @media (max-width: 768px) {
   .request-cta {
     width: 100%;
@@ -3752,8 +3797,9 @@ input[type="file"]::file-selector-button:hover {
   max-width: 900px;
 }
 
-/* Calm grey subtitle instead of red caps (profile + security) */
+/* Calm grey subtitle instead of red caps (profile, admin profile, security) */
 .profile-container .sub-text,
+.admin-profile-container .sub-text,
 .security-page .sub-text {
   color: var(--steel);
   font-family: var(--sans);
@@ -3855,6 +3901,47 @@ input[type="file"]::file-selector-button:hover {
   color: var(--red);
 }
 
+/* Role badge in the summary card: soft tint instead of a solid block */
+.profile-summary .role-badge {
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+}
+
+.profile-summary .role-badge.admin {
+  background: var(--red-tint);
+  color: var(--red-text);
+}
+
+.profile-summary .role-badge.marketing {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.profile-summary .role-badge.customer {
+  background: var(--paper);
+  color: var(--slate);
+}
+
+/* Admin profile: export button with icon */
+.export-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Existing small "danger" buttons (e.g. Deactivate): outline, fill on hover */
+.glow-btn-small.danger {
+  background: var(--white);
+  color: var(--red-text);
+  border: 1.5px solid rgba(204, 0, 0, 0.35);
+  box-shadow: none;
+}
+
+.glow-btn-small.danger:hover {
+  background: var(--red);
+  color: #ffffff;
+  border-color: var(--red);
+}
+
 /* Form sections: neutral border, title with dashed divider */
 .profile-form .form-section {
   border: 1px solid var(--line);
@@ -3954,3 +4041,4 @@ input[type="file"]::file-selector-button:hover {
   padding-top: 0;
   border-top: none;
 }
+

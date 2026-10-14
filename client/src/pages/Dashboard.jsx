@@ -232,11 +232,39 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="welcome-actions">
-          <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/content')}>
-            Manage Content
+          <button className="request-cta request-cta-secondary" onClick={() => navigate('/content')}>
+            <span className="request-cta-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" />
+                <path d="M16 9a3 3 0 0 1 0 6" />
+                <path d="M19 6a7 7 0 0 1 0 12" />
+              </svg>
+            </span>
+            <span className="request-cta-text">
+              <span className="request-cta-title">Manage Content</span>
+              <span className="request-cta-sub">Announcements &amp; news</span>
+            </span>
+            <span className="request-cta-arrow" aria-hidden="true">→</span>
           </button>
-          <button className="glow-btn" onClick={() => navigate('/quotations')}>
-            + Create Quote
+
+          <button className="request-cta" onClick={() => navigate('/quotations')}>
+            <span className="request-cta-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="12" x2="12" y2="18" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+              </svg>
+            </span>
+            <span className="request-cta-text">
+              <span className="request-cta-title">Create Quote</span>
+              <span className="request-cta-sub">
+                {stats.pendingRequests > 0
+                  ? stats.pendingRequests + (stats.pendingRequests === 1 ? ' request waiting' : ' requests waiting')
+                  : 'Price a fuel request'}
+              </span>
+            </span>
+            <span className="request-cta-arrow" aria-hidden="true">→</span>
           </button>
         </div>
       </div>
