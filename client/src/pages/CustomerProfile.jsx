@@ -267,10 +267,7 @@ const CustomerProfile = () => {
               required
               placeholder="email@company.com"
             />
-            <span className="form-hint">
-              Who our team contacts about your orders. This doesn't change your sign-in email
-              — to change that, contact support.
-            </span>
+            <span className="form-hint">Who our team contacts about your orders.</span>
           </div>
         </div>
 
