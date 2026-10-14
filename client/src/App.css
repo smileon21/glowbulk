@@ -3263,13 +3263,24 @@ input[type="file"]::file-selector-button:hover {
 .quote-card { border-top-color: var(--slate); }
 .order-card { border-top-color: var(--green); }
 
-/* "View All": quiet until hovered */
+/* "View All": dark readable text, red arrow as the accent */
 .stat-btn {
-  color: var(--steel);
+  color: var(--ink);
+  font-weight: 600;
+  gap: 6px;
+}
+
+.stat-btn-arrow {
+  color: var(--red);
+  transition: transform 0.18s ease;
 }
 
 .stat-btn:hover {
   color: var(--red);
+}
+
+.stat-btn:hover .stat-btn-arrow {
+  transform: translateX(3px);
 }
 
 /* Announcements are information, not danger */
@@ -3289,8 +3300,9 @@ input[type="file"]::file-selector-button:hover {
 
 /* ---------- 2. Bell floats top-right instead of using a whole row ---------- */
 
+/* Scrolls away with the page so it never covers cards */
 .glow-alerts-bar {
-  position: sticky;
+  position: relative;
   top: 0;
   z-index: 140;
   display: block;
@@ -3339,6 +3351,38 @@ input[type="file"]::file-selector-button:hover {
   .content-header,
   .create-order-container > h2 {
     padding-right: 0;
+  }
+}
+
+/* ---------- 3. Welcome header with the main action button ---------- */
+
+.dashboard-welcome {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.welcome-actions .glow-btn {
+  width: auto;
+  padding: 12px 24px;
+}
+
+@media (max-width: 768px) {
+  .welcome-actions,
+  .welcome-actions .glow-btn {
+    width: 100%;
+  }
+
+  .welcome-actions .glow-btn {
+    flex: 1;
   }
 }
 

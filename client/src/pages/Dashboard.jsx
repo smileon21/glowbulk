@@ -134,9 +134,16 @@ const Dashboard = () => {
     return (
       <div className="dashboard">
         <div className="dashboard-welcome">
-          <h1>Welcome, {userName}</h1>
-          <div className="role-indicator customer">
-            <span>Bulk Fuel. Delivered On Time. Every Time.</span>
+          <div className="welcome-text">
+            <h1>Welcome, {userName}</h1>
+            <div className="role-indicator customer">
+              <span>Bulk Fuel. Delivered On Time. Every Time.</span>
+            </div>
+          </div>
+          <div className="welcome-actions">
+            <button className="glow-btn" onClick={() => navigate('/fuel-requests')}>
+              + Request Fuel
+            </button>
           </div>
         </div>
 
@@ -155,7 +162,7 @@ const Dashboard = () => {
             </div>
             <div className="stat-card-footer">
               <button className="stat-btn" onClick={() => navigate('/fuel-requests')}>
-                View All →
+                View All <span className="stat-btn-arrow">→</span>
               </button>
             </div>
           </div>
@@ -173,7 +180,7 @@ const Dashboard = () => {
             </div>
             <div className="stat-card-footer">
               <button className="stat-btn" onClick={() => navigate('/quotations')}>
-                View All →
+                View All <span className="stat-btn-arrow">→</span>
               </button>
             </div>
           </div>
@@ -191,40 +198,13 @@ const Dashboard = () => {
             </div>
             <div className="stat-card-footer">
               <button className="stat-btn" onClick={() => navigate('/orders')}>
-                View All →
+                View All <span className="stat-btn-arrow">→</span>
               </button>
             </div>
           </div>
         </div>
 
         <AnnouncementsSection announcements={announcements} />
-
-        <div className="quick-actions">
-          <h2>Quick actions</h2>
-          <div className="actions-grid">
-            <div className="action-card">
-              <h3>New fuel request</h3>
-              <p>Submit a new bulk fuel request</p>
-              <button className="glow-btn" onClick={() => navigate('/fuel-requests')}>
-                Request Fuel
-              </button>
-            </div>
-            <div className="action-card">
-              <h3>View quotations</h3>
-              <p>Check your pending quotations</p>
-              <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/quotations')}>
-                View Quotes
-              </button>
-            </div>
-            <div className="action-card">
-              <h3>Track orders</h3>
-              <p>Monitor your order status</p>
-              <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/orders')}>
-                Track Orders
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
@@ -233,9 +213,19 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <div className="dashboard-welcome">
-        <h1>Welcome, {userName}</h1>
-        <div className={'role-indicator ' + userRole}>
-          <span>Marketing console — manage fuel sales and delivery requests</span>
+        <div className="welcome-text">
+          <h1>Welcome, {userName}</h1>
+          <div className={'role-indicator ' + userRole}>
+            <span>Marketing console — manage fuel sales and delivery requests</span>
+          </div>
+        </div>
+        <div className="welcome-actions">
+          <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/content')}>
+            Manage Content
+          </button>
+          <button className="glow-btn" onClick={() => navigate('/quotations')}>
+            + Create Quote
+          </button>
         </div>
       </div>
 
@@ -266,7 +256,7 @@ const Dashboard = () => {
           </div>
           <div className="stat-card-footer">
             <button className="stat-btn" onClick={() => navigate('/fuel-requests')}>
-              Review →
+              Review <span className="stat-btn-arrow">→</span>
             </button>
           </div>
         </div>
@@ -284,7 +274,7 @@ const Dashboard = () => {
           </div>
           <div className="stat-card-footer">
             <button className="stat-btn" onClick={() => navigate('/orders')}>
-              Verify →
+              Verify <span className="stat-btn-arrow">→</span>
             </button>
           </div>
         </div>
@@ -302,47 +292,13 @@ const Dashboard = () => {
           </div>
           <div className="stat-card-footer">
             <button className="stat-btn" onClick={() => navigate('/orders')}>
-              View All →
+              View All <span className="stat-btn-arrow">→</span>
             </button>
           </div>
         </div>
       </div>
 
       <AnnouncementsSection announcements={announcements} />
-
-      <div className="quick-actions">
-        <h2>Accounting actions</h2>
-        <div className="actions-grid">
-          <div className="action-card">
-            <h3>Review requests</h3>
-            <p>View and respond to customer fuel requests</p>
-            <button className="glow-btn" onClick={() => navigate('/fuel-requests')}>
-              Review Requests
-            </button>
-          </div>
-          <div className="action-card">
-            <h3>Create quotation</h3>
-            <p>Generate quotations for customers</p>
-            <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/quotations')}>
-              Create Quote
-            </button>
-          </div>
-          <div className="action-card">
-            <h3>Confirm payments</h3>
-            <p>Verify and confirm customer payments</p>
-            <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/orders')}>
-              Confirm Payments
-            </button>
-          </div>
-          <div className="action-card">
-            <h3>Update content</h3>
-            <p>Manage website content and announcements</p>
-            <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/content')}>
-              Manage Content
-            </button>
-          </div>
-        </div>
-      </div>
 
       <div className="recent-activity">
         <h2>Recent activity</h2>
