@@ -256,6 +256,18 @@ const Orders = () => {
     return order.status === 'payment_confirmed';
   };
 
+  // Customer can upload proof while the order is awaiting payment and no proof exists yet
+  var canUploadProof = function(order) {
+    if (isStaff) return false;
+    if (!order) return false;
+    if (order.status !== 'pending_payment') return false;
+    return (
+      !order.payment_proof_path &&
+      !order.payment_proof_filename &&
+      order.payment_status !== 'proof_uploaded'
+    );
+  };
+
   if (loading) {
     return <div className="loading">Loading manifest...</div>;
   }
@@ -400,6 +412,27 @@ const Orders = () => {
                       <p style={{ color: '#2f7a3f', fontWeight: 600, fontSize: '13px' }}>
                          Invoice available
                       </p>
+                    )}
+
+                    {canUploadProof(order) && (
+                      <button
+                        className="glow-btn"
+                        style={{ width: '100%', marginTop: '10px' }}
+                        onClick={function(e) {
+                          e.stopPropagation(); // don't open the modal
+                          navigate('/upload-proof/' + order.id);
+                        }}
+                      >
+                        Upload Proof of Payment
+                      </button>
+                    )}
+
+                    {!isStaff &&
+                      order.status === 'pending_payment' &&
+                      !canUploadProof(order) && (
+                        <p style={{ color: '#4f46e5', fontWeight: 600, fontSize: '13px' }}>
+                          Proof uploaded, awaiting verification
+                        </p>
                     )}
 
                   </div>
@@ -1002,10 +1035,7 @@ const Orders = () => {
 
               )}
 
-              {selectedOrder.status === 'pending_payment' &&
-                !isStaff &&
-                !selectedOrder.payment_proof_path &&
-                !selectedOrder.payment_proof_filename && (
+              {canUploadProof(selectedOrder) && (
 
                 <button
                   className="glow-btn"

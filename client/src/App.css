@@ -3078,3 +3078,46 @@ input[type="file"]::file-selector-button:hover {
     padding: 14px 16px;
   }
 }
+
+/* ============================================
+   USER MENU (sidebar profile dropdown) — polish
+   Paste at the very END of your stylesheet so it
+   overrides the earlier .dropdown-* rules.
+   ============================================ */
+
+.sidebar-profile-menu {
+  padding: 6px;
+  border-radius: 10px;
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.dropdown-item {
+  padding: 11px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.dropdown-divider {
+  margin: 6px 4px;
+}
+
+/* Logout: clearly the "leave" action */
+.dropdown-item.dropdown-logout {
+  color: var(--red-text);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.dropdown-item.dropdown-logout:hover {
+  background: var(--red);
+  color: #ffffff;
+}
+
+.dropdown-item.dropdown-logout:active {
+  background: var(--red-dark);
+}
+
+.dropdown-item:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}

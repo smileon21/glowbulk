@@ -265,6 +265,14 @@ router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), 
       return res.status(403).json({ success: false, message: 'Unauthorized access to this order' });
     }
 
+    // Proof can only be uploaded while the order is still awaiting payment
+    if (order.status !== 'pending_payment') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment proof can only be uploaded while the order is pending payment'
+      });
+    }
+
     const { url, filename } = await uploadToSupabase(
       req.file.buffer,
       req.file.originalname,

@@ -25,7 +25,7 @@ const CreateOrder = () => {
     delivery_postal_code: '',
     notes: ''
   });
-  const [poFile, setPoFile] = useState(null);
+  const [proofFile, setProofFile] = useState(null);
 
   var safeParseNumber = function(value) {
     if (value === null || value === undefined || value === '') return 0;
@@ -103,13 +103,20 @@ const CreateOrder = () => {
         setError('File size must be less than 5MB');
         return;
       }
-      setPoFile(file);
+      setProofFile(file);
       setError('');
     }
   };
 
   var handleSubmit = async function(e) {
     e.preventDefault();
+
+    // Proof of payment is required to place the order
+    if (!proofFile) {
+      setError('Please upload your proof of payment');
+      return;
+    }
+
     setSubmitting(true);
     setError('');
     setMessage('');
@@ -142,12 +149,13 @@ const CreateOrder = () => {
       if (orderResponse.data.success) {
         var order = orderResponse.data.data;
 
-        if (poFile) {
+        // Upload the proof of payment for the new order
+        try {
           var formData = new FormData();
-          formData.append('poFile', poFile);
+          formData.append('proofFile', proofFile);
 
           await axios.post(
-            API_BASE_URL + '/api/orders/upload-po/' + order.id,
+            API_BASE_URL + '/api/orders/upload-proof/' + order.id,
             formData,
             {
               headers: {
@@ -156,6 +164,16 @@ const CreateOrder = () => {
               }
             }
           );
+        } catch (uploadErr) {
+          console.error('Error uploading proof of payment:', uploadErr);
+          setError(
+            'Order ' + order.order_number +
+            ' was created, but the proof of payment upload failed. Please upload it from the Orders page.'
+          );
+          setTimeout(function() {
+            navigate('/orders');
+          }, 4000);
+          return;
         }
 
         setMessage('Order created successfully!\nOrder Number: ' + order.order_number + '\nStatus: Pending Payment');
@@ -248,15 +266,16 @@ const CreateOrder = () => {
             />
           </div>
           <div className="form-group">
-            <label className="glow-label">Upload Purchase Order (Optional)</label>
+            <label className="glow-label">Upload Proof of Payment</label>
             <input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
               className="glow-input"
               onChange={handleFileChange}
+              required
             />
             <small className="form-hint">PDF, JPG, PNG (Max 5MB)</small>
-            {poFile && <span className="file-name">📎 {poFile.name}</span>}
+            {proofFile && <span className="file-name">📎 {proofFile.name}</span>}
           </div>
           <div className="form-group">
             <label className="glow-label">Additional Notes</label>
