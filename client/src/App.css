@@ -3498,6 +3498,49 @@ input[type="file"]::file-selector-button:hover {
   }
 }
 
+/* ---------- Quotations: "Ready to order" tag + success message with action ---------- */
+
+.ready-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  background: var(--green-tint);
+  color: var(--green-text);
+  border: 1px solid rgba(47, 122, 63, 0.35);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ready-tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.success-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.success-with-action .glow-btn-small {
+  background: var(--green);
+}
+
+.success-with-action .glow-btn-small:hover {
+  background: var(--green-text);
+}
+
 /* ---------- 4. Compact announcements on the dashboard ---------- */
 
 .announcements-section .announcement-card {
@@ -3525,4 +3568,3 @@ input[type="file"]::file-selector-button:hover {
   padding-top: 0;
   border-top: none;
 }
-

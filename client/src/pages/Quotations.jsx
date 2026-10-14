@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
+import { formatDate } from '../utils/format';
 
 const Quotations = () => {
   const navigate = useNavigate();
@@ -12,7 +13,9 @@ const Quotations = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedQuote, setSelectedQuote] = useState(null);
-  
+  // Set right after a customer accepts, so the success message can offer "Create Order"
+  const [justAcceptedId, setJustAcceptedId] = useState(null);
+
   const [formData, setFormData] = useState({
     fuelRequestId: '',
     unitPrice: '',
@@ -25,6 +28,7 @@ const Quotations = () => {
 
   const userRole = localStorage.getItem('userRole');
   const isStaff = userRole === 'admin' || userRole === 'marketing';
+  const isCustomer = userRole === 'customer';
 
   useEffect(() => {
     fetchData();
@@ -81,6 +85,7 @@ const Quotations = () => {
     e.preventDefault();
     setMessage('');
     setError('');
+    setJustAcceptedId(null);
     setLoading(true);
 
     try {
@@ -119,6 +124,7 @@ const Quotations = () => {
   };
 
   const updateStatus = async function(id, status) {
+    setJustAcceptedId(null);
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
@@ -140,12 +146,14 @@ const Quotations = () => {
 
   const acceptQuotation = async function(id) {
     if (!window.confirm('Accept this quotation?')) return;
+    setError('');
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
       const response = await axios.put(API_BASE_URL + '/api/quotations/' + id + '/accept');
       if (response.data.success) {
-        setMessage('Quotation accepted successfully!');
+        setMessage('Quotation accepted! You can now create your order.');
+        setJustAcceptedId(id);
         setSelectedQuote(null);
         fetchData();
       }
@@ -156,6 +164,7 @@ const Quotations = () => {
 
   const rejectQuotation = async function(id) {
     if (!window.confirm('Reject this quotation?')) return;
+    setJustAcceptedId(null);
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
@@ -172,6 +181,11 @@ const Quotations = () => {
 
   const handleCreateOrder = function(quotationId) {
     navigate('/create-order?quotationId=' + quotationId);
+  };
+
+  // Accepted by the customer but no order placed yet
+  const isReadyToOrder = function(quote) {
+    return isCustomer && quote.status === 'accepted' && !quote.has_order;
   };
 
   const getStatusBadge = function(status) {
@@ -206,7 +220,19 @@ const Quotations = () => {
         )}
       </div>
 
-      {message && <div className="success-message">{message}</div>}
+      {message && (
+        <div className="success-message success-with-action">
+          <span>{message}</span>
+          {justAcceptedId && (
+            <button
+              className="glow-btn glow-btn-small"
+              onClick={function() { handleCreateOrder(justAcceptedId); }}
+            >
+              Create Order →
+            </button>
+          )}
+        </div>
+      )}
       {error && <div className="error-message">{error}</div>}
 
       {showForm && isStaff && (
@@ -325,8 +351,8 @@ const Quotations = () => {
             </div>
 
             <button type="submit" className="glow-btn" disabled={fuelRequests.length === 0}>
-              {fuelRequests.length === 0 
-                ? 'No Requests Available' 
+              {fuelRequests.length === 0
+                ? 'No Requests Available'
                 : formData.status === 'sent' ? 'Create & Send' : 'Create Draft'}
             </button>
           </form>
@@ -349,18 +375,23 @@ const Quotations = () => {
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="quote-header">
-                    <h3> {quote.quotation_number}</h3>
+                    <h3>{quote.quotation_number}</h3>
                     {getStatusBadge(quote.status)}
                   </div>
                   <div className="quote-details">
                     <p><strong>Fuel Type:</strong> {quote.fuel_type}</p>
                     <p><strong>Quantity:</strong> {quote.quantity} {quote.unit}</p>
                     <p><strong>Grand Total:</strong> {formatCurrency(quote.grand_total)}</p>
-                    <p><strong>Valid Until:</strong> {new Date(quote.valid_until).toLocaleDateString()}</p>
+                    <p><strong>Valid Until:</strong> {formatDate(quote.valid_until)}</p>
                   </div>
                   <div className="quote-footer">
-                    <small>Created: {new Date(quote.created_at).toLocaleDateString()}</small>
-                    <span className="stat-btn">View Details →</span>
+                    <small>Created: {formatDate(quote.created_at)}</small>
+                    {isReadyToOrder(quote) && (
+                      <span className="ready-tag">Ready to order</span>
+                    )}
+                    <span className="stat-btn">
+                      View Details <span className="stat-btn-arrow">→</span>
+                    </span>
                   </div>
                 </div>
               );
@@ -373,12 +404,15 @@ const Quotations = () => {
         <div className="modal-overlay" onClick={function() { setSelectedQuote(null); }}>
           <div className="modal-content glow-card" onClick={function(e) { e.stopPropagation(); }}>
             <div className="modal-header">
-              <h3> {selectedQuote.quotation_number}</h3>
+              <h3>{selectedQuote.quotation_number}</h3>
               <button className="modal-close" onClick={function() { setSelectedQuote(null); }}>✕</button>
             </div>
 
             <div className="modal-status-row">
               {getStatusBadge(selectedQuote.status)}
+              {isReadyToOrder(selectedQuote) && (
+                <span className="ready-tag">Ready to order</span>
+              )}
             </div>
 
             <div className="modal-details">
@@ -407,7 +441,7 @@ const Quotations = () => {
               {selectedQuote.valid_until && (
                 <div className="modal-detail-item">
                   <span className="detail-label">Valid Until</span>
-                  <span className="detail-value">{new Date(selectedQuote.valid_until).toLocaleDateString()}</span>
+                  <span className="detail-value">{formatDate(selectedQuote.valid_until)}</span>
                 </div>
               )}
             </div>
@@ -424,7 +458,7 @@ const Quotations = () => {
                 </button>
               )}
 
-              {selectedQuote.status === 'sent' && userRole === 'customer' && (
+              {selectedQuote.status === 'sent' && isCustomer && (
                 <>
                   <button className="glow-btn" onClick={function() { acceptQuotation(selectedQuote.id); }}>
                     Accept Quotation
@@ -435,21 +469,15 @@ const Quotations = () => {
                 </>
               )}
 
-              {selectedQuote.status === 'accepted' && userRole === 'customer' && (
-                <button 
-                  className="glow-btn" 
-                  onClick={function() { handleCreateOrder(selectedQuote.id); }}
-                  style={{ background: '#059669' }}
-                >
+              {/* Only one of these shows: create the order, or view the one already placed */}
+              {isReadyToOrder(selectedQuote) && (
+                <button className="glow-btn" onClick={function() { handleCreateOrder(selectedQuote.id); }}>
                   Create Order
                 </button>
               )}
 
-              {selectedQuote.status === 'accepted' && userRole === 'customer' && selectedQuote.has_order && (
-                <button 
-                  className="glow-btn glow-btn-secondary" 
-                  onClick={function() { navigate('/orders'); }}
-                >
+              {selectedQuote.status === 'accepted' && isCustomer && selectedQuote.has_order && (
+                <button className="glow-btn glow-btn-secondary" onClick={function() { navigate('/orders'); }}>
                   View Order
                 </button>
               )}
