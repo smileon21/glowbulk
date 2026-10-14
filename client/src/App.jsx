@@ -23,6 +23,7 @@ import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import NotificationBell from './components/NotificationBell';
+import { formatName } from './utils/format';
 
 import './App.css';
 
@@ -73,7 +74,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
   const location = useLocation();
-  const userName = localStorage.getItem('userName');
+  const userName = formatName(localStorage.getItem('userName'));
   const userEmail = localStorage.getItem('userEmail');
 
   useEffect(() => {

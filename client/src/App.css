@@ -3239,3 +3239,133 @@ input[type="file"]::file-selector-button:hover {
     transition: none;
   }
 }
+
+/* ============================================
+   DESIGN PASS — less red, floating bell, compact announcements
+   Paste at the very END of App.css.
+   ============================================ */
+
+/* ---------- 1. Red only where it means something ---------- */
+
+/* Sidebar edge: thin neutral line instead of a 3px red bar */
+.glow-sidebar {
+  border-right: 1px solid var(--line-dark);
+}
+
+/* Stat cards: one colour per type */
+.stat-card.stat-req  { border-top-color: var(--amber); } /* Fuel Requests */
+.stat-card.stat-quo  { border-top-color: var(--slate); } /* Quotations */
+.stat-card.stat-ord  { border-top-color: var(--green); } /* Orders */
+.stat-card.stat-cust { border-top-color: var(--steel); } /* Customers */
+.stat-card.stat-pay  { border-top-color: var(--red); }   /* Pending payments: needs action */
+
+/* Same colours on the list pages */
+.quote-card { border-top-color: var(--slate); }
+.order-card { border-top-color: var(--green); }
+
+/* "View All": quiet until hovered */
+.stat-btn {
+  color: var(--steel);
+}
+
+.stat-btn:hover {
+  color: var(--red);
+}
+
+/* Announcements are information, not danger */
+.announcement-card {
+  border-left-color: var(--amber);
+}
+
+/* Ticket notches: draw a visible half-circle cut-out (they vanished
+   on white cards in light mode) */
+.stat-card-header::before,
+.stat-card-header::after {
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.stat-card-header::before { clip-path: inset(0 0 0 50%); }
+.stat-card-header::after  { clip-path: inset(0 50% 0 0); }
+
+/* ---------- 2. Bell floats top-right instead of using a whole row ---------- */
+
+.glow-alerts-bar {
+  position: sticky;
+  top: 0;
+  z-index: 140;
+  display: block;
+  height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.glow-alerts-bar .notif-wrap {
+  position: absolute;
+  top: 30px;
+  right: 42px;
+}
+
+/* Keep page headings and their buttons clear of the bell */
+.dashboard-welcome,
+.page-header,
+.content-header,
+.create-order-container > h2 {
+  padding-right: 56px;
+}
+
+@media (max-width: 900px) {
+  /* On phones the bell sits inside the navy top bar */
+  .glow-alerts-bar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 160;
+  }
+
+  .glow-alerts-bar .notif-wrap {
+    top: 9px;
+    right: 14px;
+  }
+
+  .glow-alerts-bar .notif-btn {
+    background: transparent;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .dashboard-welcome,
+  .page-header,
+  .content-header,
+  .create-order-container > h2 {
+    padding-right: 0;
+  }
+}
+
+/* ---------- 4. Compact announcements on the dashboard ---------- */
+
+.announcements-section .announcement-card {
+  padding: 16px 20px;
+}
+
+.announcements-section .announcement-header {
+  margin-bottom: 6px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.announcements-section .announcement-header h3 {
+  font-size: 15px;
+}
+
+.announcements-section .announcement-card p,
+.announcements-section .announcement-body {
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.announcements-section .announcement-footer {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}

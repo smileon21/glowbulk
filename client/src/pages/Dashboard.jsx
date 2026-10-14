@@ -2,6 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { formatName, formatDate } from '../utils/format';
+
+// Shared by the customer and admin dashboards
+const AnnouncementsSection = ({ announcements }) => {
+  if (announcements.length === 0) return null;
+
+  return (
+    <div className="announcements-section">
+      <h2>Announcements</h2>
+      <div className="announcements-grid">
+        {announcements.map(function(announcement) {
+          return (
+            <div key={announcement.id} className="announcement-card">
+              <div className="announcement-header">
+                <h3>{announcement.title}</h3>
+              </div>
+              <p>{announcement.content}</p>
+              <div className="announcement-footer">
+                <small>Posted: {formatDate(announcement.published_at || announcement.created_at)}</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -18,7 +45,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const userRole = localStorage.getItem('userRole');
-  const userName = localStorage.getItem('userName') || 'User';
+  const userName = formatName(localStorage.getItem('userName')) || 'User';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -113,31 +140,9 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Announcements Section */}
-        {announcements.length > 0 && (
-          <div className="announcements-section">
-            <h2>Announcements</h2>
-            <div className="announcements-grid">
-              {announcements.map(function(announcement) {
-                return (
-                  <div key={announcement.id} className="announcement-card">
-                    <div className="announcement-header">
-                      <h3>{announcement.title}</h3>
-                    </div>
-                    <p>{announcement.content}</p>
-                    <div className="announcement-footer">
-                      <small>Posted: {new Date(announcement.published_at || announcement.created_at).toLocaleDateString()}</small>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Stats Cards - Delivery Tickets */}
         <div className="dashboard-stats-row">
-          <div className="stat-card">
+          <div className="stat-card stat-req">
             <div className="stat-card-header">
               <h3>Fuel Requests</h3>
               <span className="ticket-tag">REQ</span>
@@ -155,7 +160,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="stat-card">
+          <div className="stat-card stat-quo">
             <div className="stat-card-header">
               <h3>Quotations</h3>
               <span className="ticket-tag">QUO</span>
@@ -173,7 +178,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="stat-card">
+          <div className="stat-card stat-ord">
             <div className="stat-card-header">
               <h3>Orders</h3>
               <span className="ticket-tag">ORD</span>
@@ -191,6 +196,8 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        <AnnouncementsSection announcements={announcements} />
 
         <div className="quick-actions">
           <h2>Quick actions</h2>
@@ -232,30 +239,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Announcements Section - Also show on admin dashboard */}
-      {announcements.length > 0 && (
-        <div className="announcements-section">
-          <h2>Announcements</h2>
-          <div className="announcements-grid">
-            {announcements.map(function(announcement) {
-              return (
-                <div key={announcement.id} className="announcement-card">
-                  <div className="announcement-header">
-                    <h3>{announcement.title}</h3>
-                  </div>
-                  <p>{announcement.content}</p>
-                  <div className="announcement-footer">
-                    <small>Posted: {new Date(announcement.published_at || announcement.created_at).toLocaleDateString()}</small>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       <div className="dashboard-stats-row marketing-stats-row">
-        <div className="stat-card">
+        <div className="stat-card stat-cust">
           <div className="stat-card-header">
             <h3>Total Customers</h3>
             <span className="ticket-tag">CUST</span>
@@ -268,7 +253,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card stat-req">
           <div className="stat-card-header">
             <h3>Pending Requests</h3>
             <span className="ticket-tag">REQ</span>
@@ -286,7 +271,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card stat-pay">
           <div className="stat-card-header">
             <h3>Pending Payments</h3>
             <span className="ticket-tag">PAY</span>
@@ -304,7 +289,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card stat-ord">
           <div className="stat-card-header">
             <h3>Total Orders</h3>
             <span className="ticket-tag">ORD</span>
@@ -322,6 +307,8 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      <AnnouncementsSection announcements={announcements} />
 
       <div className="quick-actions">
         <h2>Accounting actions</h2>
