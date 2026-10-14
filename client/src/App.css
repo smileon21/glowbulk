@@ -4014,6 +4014,104 @@ input[type="file"]::file-selector-button:hover {
   }
 }
 
+/* ---------- Admin dashboard: recent activity feed ---------- */
+
+.activity-feed {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(20, 20, 31, 0.06);
+  overflow: hidden;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  padding: 14px 22px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--sans);
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-item:hover {
+  background: var(--paper);
+}
+
+.activity-item:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+
+/* Dot colours match the stat-card type colours */
+.activity-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.activity-req { background: var(--amber); }
+.activity-quo { background: var(--slate); }
+.activity-ord { background: var(--green); }
+.activity-bad { background: var(--red); }
+
+.activity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.activity-title {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-detail {
+  font-size: 12.5px;
+  color: var(--steel);
+  text-transform: capitalize;
+}
+
+.activity-time {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--steel);
+  white-space: nowrap;
+}
+
+.activity-empty {
+  margin: 0;
+  padding: 26px 22px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--steel);
+}
+
+@media (max-width: 768px) {
+  .activity-item {
+    padding: 12px 16px;
+  }
+
+  .activity-title {
+    white-space: normal;
+  }
+}
+
 /* ---------- 4. Compact announcements on the dashboard ---------- */
 
 .announcements-section .announcement-card {
@@ -4041,4 +4139,3 @@ input[type="file"]::file-selector-button:hover {
   padding-top: 0;
   border-top: none;
 }
-

@@ -2,7 +2,65 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-import { formatName, formatDate } from '../utils/format';
+import { formatName, formatDate, formatTimeAgo } from '../utils/format';
+
+const ACTIVITY_LIMIT = 6;
+
+// Turn the admin's requests, quotations and orders into one recent-activity feed,
+// newest first. Uses each record's latest timestamp and current status.
+function buildActivity(requests, quotes, orders) {
+  const events = [];
+  const customer = function(item) {
+    return item.company_name || item.customer_name || 'a customer';
+  };
+
+  (requests || []).forEach(function(r) {
+    events.push({
+      key: 'req-' + r.id,
+      type: 'req',
+      text: 'New fuel request from ' + customer(r),
+      detail: [r.quantity, r.unit, r.fuel_type].filter(Boolean).join(' '),
+      time: r.created_at,
+      link: '/fuel-requests'
+    });
+  });
+
+  const quoteVerbs = {
+    draft: 'drafted for',
+    sent: 'sent to',
+    accepted: 'accepted by',
+    rejected: 'rejected by',
+    expired: 'expired for'
+  };
+  (quotes || []).forEach(function(q) {
+    const verb = quoteVerbs[q.status] || q.status + ' for';
+    events.push({
+      key: 'quo-' + q.id,
+      type: q.status === 'rejected' ? 'bad' : 'quo',
+      text: 'Quotation ' + (q.quotation_number || '#' + q.id) + ' ' + verb + ' ' + customer(q),
+      detail: q.fuel_type || '',
+      time: q.updated_at || q.created_at,
+      link: '/quotations'
+    });
+  });
+
+  (orders || []).forEach(function(o) {
+    const status = o.payment_status || o.status;
+    events.push({
+      key: 'ord-' + o.id,
+      type: 'ord',
+      text: 'Order ' + (o.order_number || '#' + o.id) + ' from ' + customer(o),
+      detail: status ? String(status).replace(/_/g, ' ') : '',
+      time: o.updated_at || o.created_at,
+      link: '/orders'
+    });
+  });
+
+  return events
+    .filter(function(e) { return e.time && !Number.isNaN(new Date(e.time).getTime()); })
+    .sort(function(a, b) { return new Date(b.time) - new Date(a.time); })
+    .slice(0, ACTIVITY_LIMIT);
+}
 
 // Shared by the customer and admin dashboards
 const AnnouncementsSection = ({ announcements }) => {
@@ -34,6 +92,7 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState([]);
+  const [activity, setActivity] = useState([]);
   const [stats, setStats] = useState({
     fuelRequests: 0,
     quotations: 0,
@@ -117,6 +176,8 @@ const Dashboard = () => {
           totalCustomers: customers.data.count || 0,
           pendingRequests: pendingRequests.length
         });
+
+        setActivity(buildActivity(requests.data.data, quotes.data.data, orders.data.data));
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -342,10 +403,30 @@ const Dashboard = () => {
 
       <div className="recent-activity">
         <h2>Recent activity</h2>
-        <div className="activity-list glow-card">
-          <p>New fuel request from customer</p>
-          <p>Payment confirmed for order #ORD-20260831-1410</p>
-          <p>Quotation sent to customer</p>
+        <div className="activity-feed">
+          {activity.length === 0 ? (
+            <p className="activity-empty">No activity yet. New requests, quotations and orders will show up here.</p>
+          ) : (
+            activity.map(function(event) {
+              return (
+                <button
+                  key={event.key}
+                  type="button"
+                  className="activity-item"
+                  onClick={() => navigate(event.link)}
+                >
+                  <span className={'activity-dot activity-' + event.type} aria-hidden="true" />
+                  <span className="activity-text">
+                    <span className="activity-title">{event.text}</span>
+                    {event.detail && <span className="activity-detail">{event.detail}</span>}
+                  </span>
+                  <span className="activity-time" title={formatDate(event.time)}>
+                    {formatTimeAgo(event.time)}
+                  </span>
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
