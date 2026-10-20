@@ -76,6 +76,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const userName = formatName(localStorage.getItem('userName'));
   const userEmail = localStorage.getItem('userEmail');
+  const isStaff = userRole === 'admin' || userRole === 'marketing';
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -99,17 +100,19 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     setProfileOpen(false);
   }, [location.pathname, setSidebarOpen]);
 
+  // Customers see "Get a Quote" (opens the request form straight away).
+  // Staff keep "Fuel Requests" (the list of incoming requests).
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/announcements', label: 'News & Updates' },
     { to: '/profile', label: 'Profile' },
     { to: '/security', label: 'Security' },
-    { to: '/fuel-requests', label: 'Fuel Requests' },
+    { to: '/fuel-requests', label: isStaff ? 'Fuel Requests' : 'Get a Quote' },
     { to: '/quotations', label: 'Quotations' },
     { to: '/orders', label: 'Orders' },
   ];
 
-  if (userRole === 'admin' || userRole === 'marketing') {
+  if (isStaff) {
     navItems.push({ to: '/content', label: 'Content' });
   }
 

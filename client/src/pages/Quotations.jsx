@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { formatDate } from '../utils/format';
 
+// A quotation stays valid for this many hours
+const QUOTE_VALIDITY_HOURS = 72;
+
 const Quotations = () => {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState([]);
@@ -15,6 +18,8 @@ const Quotations = () => {
   const [selectedQuote, setSelectedQuote] = useState(null);
   // Set right after a customer accepts, so the success message can offer "Create Order"
   const [justAcceptedId, setJustAcceptedId] = useState(null);
+  // Current time, refreshed every minute so the 72-hour countdowns stay live
+  const [now, setNow] = useState(Date.now());
 
   const [formData, setFormData] = useState({
     fuelRequestId: '',
@@ -32,6 +37,11 @@ const Quotations = () => {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    var timer = setInterval(function() { setNow(Date.now()); }, 60000);
+    return function() { clearInterval(timer); };
   }, []);
 
   const fetchData = async () => {
@@ -92,8 +102,15 @@ const Quotations = () => {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
+      // Quotes are valid for 72 hours, so staff no longer pick a date
+      var validUntilDate = new Date(Date.now() + QUOTE_VALIDITY_HOURS * 3600000);
+      var pad = function(n) { return String(n).padStart(2, '0'); };
+      var validUntilStr = validUntilDate.getFullYear() + '-' +
+        pad(validUntilDate.getMonth() + 1) + '-' + pad(validUntilDate.getDate());
+
       var payload = {
         ...formData,
+        validUntil: validUntilStr,
         subtotal: subtotal.toFixed(2),
         taxAmount: '0.00',
         grandTotal: grandTotal.toFixed(2)
@@ -205,6 +222,76 @@ const Quotations = () => {
     return '$' + Number(amount).toFixed(2);
   };
 
+  // Date with time, e.g. "20 Oct 2026, 14:35"
+  var formatDateTime = function(dateString) {
+    if (!dateString) return 'Not specified';
+    var date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    return date.toLocaleString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  };
+
+  // When the 72-hour window ends: counted from when the quote was sent
+  // (falls back to when it was created if the API has no sent_at field)
+  var getExpiresAt = function(quote) {
+    var start = new Date(quote.sent_at || quote.created_at);
+    if (isNaN(start.getTime())) return null;
+    return start.getTime() + QUOTE_VALIDITY_HOURS * 3600000;
+  };
+
+  // A quote that was sent but ran out of time counts as expired
+  var getEffectiveStatus = function(quote) {
+    if (quote.status === 'sent') {
+      var end = getExpiresAt(quote);
+      if (end !== null && now >= end) return 'expired';
+    }
+    return quote.status;
+  };
+
+  // "2d 5h", "5h 20m" or "40m"
+  var formatTimeLeft = function(ms) {
+    var totalMinutes = Math.max(0, Math.floor(ms / 60000));
+    var days = Math.floor(totalMinutes / 1440);
+    var hours = Math.floor((totalMinutes % 1440) / 60);
+    var minutes = totalMinutes % 60;
+    if (days > 0) return days + 'd ' + hours + 'h';
+    if (hours > 0) return hours + 'h ' + minutes + 'm';
+    return minutes + 'm';
+  };
+
+  // Countdown shown on quotes still waiting for an answer
+  var getExpiryNote = function(quote) {
+    if (quote.status !== 'sent') return null;
+    var end = getExpiresAt(quote);
+    if (end === null) return null;
+    var left = end - now;
+    if (left <= 0) return { text: 'Expired', tone: 'late' };
+    // Less than 24 hours left = urgent
+    return {
+      text: 'Expires in ' + formatTimeLeft(left),
+      tone: left < 24 * 3600000 ? 'soon' : 'ok'
+    };
+  };
+
+  // Value for the "Expires" rows (card and details window)
+  var getExpiresLabel = function(quote) {
+    if (quote.status === 'draft') return 'Starts when sent';
+    var end = getExpiresAt(quote);
+    return end === null ? 'Not specified' : formatDateTime(end);
+  };
+
+  // Newest first, so the most recent quote is always on top
+  var sortedQuotations = quotations.slice().sort(function(a, b) {
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+  var latestId = sortedQuotations.length > 0 ? sortedQuotations[0].id : null;
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -280,15 +367,10 @@ const Quotations = () => {
               </div>
 
               <div className="form-group">
-                <label className="glow-label">Valid Until *</label>
-                <input
-                  type="date"
-                  name="validUntil"
-                  className="glow-input"
-                  value={formData.validUntil}
-                  onChange={handleChange}
-                  required
-                />
+                <label className="glow-label">Validity</label>
+                <div className="validity-fixed">
+                  Valid for {QUOTE_VALIDITY_HOURS} hours after it is sent
+                </div>
               </div>
             </div>
 
@@ -360,32 +442,51 @@ const Quotations = () => {
       )}
 
       <div className="quotations-list">
-        {quotations.length === 0 ? (
+        {sortedQuotations.length === 0 ? (
           <div className="glow-card no-content">
             <p>No quotations yet.</p>
+            {isCustomer && <p>Use Get a Quote to request one.</p>}
           </div>
         ) : (
           <div className="quotations-grid">
-            {quotations.map(function(quote) {
+            {sortedQuotations.map(function(quote) {
+              var isLatest = quote.id === latestId;
+              var effectiveStatus = getEffectiveStatus(quote);
+              var needsResponse = isCustomer && effectiveStatus === 'sent';
+              var expiry = isCustomer ? getExpiryNote(quote) : null;
+
               return (
                 <div
                   key={quote.id}
-                  className="quote-card glow-card"
+                  className={'quote-card glow-card' + (isLatest ? ' quote-card-latest' : '')}
                   onClick={function() { setSelectedQuote(quote); }}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="quote-header">
-                    <h3>{quote.quotation_number}</h3>
-                    {getStatusBadge(quote.status)}
+                    <div className="quote-title">
+                      <h3>{quote.quotation_number}</h3>
+                      {isLatest && <span className="latest-pill">Latest</span>}
+                    </div>
+                    {getStatusBadge(effectiveStatus)}
                   </div>
                   <div className="quote-details">
                     <p><strong>Fuel Type:</strong> {quote.fuel_type}</p>
                     <p><strong>Quantity:</strong> {quote.quantity} {quote.unit}</p>
                     <p><strong>Grand Total:</strong> {formatCurrency(quote.grand_total)}</p>
-                    <p><strong>Valid Until:</strong> {formatDate(quote.valid_until)}</p>
+                    <p><strong>Expires:</strong> {getExpiresLabel(quote)}</p>
                   </div>
+
+                  {(needsResponse || expiry) && (
+                    <div className="quote-attention">
+                      {needsResponse && <span className="action-tag">Needs your response</span>}
+                      {expiry && (
+                        <span className={'expiry-note ' + expiry.tone}>{expiry.text}</span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="quote-footer">
-                    <small>Created: {formatDate(quote.created_at)}</small>
+                    <small>Created: {formatDateTime(quote.created_at)}</small>
                     {isReadyToOrder(quote) && (
                       <span className="ready-tag">Ready to order</span>
                     )}
@@ -409,7 +510,8 @@ const Quotations = () => {
             </div>
 
             <div className="modal-status-row">
-              {getStatusBadge(selectedQuote.status)}
+              {getStatusBadge(getEffectiveStatus(selectedQuote))}
+              {selectedQuote.id === latestId && <span className="latest-pill">Latest</span>}
               {isReadyToOrder(selectedQuote) && (
                 <span className="ready-tag">Ready to order</span>
               )}
@@ -438,13 +540,23 @@ const Quotations = () => {
                 <span className="detail-label">Grand Total</span>
                 <span className="detail-value">{formatCurrency(selectedQuote.grand_total)}</span>
               </div>
-              {selectedQuote.valid_until && (
+              <div className="modal-detail-item">
+                <span className="detail-label">Expires</span>
+                <span className="detail-value">{getExpiresLabel(selectedQuote)}</span>
+              </div>
+              {selectedQuote.created_at && (
                 <div className="modal-detail-item">
-                  <span className="detail-label">Valid Until</span>
-                  <span className="detail-value">{formatDate(selectedQuote.valid_until)}</span>
+                  <span className="detail-label">Created</span>
+                  <span className="detail-value">{formatDateTime(selectedQuote.created_at)}</span>
                 </div>
               )}
             </div>
+
+            {isCustomer && selectedQuote.status === 'sent' && getEffectiveStatus(selectedQuote) === 'expired' && (
+              <div className="error-message">
+                This quotation has expired. Use Get a Quote to request a new one.
+              </div>
+            )}
 
             <div className="modal-actions">
               {selectedQuote.status === 'draft' && isStaff && (
@@ -458,7 +570,7 @@ const Quotations = () => {
                 </button>
               )}
 
-              {selectedQuote.status === 'sent' && isCustomer && (
+              {getEffectiveStatus(selectedQuote) === 'sent' && isCustomer && (
                 <>
                   <button className="glow-btn" onClick={function() { acceptQuotation(selectedQuote.id); }}>
                     Accept Quotation

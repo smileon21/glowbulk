@@ -3,26 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
+const emptyForm = {
+  fuelType: 'Diesel',
+  quantity: '',
+  unit: 'Liters',
+  deliveryAddress: '',
+  deliveryCity: '',
+  deliveryCountry: 'Zimbabwe',
+  preferredDeliveryDate: '',
+  preferredDeliveryTime: '',
+  specialInstructions: '',
+  priority: 'normal'
+};
+
 const FuelRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
-  const [formData, setFormData] = useState({
-    fuelType: 'Diesel',
-    quantity: '',
-    unit: 'Liters',
-    deliveryAddress: '',
-    deliveryCity: '',
-    deliveryCountry: 'Zimbabwe',
-    preferredDeliveryDate: '',
-    preferredDeliveryTime: '',
-    specialInstructions: '',
-    priority: 'normal'
-  });
+  const [formData, setFormData] = useState(emptyForm);
 
   const navigate = useNavigate();
   const userRole = localStorage.getItem('userRole');
@@ -81,21 +82,10 @@ const FuelRequests = () => {
       const response = await axios.post(API_BASE_URL + '/api/fuel-requests', formData);
 
       if (response.data.success) {
-        setMessage('Fuel request submitted successfully!');
-        setShowForm(false);
-        setFormData({
-          fuelType: 'Diesel',
-          quantity: '',
-          unit: 'Liters',
-          deliveryAddress: '',
-          deliveryCity: '',
-          deliveryCountry: 'Zimbabwe',
-          preferredDeliveryDate: '',
-          preferredDeliveryTime: '',
-          specialInstructions: '',
-          priority: 'normal'
-        });
+        setMessage('Quote request sent! Our team will reply with a quotation shortly. You will find it under Quotations.');
+        setFormData(emptyForm);
         fetchRequests();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (error) {
       setError(error.response?.data?.message || 'Error submitting request');
@@ -105,7 +95,7 @@ const FuelRequests = () => {
   };
 
   const handleDelete = async function(id) {
-    if (!window.confirm('Delete this fuel request? This cannot be undone.')) {
+    if (!window.confirm('Delete this quote request? This cannot be undone.')) {
       return;
     }
 
@@ -120,7 +110,7 @@ const FuelRequests = () => {
       const response = await axios.delete(API_BASE_URL + '/api/fuel-requests/' + id);
 
       if (response.data.success) {
-        setMessage('Fuel request deleted.');
+        setMessage('Request deleted.');
         setRequests(function(prev) {
           return prev.filter(function(r) {
             return r.id !== id;
@@ -137,7 +127,7 @@ const FuelRequests = () => {
   const getStatusBadge = function(status) {
     var statusMap = {
       'pending': { color: '#E8A33D', text: 'Pending', textColor: '#5a3d0a' },
-      'quoted': { color: '#2f7ea8', text: 'Quoted' },
+      'quoted': { color: '#2f7ea8', text: isStaff ? 'Quoted' : 'Quote Ready' },
       'accepted': { color: '#2f7a3f', text: 'Accepted' },
       'rejected': { color: '#8f0000', text: 'Rejected' },
       'expired': { color: '#6b7280', text: 'Expired' }
@@ -189,20 +179,18 @@ const FuelRequests = () => {
   return (
     <div className="fuel-requests-page">
       <div className="page-header">
-        <h2>Fuel Requests</h2>
-        {!isStaff && (
-          <button className="glow-btn" onClick={function() { setShowForm(!showForm); }}>
-            {showForm ? 'Cancel' : '+ New Request'}
-          </button>
-        )}
+        <h2>{isStaff ? 'Fuel Requests' : 'Get a Quote'}</h2>
       </div>
+      {!isStaff && (
+        <p className="sub-text">Tell us what you need and our team will send you a quotation.</p>
+      )}
 
       {message && <div className="success-message">{message}</div>}
       {error && <div className="error-message">{error}</div>}
 
-      {showForm && !isStaff && (
+      {!isStaff && (
         <div className="request-form glow-card">
-          <h3>Submit Fuel Request</h3>
+          <h3>Request a Quote</h3>
           <form onSubmit={handleSubmit}>
             <div className="form-row three">
               <div className="form-group">
@@ -320,17 +308,22 @@ const FuelRequests = () => {
             </div>
 
             <button type="submit" className="glow-btn" disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Submit Request'}
+              {submitting ? 'Sending...' : 'Get Quote'}
             </button>
           </form>
         </div>
       )}
 
+      {!isStaff && requests.length > 0 && <h3>Your Quote Requests</h3>}
+
       <div className="requests-list">
         {requests.length === 0 ? (
           <div className="glow-card no-content">
-            <p>No fuel requests yet.</p>
-            {!isStaff && <p>Click "+ New Request" to submit your first request.</p>}
+            <p>
+              {isStaff
+                ? 'No fuel requests yet.'
+                : "You haven't requested a quote yet. Fill in the form above to get started."}
+            </p>
           </div>
         ) : (
           <div className="requests-grid">
@@ -372,6 +365,17 @@ const FuelRequests = () => {
                         disabled={deletingId === request.id}
                       >
                         {deletingId === request.id ? 'Deleting...' : 'Delete Request'}
+                      </button>
+                    </div>
+                  )}
+
+                  {!isStaff && request.status === 'quoted' && (
+                    <div className="request-actions">
+                      <button
+                        className="glow-btn-small"
+                        onClick={function() { navigate('/quotations'); }}
+                      >
+                        View Quote
                       </button>
                     </div>
                   )}
