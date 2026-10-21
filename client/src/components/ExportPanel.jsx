@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
+// The year GlowBulk went live: no data exists before this
+const SYSTEM_START_YEAR = 2026;
+
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -37,9 +40,9 @@ const ExportPanel = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // This year and the four before it
+  // From the current year back to the year GlowBulk started
   const years = [];
-  for (var y = thisYear; y > thisYear - 5; y--) years.push(y);
+  for (var y = thisYear; y >= SYSTEM_START_YEAR; y--) years.push(y);
 
   var typeInfo = TYPES.find(function(t) { return t.value === type; });
   var isEverything = type === 'all';
