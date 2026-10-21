@@ -4281,3 +4281,96 @@ input[type="file"]::file-selector-button:hover {
   font-family: var(--sans);
   font-size: 14px;
 }
+
+/* ============================================
+   EXPORT PANEL
+   Paste at the very END of App.css.
+   ============================================ */
+
+.export-panel {
+  margin-bottom: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.export-panel-head {
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed var(--line);
+}
+
+.export-panel-head h3 {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+
+.export-panel-head p {
+  font-size: 13px;
+  color: var(--steel);
+  margin: 0;
+}
+
+/* Filters sit in a responsive grid; extra fields appear as needed */
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 16px;
+}
+
+.export-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.export-summary {
+  font-size: 14px;
+  color: var(--steel);
+}
+
+.export-summary strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.export-download {
+  width: auto;
+  padding: 12px 28px;
+}
+
+.export-download svg {
+  width: 16px;
+  height: 16px;
+}
+
+.export-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--steel);
+}
+
+@media (max-width: 768px) {
+  .export-panel {
+    padding: 18px 16px;
+  }
+
+  .export-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .export-download {
+    width: 100%;
+  }
+}
