@@ -6,6 +6,8 @@ import { formatDate } from '../utils/format';
 
 // A quotation stays valid for this many hours
 const QUOTE_VALIDITY_HOURS = 72;
+// Marketing can edit a sent quotation for this many minutes
+const EDIT_WINDOW_MINUTES = 15;
 
 const Quotations = () => {
   const navigate = useNavigate();
@@ -18,8 +20,16 @@ const Quotations = () => {
   const [selectedQuote, setSelectedQuote] = useState(null);
   // Set right after a customer accepts, so the success message can offer "Create Order"
   const [justAcceptedId, setJustAcceptedId] = useState(null);
-  // Current time, refreshed every minute so the 72-hour countdowns stay live
+  // Current time, refreshed every 10 seconds so countdowns stay live
   const [now, setNow] = useState(Date.now());
+
+  // Edit-modal state (Marketing only)
+  const [editQuote, setEditQuote] = useState(null);
+  const [editForm, setEditForm] = useState({
+    unitPrice: '', deliveryTerms: '', paymentTerms: '', notes: '', reason: ''
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const [formData, setFormData] = useState({
     fuelRequestId: '',
@@ -32,7 +42,10 @@ const Quotations = () => {
   });
 
   const userRole = localStorage.getItem('userRole');
-  const isStaff = userRole === 'admin' || userRole === 'marketing';
+  // Marketing: creates, sends, edits quotations
+  const isMarketing = userRole === 'marketing';
+  // Staff: can view all quotations (pricing + finance dashboards use this too)
+  const isStaff = ['marketing', 'pricing', 'finance'].includes(userRole);
   const isCustomer = userRole === 'customer';
 
   useEffect(() => {
@@ -40,7 +53,7 @@ const Quotations = () => {
   }, []);
 
   useEffect(() => {
-    var timer = setInterval(function() { setNow(Date.now()); }, 60000);
+    var timer = setInterval(function() { setNow(Date.now()); }, 10000);
     return function() { clearInterval(timer); };
   }, []);
 
@@ -60,7 +73,8 @@ const Quotations = () => {
         setQuotations(quotesResponse.data.data);
       }
 
-      if (isStaff) {
+      // Only Marketing needs the "available for quote" list
+      if (isMarketing) {
         const requestsResponse = await axios.get(API_BASE_URL + '/api/fuel-requests/available-for-quote');
         if (requestsResponse.data.success) {
           setFuelRequests(requestsResponse.data.data);
@@ -161,21 +175,31 @@ const Quotations = () => {
     }
   };
 
-  const acceptQuotation = async function(id) {
+  // Customer accepts a specific version they are looking at
+  const acceptQuotation = async function(quote) {
     if (!window.confirm('Accept this quotation?')) return;
     setError('');
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
-      const response = await axios.put(API_BASE_URL + '/api/quotations/' + id + '/accept');
+      const response = await axios.put(
+        API_BASE_URL + '/api/quotations/' + quote.id + '/accept',
+        { version: quote.current_version || 1 }
+      );
       if (response.data.success) {
         setMessage('Quotation accepted! You can now create your order.');
-        setJustAcceptedId(id);
+        setJustAcceptedId(quote.id);
         setSelectedQuote(null);
         fetchData();
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error accepting quotation');
+      var data = error.response && error.response.data;
+      setError((data && data.message) || 'Error accepting quotation');
+      // Edited while the customer was looking: close the old view and reload the new one
+      if (data && data.code === 'QUOTATION_UPDATED') {
+        setSelectedQuote(null);
+        fetchData();
+      }
     }
   };
 
@@ -245,6 +269,21 @@ const Quotations = () => {
     return start.getTime() + QUOTE_VALIDITY_HOURS * 3600000;
   };
 
+  // When the 15-minute edit window ends (Marketing only)
+  var getEditEndsAt = function(quote) {
+    var start = new Date(quote.sent_at || quote.created_at);
+    if (isNaN(start.getTime())) return null;
+    return start.getTime() + EDIT_WINDOW_MINUTES * 60000;
+  };
+
+  // Whole minutes left in the edit window, or 0 when it is closed
+  var editMinutesLeft = function(quote) {
+    if (!isMarketing || getEffectiveStatus(quote) !== 'sent') return 0;
+    var end = getEditEndsAt(quote);
+    if (end === null || now >= end) return 0;
+    return Math.max(1, Math.ceil((end - now) / 60000));
+  };
+
   // A quote that was sent but ran out of time counts as expired
   var getEffectiveStatus = function(quote) {
     if (quote.status === 'sent') {
@@ -286,6 +325,62 @@ const Quotations = () => {
     return end === null ? 'Not specified' : formatDateTime(end);
   };
 
+  // ----- Edit modal handlers (Marketing only) -----
+
+  var openEdit = function(quote) {
+    setEditError('');
+    setEditForm({
+      unitPrice: quote.unit_price,
+      deliveryTerms: quote.delivery_terms || '',
+      paymentTerms: quote.payment_terms || '',
+      notes: quote.notes || '',
+      reason: ''
+    });
+    setEditQuote(quote);
+    setSelectedQuote(null);
+  };
+
+  var handleEditChange = function(e) {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  };
+
+  const submitEdit = async function(e) {
+    e.preventDefault();
+    setEditError('');
+    setMessage('');
+    setEditSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+      const response = await axios.put(
+        API_BASE_URL + '/api/quotations/' + editQuote.id + '/edit',
+        {
+          unitPrice: editForm.unitPrice,
+          deliveryTerms: editForm.deliveryTerms,
+          paymentTerms: editForm.paymentTerms,
+          notes: editForm.notes,
+          reason: editForm.reason
+        }
+      );
+      if (response.data.success) {
+        setMessage('Quotation updated. The customer has been notified of the change.');
+        setEditQuote(null);
+        fetchData();
+      }
+    } catch (err) {
+      var data = err.response && err.response.data;
+      setEditError(
+        (data && data.errors && data.errors[0] && data.errors[0].msg) ||
+        (data && data.message) ||
+        'Error updating quotation'
+      );
+      // If the window closed or the quotation changed state, refresh the list
+      if (data && data.code) fetchData();
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // Newest first, so the most recent quote is always on top
   var sortedQuotations = quotations.slice().sort(function(a, b) {
     return new Date(b.created_at) - new Date(a.created_at);
@@ -300,7 +395,7 @@ const Quotations = () => {
     <div className="quotations-page">
       <div className="page-header">
         <h2>Quotations</h2>
-        {isStaff && (
+        {isMarketing && (
           <button className="glow-btn" onClick={function() { setShowForm(!showForm); }}>
             {showForm ? 'Cancel' : '+ New Quotation'}
           </button>
@@ -322,7 +417,7 @@ const Quotations = () => {
       )}
       {error && <div className="error-message">{error}</div>}
 
-      {showForm && isStaff && (
+      {showForm && isMarketing && (
         <div className="quotation-form glow-card">
           <h3>Create Quotation</h3>
           <form onSubmit={handleSubmit}>
@@ -466,6 +561,7 @@ const Quotations = () => {
                     <div className="quote-title">
                       <h3>{quote.quotation_number}</h3>
                       {isLatest && <span className="latest-pill">Latest</span>}
+                      {quote.edited && <span className="edited-tag">Edited</span>}
                     </div>
                     {getStatusBadge(effectiveStatus)}
                   </div>
@@ -512,6 +608,9 @@ const Quotations = () => {
             <div className="modal-status-row">
               {getStatusBadge(getEffectiveStatus(selectedQuote))}
               {selectedQuote.id === latestId && <span className="latest-pill">Latest</span>}
+              {selectedQuote.edited && (
+                <span className="edited-tag">Edited · version {selectedQuote.current_version}</span>
+              )}
               {isReadyToOrder(selectedQuote) && (
                 <span className="ready-tag">Ready to order</span>
               )}
@@ -559,20 +658,33 @@ const Quotations = () => {
             )}
 
             <div className="modal-actions">
-              {selectedQuote.status === 'draft' && isStaff && (
+              {selectedQuote.status === 'draft' && isMarketing && (
                 <button className="glow-btn" onClick={function() { updateStatus(selectedQuote.id, 'sent'); }}>
                   Send to Customer
                 </button>
               )}
-              {(selectedQuote.status === 'draft' || selectedQuote.status === 'sent') && isStaff && (
+              {(selectedQuote.status === 'draft' || selectedQuote.status === 'sent') && isMarketing && (
                 <button className="glow-btn glow-btn-secondary" onClick={function() { updateStatus(selectedQuote.id, 'expired'); }}>
                   Expire
                 </button>
               )}
 
+              {isMarketing && selectedQuote.status === 'sent' && (
+                editMinutesLeft(selectedQuote) > 0 ? (
+                  <button className="glow-btn" onClick={function() { openEdit(selectedQuote); }}>
+                    Edit ({editMinutesLeft(selectedQuote)} min left)
+                  </button>
+                ) : (
+                  <span className="form-hint">
+                    The {EDIT_WINDOW_MINUTES}-minute edit window has ended. To change the price, expire this
+                    quotation and create a new one.
+                  </span>
+                )
+              )}
+
               {getEffectiveStatus(selectedQuote) === 'sent' && isCustomer && (
                 <>
-                  <button className="glow-btn" onClick={function() { acceptQuotation(selectedQuote.id); }}>
+                  <button className="glow-btn" onClick={function() { acceptQuotation(selectedQuote); }}>
                     Accept Quotation
                   </button>
                   <button className="glow-btn glow-btn-secondary" onClick={function() { rejectQuotation(selectedQuote.id); }}>
@@ -594,6 +706,89 @@ const Quotations = () => {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {editQuote && (
+        <div className="modal-overlay" onClick={function() { if (!editSaving) setEditQuote(null); }}>
+          <div className="modal-content glow-card" onClick={function(e) { e.stopPropagation(); }}>
+            <div className="modal-header">
+              <h3>Edit {editQuote.quotation_number}</h3>
+              <button className="modal-close" onClick={function() { setEditQuote(null); }}>✕</button>
+            </div>
+
+            <p className="form-hint">
+              {editMinutesLeft(editQuote) > 0
+                ? 'You can edit for ' + editMinutesLeft(editQuote) + ' more minute(s). The customer will be notified of the change.'
+                : 'The edit window has ended. Saving will be refused.'}
+            </p>
+
+            {editError && <div className="error-message">{editError}</div>}
+
+            <form onSubmit={submitEdit}>
+              <div className="form-group">
+                <label className="glow-label">Unit Price ($) *</label>
+                <input
+                  type="number"
+                  name="unitPrice"
+                  className="glow-input"
+                  value={editForm.unitPrice}
+                  onChange={handleEditChange}
+                  required
+                  step="0.01"
+                  min="0"
+                />
+                <span className="form-hint">
+                  Total: {formatCurrency(editQuote.grand_total)} →{' '}
+                  <strong>{formatCurrency((parseFloat(editQuote.quantity) || 0) * (parseFloat(editForm.unitPrice) || 0))}</strong>
+                  {' '}({editQuote.quantity} {editQuote.unit})
+                </span>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="glow-label">Delivery Terms</label>
+                  <input type="text" name="deliveryTerms" className="glow-input"
+                    value={editForm.deliveryTerms} onChange={handleEditChange} />
+                </div>
+                <div className="form-group">
+                  <label className="glow-label">Payment Terms</label>
+                  <input type="text" name="paymentTerms" className="glow-input"
+                    value={editForm.paymentTerms} onChange={handleEditChange} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="glow-label">Notes</label>
+                <textarea name="notes" className="glow-input" rows="2"
+                  value={editForm.notes} onChange={handleEditChange} />
+              </div>
+
+              <div className="form-group">
+                <label className="glow-label">Reason for the edit *</label>
+                <input
+                  type="text"
+                  name="reason"
+                  className="glow-input"
+                  value={editForm.reason}
+                  onChange={handleEditChange}
+                  required
+                  placeholder="e.g., Typed 1.05 instead of 1.50"
+                />
+                <span className="form-hint">Saved with your name in the quotation history.</span>
+              </div>
+
+              <div className="modal-actions">
+                <button type="submit" className="glow-btn" disabled={editSaving || !editForm.reason.trim()}>
+                  {editSaving ? 'Saving…' : 'Save changes'}
+                </button>
+                <button type="button" className="glow-btn glow-btn-secondary"
+                  onClick={function() { setEditQuote(null); }} disabled={editSaving}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

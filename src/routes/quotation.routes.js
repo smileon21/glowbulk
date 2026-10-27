@@ -3,21 +3,25 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const {
+  EDIT_WINDOW_MINUTES,
   createQuotation,
   getQuotationById,
   getQuotationsByCustomer,
   getAllQuotations,
-  updateQuotationStatus
+  updateQuotationStatus,
+  editSentQuotation,
+  acceptQuotationVersion,
+  getQuotationVersions
 } = require('../models/quotation.model');
 const { getCustomerByUserId } = require('../models/customer.model');
 const { getFuelRequestById, updateFuelRequestStatus } = require('../models/fuelRequest.model');
 const { notifyStaff, notifyCustomer } = require('../services/notification.service');
 
-// Business staff. IT ("admin") is deliberately not in this list.
-const STAFF = ['marketing', 'pricing', 'finance'];
-
 // A quotation stays valid for this many hours after it is sent
 const QUOTE_VALIDITY_HOURS = 72;
+
+// Staff = marketing, pricing, finance (read-only; writes are marketing-only)
+const STAFF = ['marketing', 'pricing', 'finance'];
 
 // Generate quotation number
 const generateQuotationNumber = () => {
@@ -87,6 +91,21 @@ const notifyQuotationReady = (quotation) => {
   }).catch((err) => console.error('Quotation notification failed:', err));
 };
 
+// Tell the customer their quotation was edited (never breaks the request if it fails)
+const notifyQuotationEdited = (quotation, previous) => {
+  const money = (n) => Number(n).toFixed(2);
+  notifyCustomer(quotation.customer_id, {
+    type: 'quotation_edited',
+    title: 'Your quotation was updated',
+    message:
+      `Quotation ${quotation.quotation_number} was updated (version ${quotation.current_version}). ` +
+      `Unit price: ${money(previous.unit_price)} to ${money(quotation.unit_price)}. ` +
+      `Total: ${money(previous.total_amount)} to ${money(quotation.total_amount)}. ` +
+      'Please review the new version before accepting.',
+    link: '/quotations'
+  }).catch((err) => console.error('Quotation edit notification failed:', err));
+};
+
 // Tell all staff how the customer responded (never breaks the request if it fails)
 const notifyQuotationResponse = (quotation, customer, accepted) => {
   const who = customer.company_name || customer.contact_person_name || 'A customer';
@@ -98,8 +117,8 @@ const notifyQuotationResponse = (quotation, customer, accepted) => {
   }).catch((err) => console.error('Quotation response notification failed:', err));
 };
 
-// Staff: Create quotation
-router.post('/', authenticate, authorize(...STAFF), [
+// Marketing: Create quotation
+router.post('/', authenticate, authorize('marketing'), [
   body('fuelRequestId').isNumeric().withMessage('Fuel request ID is required'),
   body('unitPrice').isNumeric().withMessage('Unit price is required')
 ], async (req, res) => {
@@ -175,7 +194,7 @@ router.post('/', authenticate, authorize(...STAFF), [
 });
 
 // Customer: Get my quotations
-router.get('/my-quotations', authenticate, authorize('customer'), async (req, res) => {
+router.get('/my-quotations', authenticate, async (req, res) => {
   try {
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
@@ -201,7 +220,7 @@ router.get('/my-quotations', authenticate, authorize('customer'), async (req, re
   }
 });
 
-// Staff: Get all quotations
+// Staff: Get all quotations (pricing & finance dashboards use this too)
 router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const quotations = await expireOverdue(await getAllQuotations());
@@ -220,8 +239,79 @@ router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
   }
 });
 
-// Get single quotation (customers see their own; staff see all)
-router.get('/:id', authenticate, authorize('customer', ...STAFF), async (req, res) => {
+// ==========================================
+// EDIT / VERSIONS (Marketing writes; staff reads)
+// Must be declared BEFORE router.get('/:id')
+// ==========================================
+
+// Marketing: edit a sent quotation within the 15-minute window
+router.put('/:id/edit', authenticate, authorize('marketing'), [
+  body('unitPrice').isFloat({ gt: 0 }).withMessage('Unit price must be greater than 0'),
+  body('reason').trim().notEmpty().withMessage('A reason for the edit is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const editor = {
+      id: req.user.id,
+      name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+    };
+
+    const result = await editSentQuotation(req.params.id, {
+      unitPrice: req.body.unitPrice,
+      deliveryTerms: req.body.deliveryTerms,
+      paymentTerms: req.body.paymentTerms,
+      notes: req.body.notes,
+      reason: req.body.reason
+    }, editor);
+
+    if (!result.ok) {
+      const status = result.code === 'NOT_FOUND' ? 404 : 409;
+      return res.status(status).json({ success: false, code: result.code, message: result.message });
+    }
+
+    // TODO: write to your activity log here, for example:
+    // logActivity({ user: req.user, action: 'QUOTATION_EDITED', recordId: result.quotation.id,
+    //               oldValues: result.previous, newValues: { unit_price: result.quotation.unit_price,
+    //               total_amount: result.quotation.total_amount }, details: req.body.reason });
+
+    notifyQuotationEdited(result.quotation, result.previous);
+
+    res.json({
+      success: true,
+      message: `Quotation updated to version ${result.version}`,
+      data: result.quotation
+    });
+  } catch (error) {
+    console.error('Edit quotation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error editing quotation',
+      error: error.message
+    });
+  }
+});
+
+// Staff: see the edit history of a quotation
+router.get('/:id/versions', authenticate, authorize(...STAFF), async (req, res) => {
+  try {
+    const versions = await getQuotationVersions(req.params.id);
+    res.json({ success: true, count: versions.length, data: versions });
+  } catch (error) {
+    console.error('Get quotation versions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching quotation history',
+      error: error.message
+    });
+  }
+});
+
+// Get single quotation
+router.get('/:id', authenticate, async (req, res) => {
   try {
     const quotation = await getQuotationById(req.params.id);
     if (!quotation) {
@@ -258,8 +348,8 @@ router.get('/:id', authenticate, authorize('customer', ...STAFF), async (req, re
   }
 });
 
-// Customer: Accept quotation
-router.put('/:id/accept', authenticate, authorize('customer'), async (req, res) => {
+// Customer: Accept quotation (version-aware)
+router.put('/:id/accept', authenticate, async (req, res) => {
   try {
     const quotation = await getQuotationById(req.params.id);
     if (!quotation) {
@@ -284,6 +374,15 @@ router.put('/:id/accept', authenticate, authorize('customer'), async (req, res) 
       });
     }
 
+    const version = parseInt(req.body.version, 10);
+    if (!Number.isInteger(version)) {
+      return res.status(400).json({
+        success: false,
+        code: 'VERSION_REQUIRED',
+        message: 'Please reload the quotation and try again.'
+      });
+    }
+
     // 72 hours passed: expire it and refuse the acceptance
     if (isQuotationExpired(quotation)) {
       await markExpired(quotation);
@@ -293,14 +392,30 @@ router.put('/:id/accept', authenticate, authorize('customer'), async (req, res) 
       });
     }
 
-    if (quotation.status !== 'sent') {
-      return res.status(400).json({
-        success: false,
-        message: `Quotation cannot be accepted. Current status: '${quotation.status}'. Only 'sent' quotations can be accepted.`
-      });
+    // One atomic step: accepts only if it is still 'sent' AND still the version the customer saw
+    const updatedQuotation = await acceptQuotationVersion(quotation.id, version);
+
+    if (!updatedQuotation) {
+      // Work out why, so the customer gets a clear message
+      const latest = await getQuotationById(quotation.id);
+
+      if (latest.status !== 'sent') {
+        return res.status(400).json({
+          success: false,
+          message: `Quotation cannot be accepted. Current status: '${latest.status}'. Only 'sent' quotations can be accepted.`
+        });
+      }
+      if (latest.current_version !== version) {
+        return res.status(409).json({
+          success: false,
+          code: 'QUOTATION_UPDATED',
+          currentVersion: latest.current_version,
+          message: 'This quotation was just updated. Please review the new version before accepting.'
+        });
+      }
+      return res.status(400).json({ success: false, message: 'This quotation can no longer be accepted.' });
     }
 
-    const updatedQuotation = await updateQuotationStatus(quotation.id, 'accepted');
     await updateFuelRequestStatus(quotation.fuel_request_id, 'accepted');
 
     // Notify all staff about the acceptance
@@ -322,7 +437,7 @@ router.put('/:id/accept', authenticate, authorize('customer'), async (req, res) 
 });
 
 // Customer: Reject quotation
-router.put('/:id/reject', authenticate, authorize('customer'), async (req, res) => {
+router.put('/:id/reject', authenticate, async (req, res) => {
   try {
     const quotation = await getQuotationById(req.params.id);
     if (!quotation) {
@@ -384,8 +499,8 @@ router.put('/:id/reject', authenticate, authorize('customer'), async (req, res) 
   }
 });
 
-// Staff: Update quotation status
-router.put('/:id/status', authenticate, authorize(...STAFF), [
+// Marketing: Update quotation status (Send / Expire)
+router.put('/:id/status', authenticate, authorize('marketing'), [
   body('status').isIn(['draft', 'sent', 'accepted', 'rejected', 'expired']).withMessage('Invalid status')
 ], async (req, res) => {
   try {

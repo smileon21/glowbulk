@@ -4374,3 +4374,14 @@ input[type="file"]::file-selector-button:hover {
     width: 100%;
   }
 }
+
+.edited-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #fff3cd;
+  color: #7a5b00;
+}
