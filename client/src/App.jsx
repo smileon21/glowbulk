@@ -30,6 +30,15 @@ import { formatName } from './utils/format';
 import './App.css';
 
 // =====================================================
+// ROLE GROUPS
+// "admin" is the value stored in the database; on screen it is called IT.
+// IT only sees the IT console. Business pages are for customers and business staff.
+// =====================================================
+const IT_ROLES = ['admin'];
+const STAFF_BUSINESS_ROLES = ['marketing', 'pricing', 'finance'];
+const BUSINESS_ROLES = ['customer', ...STAFF_BUSINESS_ROLES];
+
+// =====================================================
 // ROLE PROTECTED ROUTE
 // =====================================================
 const RoleProtectedRoute = ({ children, allowedRoles }) => {
@@ -45,7 +54,7 @@ const RoleProtectedRoute = ({ children, allowedRoles }) => {
 // =====================================================
 const ProfileRoute = () => {
   const userRole = localStorage.getItem('userRole');
-  if (userRole === 'admin' || userRole === 'marketing') {
+  if (userRole !== 'customer') { {
     return <AdminProfile />;
   }
   return <CustomerProfile />;
@@ -69,7 +78,6 @@ const LogoutIcon = () => (
   </svg>
 );
 
-// "admin" is the value stored in the database; on screen it is called IT
 const roleLabel = (role) => (role === 'admin' ? 'IT' : role);
 
 // =====================================================
@@ -81,8 +89,8 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const userName = formatName(localStorage.getItem('userName'));
   const userEmail = localStorage.getItem('userEmail');
-  const isStaff = userRole === 'admin' || userRole === 'marketing';
-  const isIT = userRole === 'admin';
+  const isIT = IT_ROLES.includes(userRole);
+  const isStaff = STAFF_BUSINESS_ROLES.includes(userRole);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -106,35 +114,29 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     setProfileOpen(false);
   }, [location.pathname, setSidebarOpen]);
 
+  // IT gets only IT tools. Everyone else gets the business menu.
   // Customers see "Get a Quote" (opens the request form straight away).
   // Staff keep "Fuel Requests" (the list of incoming requests).
-  const navItems = [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/announcements', label: 'News & Updates' },
-    { to: '/profile', label: 'Profile' },
-    { to: '/security', label: 'Security' },
-    { to: '/fuel-requests', label: isStaff ? 'Fuel Requests' : 'Get a Quote' },
-    { to: '/quotations', label: 'Quotations' },
-    { to: '/orders', label: 'Orders' },
-  ];
-
-  if (isStaff) {
-    navItems.push({ to: '/content', label: 'Content' });
-  }
-
-  // IT tools come right after the dashboard. The business pages stay for now and
-  // will be removed from IT accounts once marketing accounts are set up.
-  if (isIT) {
-    navItems.splice(
-      1,
-      0,
-      { to: '/accounts', label: 'Accounts' },
-      { to: '/activity-log', label: 'Activity Log' }
-    );
-  }
-
   // No "Create Order" link: orders are created from an accepted quotation
   // on the Quotations page (the /create-order route still exists for that).
+  const navItems = isIT
+    ? [
+        { to: '/dashboard', label: 'Dashboard' },
+        { to: '/accounts', label: 'Accounts' },
+        { to: '/activity-log', label: 'Activity Log' },
+        { to: '/profile', label: 'Profile' },
+        { to: '/security', label: 'Security' },
+      ]
+    : [
+        { to: '/dashboard', label: 'Dashboard' },
+        { to: '/announcements', label: 'News & Updates' },
+        { to: '/profile', label: 'Profile' },
+        { to: '/security', label: 'Security' },
+        { to: '/fuel-requests', label: isStaff ? 'Fuel Requests' : 'Get a Quote' },
+        { to: '/quotations', label: 'Quotations' },
+        { to: '/orders', label: 'Orders' },
+        ...(userRole === 'marketing' ? [{ to: '/content', label: 'Content' }] : []),
+      ];
 
   return (
     <aside className={`glow-sidebar ${sidebarOpen ? 'open' : ''}`}>
@@ -274,32 +276,75 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Navigate to="/dashboard" replace />} />
           <Route path="/register" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Shared by every role: Dashboard shows the IT console or the business view */}
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/announcements" element={<Announcements />} />
           <Route path="/profile" element={<ProfileRoute />} />
           <Route path="/security" element={<Security />} />
-          <Route path="/fuel-requests" element={<FuelRequests />} />
-          <Route path="/quotations" element={<Quotations />} />
-          <Route path="/orders" element={<Orders />} />
 
+          {/* IT only */}
           <Route
             path="/accounts"
             element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={IT_ROLES}>
                 <Accounts />
               </RoleProtectedRoute>
             }
           />
-
           <Route
             path="/activity-log"
             element={
-              <RoleProtectedRoute allowedRoles={['admin']}>
+              <RoleProtectedRoute allowedRoles={IT_ROLES}>
                 <ActivityLog />
               </RoleProtectedRoute>
             }
           />
 
+          {/* Business pages: customers and business staff, never IT */}
+          <Route
+            path="/announcements"
+            element={
+              <RoleProtectedRoute allowedRoles={BUSINESS_ROLES}>
+                <Announcements />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/fuel-requests"
+            element={
+              <RoleProtectedRoute allowedRoles={BUSINESS_ROLES}>
+                <FuelRequests />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/quotations"
+            element={
+              <RoleProtectedRoute allowedRoles={BUSINESS_ROLES}>
+                <Quotations />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <RoleProtectedRoute allowedRoles={BUSINESS_ROLES}>
+                <Orders />
+              </RoleProtectedRoute>
+            }
+          />
+
+          {/* Marketing only */}
+          <Route
+            path="/content"
+            element={
+              <RoleProtectedRoute allowedRoles={['marketing']}>
+                <ContentManagement />
+              </RoleProtectedRoute>
+            }
+          />
+
+          {/* Customers only */}
           <Route
             path="/create-order"
             element={
@@ -308,16 +353,6 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
               </RoleProtectedRoute>
             }
           />
-
-          <Route
-            path="/content"
-            element={
-              <RoleProtectedRoute allowedRoles={['admin', 'marketing']}>
-                <ContentManagement />
-              </RoleProtectedRoute>
-            }
-          />
-
           <Route
             path="/upload-proof/:orderId"
             element={

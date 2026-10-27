@@ -14,8 +14,11 @@ const { getCustomerByUserId } = require('../models/customer.model');
 const { notifyStaff } = require('../services/notification.service');
 const pool = require('../config/database');
 
+// Business staff. IT ("admin") is deliberately not in this list.
+const STAFF = ['marketing', 'pricing', 'finance'];
+
 // Customer: Create fuel request
-router.post('/', authenticate, [
+router.post('/', authenticate, authorize('customer'), [
   body('fuelType')
     .notEmpty().withMessage('Fuel type is required')
     .isIn(['Diesel', 'Petrol']).withMessage('Fuel type must be Diesel or Petrol'),
@@ -46,7 +49,7 @@ router.post('/', authenticate, [
       unit: 'Liters' // quantity is always in liters
     });
 
-    // Tell all admin + marketing users about the new request.
+    // Tell staff about the new request.
     // Not awaited and wrapped in .catch so a notification problem never breaks the request.
     const who = customer.company_name || customer.contact_person_name || 'A customer';
     const isUrgent = fuelRequest.priority === 'urgent';
@@ -74,7 +77,7 @@ router.post('/', authenticate, [
 });
 
 // Customer: Get my fuel requests
-router.get('/my-requests', authenticate, async (req, res) => {
+router.get('/my-requests', authenticate, authorize('customer'), async (req, res) => {
   try {
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
@@ -99,8 +102,8 @@ router.get('/my-requests', authenticate, async (req, res) => {
   }
 });
 
-// Marketing/Admin: Get all fuel requests
-router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+// Staff: Get all fuel requests
+router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const requests = await getAllFuelRequests();
     res.json({
@@ -120,7 +123,7 @@ router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, re
 // =============================================
 // Get fuel requests available for quotation
 // =============================================
-router.get('/available-for-quote', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.get('/available-for-quote', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const query = `
       SELECT fr.*, u.first_name, u.last_name, c.company_name 
@@ -150,8 +153,8 @@ router.get('/available-for-quote', authenticate, authorize('admin', 'marketing')
   }
 });
 
-// Get single fuel request
-router.get('/:id', authenticate, async (req, res) => {
+// Get single fuel request (customers see their own; staff see all)
+router.get('/:id', authenticate, authorize('customer', ...STAFF), async (req, res) => {
   try {
     const request = await getFuelRequestById(req.params.id);
     if (!request) {
@@ -183,8 +186,8 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Update fuel request status (Marketing/Admin only)
-router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
+// Update fuel request status (staff only)
+router.put('/:id/status', authenticate, authorize(...STAFF), [
   body('status').isIn(['pending', 'quoted', 'accepted', 'rejected', 'expired']).withMessage('Invalid status')
 ], async (req, res) => {
   try {
@@ -218,11 +221,11 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
   }
 });
 
-// DELETE: Delete fuel request
-router.delete('/:id', authenticate, async (req, res) => {
+// DELETE: Delete fuel request (customers: own pending requests; staff: any)
+router.delete('/:id', authenticate, authorize('customer', ...STAFF), async (req, res) => {
   try {
     const requestId = req.params.id;
-    
+
     // Get the fuel request
     const request = await getFuelRequestById(requestId);
     if (!request) {
@@ -232,9 +235,9 @@ router.delete('/:id', authenticate, async (req, res) => {
       });
     }
 
-    // Check if user owns this request (customer) or is admin
+    // Check if user owns this request (customer)
     const customer = await getCustomerByUserId(req.user.id);
-    
+
     // If customer, check if they own it
     if (req.user.role === 'customer') {
       if (!customer || request.customer_id !== customer.id) {
@@ -243,7 +246,7 @@ router.delete('/:id', authenticate, async (req, res) => {
           message: 'You can only delete your own fuel requests'
         });
       }
-      
+
       // Only allow deletion if status is 'pending'
       if (request.status !== 'pending') {
         return res.status(400).json({
@@ -253,10 +256,10 @@ router.delete('/:id', authenticate, async (req, res) => {
       }
     }
 
-    // Admin/Marketing can delete any request
+    // Staff can delete any request
     const query = 'DELETE FROM fuel_requests WHERE id = $1 RETURNING id';
     const result = await pool.query(query, [requestId]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,

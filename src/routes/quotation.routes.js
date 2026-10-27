@@ -13,6 +13,9 @@ const { getCustomerByUserId } = require('../models/customer.model');
 const { getFuelRequestById, updateFuelRequestStatus } = require('../models/fuelRequest.model');
 const { notifyStaff, notifyCustomer } = require('../services/notification.service');
 
+// Business staff. IT ("admin") is deliberately not in this list.
+const STAFF = ['marketing', 'pricing', 'finance'];
+
 // A quotation stays valid for this many hours after it is sent
 const QUOTE_VALIDITY_HOURS = 72;
 
@@ -95,8 +98,8 @@ const notifyQuotationResponse = (quotation, customer, accepted) => {
   }).catch((err) => console.error('Quotation response notification failed:', err));
 };
 
-// Marketing/Admin: Create quotation
-router.post('/', authenticate, authorize('admin', 'marketing'), [
+// Staff: Create quotation
+router.post('/', authenticate, authorize(...STAFF), [
   body('fuelRequestId').isNumeric().withMessage('Fuel request ID is required'),
   body('unitPrice').isNumeric().withMessage('Unit price is required')
 ], async (req, res) => {
@@ -172,7 +175,7 @@ router.post('/', authenticate, authorize('admin', 'marketing'), [
 });
 
 // Customer: Get my quotations
-router.get('/my-quotations', authenticate, async (req, res) => {
+router.get('/my-quotations', authenticate, authorize('customer'), async (req, res) => {
   try {
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
@@ -198,8 +201,8 @@ router.get('/my-quotations', authenticate, async (req, res) => {
   }
 });
 
-// Marketing/Admin: Get all quotations
-router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+// Staff: Get all quotations
+router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const quotations = await expireOverdue(await getAllQuotations());
     res.json({
@@ -217,8 +220,8 @@ router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, re
   }
 });
 
-// Get single quotation
-router.get('/:id', authenticate, async (req, res) => {
+// Get single quotation (customers see their own; staff see all)
+router.get('/:id', authenticate, authorize('customer', ...STAFF), async (req, res) => {
   try {
     const quotation = await getQuotationById(req.params.id);
     if (!quotation) {
@@ -256,7 +259,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // Customer: Accept quotation
-router.put('/:id/accept', authenticate, async (req, res) => {
+router.put('/:id/accept', authenticate, authorize('customer'), async (req, res) => {
   try {
     const quotation = await getQuotationById(req.params.id);
     if (!quotation) {
@@ -319,7 +322,7 @@ router.put('/:id/accept', authenticate, async (req, res) => {
 });
 
 // Customer: Reject quotation
-router.put('/:id/reject', authenticate, async (req, res) => {
+router.put('/:id/reject', authenticate, authorize('customer'), async (req, res) => {
   try {
     const quotation = await getQuotationById(req.params.id);
     if (!quotation) {
@@ -381,8 +384,8 @@ router.put('/:id/reject', authenticate, async (req, res) => {
   }
 });
 
-// Marketing/Admin: Update quotation status
-router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
+// Staff: Update quotation status
+router.put('/:id/status', authenticate, authorize(...STAFF), [
   body('status').isIn(['draft', 'sent', 'accepted', 'rejected', 'expired']).withMessage('Invalid status')
 ], async (req, res) => {
   try {

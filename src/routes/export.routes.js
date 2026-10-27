@@ -8,8 +8,9 @@ const {
 } = require('../controllers/export.controller');
 const { exportReport } = require('../controllers/exportReport.controller');
 
-// All export routes require authentication and admin/marketing role
-router.use(authenticate, authorize('admin', 'marketing'));
+// All export routes require authentication and a business staff role.
+// IT ("admin") is deliberately not allowed: these reports contain customer and order data.
+router.use(authenticate, authorize('marketing', 'pricing', 'finance'));
 
 // Export all customers to Excel
 router.get('/customers', exportCustomers);
@@ -20,7 +21,7 @@ router.get('/monthly-report', exportMonthlyReport);
 // Export monthly orders report
 router.get('/monthly-orders-report', exportMonthlyOrdersReport);
 
-// NEW: filterable report (quotations, orders, invoices, fuel requests or everything)
+// Filterable report (quotations, orders, invoices, fuel requests or everything)
 router.get('/report', exportReport);
 
 module.exports = router;

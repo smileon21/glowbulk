@@ -13,8 +13,12 @@ const {
   deleteContent
 } = require('../models/content.model');
 
+// Who can manage announcements and news. IT ("admin") is deliberately not included.
+// To let pricing or finance manage content too, use: ['marketing', 'pricing', 'finance']
+const CONTENT_ROLES = ['marketing'];
+
 // Create content
-router.post('/', authenticate, authorize('admin', 'marketing'), [
+router.post('/', authenticate, authorize(...CONTENT_ROLES), [
   body('title').notEmpty().withMessage('Title is required'),
   body('contentType').notEmpty().withMessage('Content type is required'),
   body('content').notEmpty().withMessage('Content is required'),
@@ -50,7 +54,7 @@ router.post('/', authenticate, authorize('admin', 'marketing'), [
 });
 
 // Publish content
-router.put('/:id/publish', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.put('/:id/publish', authenticate, authorize(...CONTENT_ROLES), async (req, res) => {
   try {
     const content = await publishContent(req.params.id, req.user.id);
     if (!content) {
@@ -119,8 +123,8 @@ router.get('/slug/:slug', async (req, res) => {
   }
 });
 
-// Get all content (admin/marketing)
-router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+// Get all content (content managers)
+router.get('/all', authenticate, authorize(...CONTENT_ROLES), async (req, res) => {
   try {
     const content = await getAllContent();
     res.json({
@@ -139,7 +143,7 @@ router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, re
 });
 
 // Get content by ID
-router.get('/:id', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.get('/:id', authenticate, authorize(...CONTENT_ROLES), async (req, res) => {
   try {
     const content = await getContentById(req.params.id);
     if (!content) {
@@ -164,7 +168,7 @@ router.get('/:id', authenticate, authorize('admin', 'marketing'), async (req, re
 });
 
 // Update content
-router.put('/:id', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.put('/:id', authenticate, authorize(...CONTENT_ROLES), async (req, res) => {
   try {
     const content = await updateContent(req.params.id, req.body);
     if (!content) {
@@ -190,7 +194,7 @@ router.put('/:id', authenticate, authorize('admin', 'marketing'), async (req, re
 });
 
 // Delete content
-router.delete('/:id', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.delete('/:id', authenticate, authorize(...CONTENT_ROLES), async (req, res) => {
   try {
     const content = await deleteContent(req.params.id);
     if (!content) {

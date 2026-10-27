@@ -93,7 +93,8 @@ const AdminProfile = () => {
         </div>
       </div>
 
-      <ExportPanel />
+      {/* Reports contain customer and order data, so IT does not get them */}
+      {role !== 'admin' && <ExportPanel />}
 
       {role === 'admin' && (
         <div className="glow-card" style={{ marginTop: '24px' }}>

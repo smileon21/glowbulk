@@ -10,6 +10,9 @@ const {
   updateCustomer
 } = require('../models/customer.model');
 
+// Business staff. IT ("admin") is deliberately not in this list.
+const STAFF = ['marketing', 'pricing', 'finance'];
+
 // Create customer profile (authenticated user)
 router.post('/profile', authenticate, [
   body('company_name').notEmpty().withMessage('Company name is required'),
@@ -105,8 +108,8 @@ router.put('/profile/me', authenticate, async (req, res) => {
   }
 });
 
-// Admin: Get all customers
-router.get('/', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+// Staff: Get all customers
+router.get('/', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const customers = await getAllCustomers();
     res.json({
@@ -124,8 +127,8 @@ router.get('/', authenticate, authorize('admin', 'marketing'), async (req, res) 
   }
 });
 
-// Admin: Get customer by ID
-router.get('/:id', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+// Staff: Get customer by ID
+router.get('/:id', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const customer = await getCustomerById(req.params.id);
     if (!customer) {

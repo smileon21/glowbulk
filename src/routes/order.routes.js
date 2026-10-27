@@ -26,8 +26,11 @@ const { getQuotationById } = require('../models/quotation.model');
 const { updateFuelRequestStatus } = require('../models/fuelRequest.model');
 const { uploadToSupabase } = require('../utils/supabaseUpload');
 
-// === NEW: notification service (replaces email helpers) ===
+// === notification service ===
 const { notifyStaff, notifyCustomer } = require('../services/notification.service');
+
+// Business staff. IT ("admin") is deliberately not in this list.
+const STAFF = ['marketing', 'pricing', 'finance'];
 
 // Multer Config
 const upload = multer({
@@ -55,7 +58,7 @@ const handleValidation = (req, res, next) => {
 // 1. SPECIFIC NAMED ROUTES
 // =====================================================
 
-router.get('/my-orders', authenticate, async (req, res) => {
+router.get('/my-orders', authenticate, authorize('customer'), async (req, res) => {
   try {
     const customer = await getCustomerByUserId(req.user.id);
     if (!customer) {
@@ -69,7 +72,7 @@ router.get('/my-orders', authenticate, async (req, res) => {
   }
 });
 
-router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const orders = await getAllOrders();
     res.json({ success: true, count: orders.length, data: orders });
@@ -79,7 +82,7 @@ router.get('/all', authenticate, authorize('admin', 'marketing'), async (req, re
   }
 });
 
-router.get('/pending-payment', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.get('/pending-payment', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const orders = await getPendingPaymentOrders();
     res.json({ success: true, count: orders.length, data: orders });
@@ -89,7 +92,7 @@ router.get('/pending-payment', authenticate, authorize('admin', 'marketing'), as
   }
 });
 
-router.get('/awaiting-invoice', authenticate, authorize('admin', 'marketing'), async (req, res) => {
+router.get('/awaiting-invoice', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const orders = await getOrdersAwaitingInvoice();
     res.json({ success: true, count: orders.length, data: orders });
@@ -104,7 +107,7 @@ router.get('/awaiting-invoice', authenticate, authorize('admin', 'marketing'), a
 // =====================================================
 
 // Customer: Create order from accepted quotation
-router.post('/create', authenticate, [
+router.post('/create', authenticate, authorize('customer'), [
   body('quotationId').isInt().withMessage('Quotation ID is required'),
   body('purchaseOrderNumber').optional({ nullable: true }).isString(),
   body('preferredDeliveryDate').optional({ nullable: true }).isString(),
@@ -161,7 +164,7 @@ router.post('/create', authenticate, [
       await updateFuelRequestStatus(quotation.fuel_request_id, 'ordered');
     }
 
-    // === NEW: notify every admin + marketing user ===
+    // Notify staff
     try {
       const companyName =
         (customer && (customer.company_name || customer.company)) ||
@@ -190,7 +193,8 @@ router.post('/create', authenticate, [
 // 3. PARAMETERIZED ROUTES
 // =====================================================
 
-router.get('/:id', authenticate, [
+// Get single order (customers see their own; staff see all)
+router.get('/:id', authenticate, authorize('customer', ...STAFF), [
   param('id').isInt().withMessage('Invalid order ID'),
   handleValidation
 ], async (req, res) => {
@@ -213,7 +217,7 @@ router.get('/:id', authenticate, [
 });
 
 // Upload PO File
-router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async (req, res) => {
+router.post('/upload-po/:orderId', authenticate, authorize('customer', ...STAFF), upload.single('poFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -226,7 +230,7 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    const isStaff = ['admin', 'marketing'].includes(req.user.role);
+    const isStaff = STAFF.includes(req.user.role);
     if (order.created_by !== req.user.id && !isStaff) {
       return res.status(403).json({ success: false, message: 'Unauthorized access to this order' });
     }
@@ -247,7 +251,7 @@ router.post('/upload-po/:orderId', authenticate, upload.single('poFile'), async 
 });
 
 // Upload Payment Proof
-router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), async (req, res) => {
+router.post('/upload-proof/:orderId', authenticate, authorize('customer', ...STAFF), upload.single('proofFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -260,7 +264,7 @@ router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), 
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    const isStaff = ['admin', 'marketing'].includes(req.user.role);
+    const isStaff = STAFF.includes(req.user.role);
     if (order.created_by !== req.user.id && !isStaff) {
       return res.status(403).json({ success: false, message: 'Unauthorized access to this order' });
     }
@@ -282,7 +286,7 @@ router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), 
 
     const updatedOrder = await addPaymentProof(orderId, filename, url);
 
-    // === NEW: notify every admin + marketing user ===
+    // Notify staff
     try {
       const customer = await getCustomerById(order.customer_id);
       const companyName =
@@ -306,8 +310,8 @@ router.post('/upload-proof/:orderId', authenticate, upload.single('proofFile'), 
   }
 });
 
-// Admin/Marketing: Upload Invoice
-router.post('/upload-invoice/:orderId', authenticate, authorize('admin', 'marketing'), upload.single('invoiceFile'), async (req, res) => {
+// Staff: Upload Invoice
+router.post('/upload-invoice/:orderId', authenticate, authorize(...STAFF), upload.single('invoiceFile'), async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -336,7 +340,7 @@ router.post('/upload-invoice/:orderId', authenticate, authorize('admin', 'market
 
     const updatedOrder = await addInvoiceFile(orderId, filename, url, req.user.id);
 
-    // === NEW: notify the customer ===
+    // Notify the customer
     try {
       const orderRef = updatedOrder.order_number || order.order_number || ('#' + orderId);
       await notifyCustomer(order.customer_id, {
@@ -365,7 +369,7 @@ router.post('/upload-invoice/:orderId', authenticate, authorize('admin', 'market
 });
 
 // Customer: Update delivery details
-router.put('/:orderId/delivery', authenticate, [
+router.put('/:orderId/delivery', authenticate, authorize('customer'), [
   param('orderId').isInt().withMessage('Invalid order ID'),
   body('delivery_address').optional({ nullable: true }).isString(),
   body('delivery_city').optional({ nullable: true }).isString(),
@@ -396,8 +400,8 @@ router.put('/:orderId/delivery', authenticate, [
   }
 });
 
-// Admin/Marketing: Update order status
-router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
+// Staff: Update order status
+router.put('/:id/status', authenticate, authorize(...STAFF), [
   param('id').isInt().withMessage('Invalid order ID'),
   body('status').isIn(['pending_payment', 'payment_confirmed', 'processing', 'completed', 'cancelled']).withMessage('Invalid status'),
   body('notes').optional({ nullable: true }).isString(),
@@ -409,7 +413,7 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // === NEW: notify the customer when their order is marked completed ===
+    // Notify the customer when their order is marked completed
     if (req.body.status === 'completed') {
       try {
         const orderRef = order.order_number || ('#' + order.id);
@@ -431,8 +435,8 @@ router.put('/:id/status', authenticate, authorize('admin', 'marketing'), [
   }
 });
 
-// Admin/Marketing: Confirm payment
-router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing'), [
+// Staff: Confirm payment
+router.put('/:id/confirm-payment', authenticate, authorize(...STAFF), [
   param('id').isInt().withMessage('Invalid order ID'),
   body('notes').optional({ nullable: true }).isString(),
   handleValidation
@@ -450,7 +454,7 @@ router.put('/:id/confirm-payment', authenticate, authorize('admin', 'marketing')
       req.body.notes || `Payment confirmed by ${req.user.first_name} ${req.user.last_name}`
     );
 
-    // === NEW: notify the customer ===
+    // Notify the customer
     try {
       const orderRef = updatedOrder.order_number || order.order_number || ('#' + order.id);
       await notifyCustomer(order.customer_id, {
