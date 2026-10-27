@@ -1,0 +1,164 @@
+/* Styles for the IT pages (Accounts, Activity Log).
+   Colours use translucent greys and currentColor so they follow the app's
+   automatic light/dark theme without needing any theme variables. */
+
+.it-page { display: flex; flex-direction: column; gap: 1rem; }
+
+.it-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.it-toolbar .it-spacer { flex: 1 1 auto; }
+
+.it-input,
+.it-select,
+.it-textarea {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  min-width: 0;
+}
+
+.it-input:focus,
+.it-select:focus,
+.it-textarea:focus {
+  outline: 2px solid rgba(204, 0, 0, 0.45);
+  outline-offset: 1px;
+}
+
+.it-textarea { width: 100%; min-height: 80px; resize: vertical; box-sizing: border-box; }
+.it-input.full { width: 100%; box-sizing: border-box; }
+
+.it-btn {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: #cc0000;
+  border: 1px solid #cc0000;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+}
+.it-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.it-btn.ghost {
+  color: inherit;
+  background: transparent;
+  border-color: rgba(128, 128, 128, 0.45);
+}
+
+.it-btn.small { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+
+.it-btn.danger {
+  color: #cc0000;
+  background: transparent;
+  border-color: rgba(204, 0, 0, 0.55);
+}
+
+.it-card {
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.it-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.it-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.it-field label { font-size: 0.85rem; opacity: 0.8; }
+
+.it-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 12px;
+}
+
+.it-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+
+.it-table th,
+.it-table td {
+  text-align: left;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  vertical-align: top;
+  font-size: 0.92rem;
+}
+
+.it-table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; }
+.it-table tr:last-child td { border-bottom: none; }
+
+.it-sub { display: block; font-size: 0.82rem; opacity: 0.7; word-break: break-word; }
+
+.it-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  margin-right: 0.3rem;
+}
+.it-badge.active { color: #1e8e4e; border-color: rgba(30, 142, 78, 0.5); background: rgba(30, 142, 78, 0.12); }
+.it-badge.blocked { color: #cc0000; border-color: rgba(204, 0, 0, 0.5); background: rgba(204, 0, 0, 0.12); }
+.it-badge.locked { color: #b7791f; border-color: rgba(183, 121, 31, 0.5); background: rgba(183, 121, 31, 0.14); }
+.it-badge.pending { color: inherit; opacity: 0.8; }
+
+.it-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.it-empty { padding: 1.5rem; text-align: center; opacity: 0.7; }
+
+.it-secret {
+  border: 2px solid #cc0000;
+  border-radius: 12px;
+  padding: 1rem;
+}
+.it-secret code {
+  display: inline-block;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 0.6rem;
+  margin: 0.5rem 0.6rem 0.5rem 0;
+  border-radius: 8px;
+  border: 1px dashed rgba(128, 128, 128, 0.6);
+  user-select: all;
+}
+
+.it-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.it-modal {
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 14px;
+  padding: 1.25rem;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.it-modal h3 { margin-top: 0; }
+.it-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+
+.it-pagination { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+
+.it-change { font-size: 0.82rem; word-break: break-word; }

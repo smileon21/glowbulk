@@ -7,50 +7,81 @@ const {
   getSystemUsers,
   getAdminProfile,
   updateAdminProfile,
+  createStaffUser,
+  resetStaffPassword,
+  changeStaffEmail,
+  blockAccount,
+  unblockAccount,
   updateUserStatus,
-  deleteUser
+  deleteUser,
+  getActivityLog,
+  getSuspiciousActivity
 } = require('../controllers/admin.controller');
 
-// All admin routes require authentication and admin role
+// Returns the first validation error as `message`, plus the full list as `errors`
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: errors.array()[0].msg,
+      errors: errors.array()
+    });
+  }
+  next();
+};
+
+// All admin (IT) routes require authentication and the admin role
 router.use(authenticate, authorize('admin'));
 
-// Get admin profile
+// ---------- Own profile ----------
 router.get('/profile', getAdminProfile);
 
-// Update admin profile
 router.put('/profile', [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required')
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      errors: errors.array()
-    });
-  }
-  await updateAdminProfile(req, res);
-});
+], validate, updateAdminProfile);
 
-// Get dashboard stats
+// ---------- Dashboard ----------
 router.get('/dashboard/stats', getDashboardStats);
+router.get('/suspicious-activity', getSuspiciousActivity);
 
-// Get all system users
+// ---------- Activity log ----------
+router.get('/activity-log', getActivityLog);
+
+// ---------- Users ----------
+// List: ?role=staff|admin|marketing|pricing|finance|customer&status=active|blocked&search=text
 router.get('/users', getSystemUsers);
 
-// Update user status
+// Create a staff account (temporary password returned once)
+router.post('/users', [
+  body('firstName').trim().notEmpty().withMessage('First name is required'),
+  body('lastName').trim().notEmpty().withMessage('Last name is required'),
+  body('email').trim().isEmail().withMessage('Valid email is required'),
+  body('role')
+    .isIn(['admin', 'marketing', 'pricing', 'finance'])
+    .withMessage('Role must be IT, marketing, pricing or finance')
+], validate, createStaffUser);
+
+// Reset a staff password (new temporary password returned once)
+router.put('/users/:userId/reset-password', resetStaffPassword);
+
+// Change a staff email
+router.put('/users/:userId/email', [
+  body('email').trim().isEmail().withMessage('Valid email is required')
+], validate, changeStaffEmail);
+
+// Block / unblock any account, customers included
+router.put('/users/:userId/block', [
+  body('reason').trim().isLength({ min: 3, max: 500 }).withMessage('A reason (3 to 500 characters) is required')
+], validate, blockAccount);
+
+router.put('/users/:userId/unblock', unblockAccount);
+
+// Old activate/deactivate endpoint, kept for the current AdminManagement page
 router.put('/users/:userId/status', [
   body('status').isIn(['active', 'inactive']).withMessage('Status must be active or inactive')
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      errors: errors.array()
-    });
-  }
-  await updateUserStatus(req, res);
-});
+], validate, updateUserStatus);
 
 // Delete user
 router.delete('/users/:userId', deleteUser);

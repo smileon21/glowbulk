@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-import AdminManagement from '../components/AdminManagement';
 import ExportPanel from '../components/ExportPanel';
 import { formatName, formatDate } from '../utils/format';
+
+// "admin" is the value stored in the database; on screen it is called IT
+const roleLabel = (role) => (role === 'admin' ? 'IT' : role);
 
 const AdminProfile = () => {
   const [user, setUser] = useState(null);
@@ -61,9 +63,9 @@ const AdminProfile = () => {
   return (
     <div className="admin-profile-container">
       <div className="page-header">
-        <h2>Admin Profile</h2>
+        <h2>{role === 'admin' ? 'IT Profile' : 'Profile'}</h2>
       </div>
-      <p className="sub-text">Your account and team access</p>
+      <p className="sub-text">Your account</p>
 
       {error && <div className="error-message">{error}</div>}
 
@@ -84,7 +86,7 @@ const AdminProfile = () => {
           )}
         </div>
         <div className="profile-summary-side">
-          <span className={'role-badge ' + role}>{role}</span>
+          <span className={'role-badge ' + role}>{roleLabel(role)}</span>
           <Link to="/security" className={'profile-2fa ' + (twoFactorOn ? 'on' : 'off')}>
             {twoFactorOn ? '2FA on' : '2FA off'} · Security <span aria-hidden="true">→</span>
           </Link>
@@ -93,7 +95,17 @@ const AdminProfile = () => {
 
       <ExportPanel />
 
-      <AdminManagement />
+      {role === 'admin' && (
+        <div className="glow-card" style={{ marginTop: '24px' }}>
+          <h3 style={{ marginTop: 0 }}>Staff accounts</h3>
+          <p className="sub-text">
+            Create accounts, reset passwords, change emails and block access.
+          </p>
+          <Link to="/accounts">Open Accounts →</Link>
+          {' · '}
+          <Link to="/activity-log">View Activity Log →</Link>
+        </div>
+      )}
     </div>
   );
 };

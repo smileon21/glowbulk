@@ -20,7 +20,8 @@ const {
   setResetToken,
   findUserByResetToken,
   clearResetToken,
-  updatePassword
+  updatePassword,
+  recordFailedLogin
 } = require('../models/user.model');
 
 const {
@@ -28,6 +29,7 @@ const {
 } = require('../utils/email');
 
 const { sendStytchOtp, verifyStytchOtp } = require('../utils/stytch');
+const { logActivity } = require('../utils/activityLog');
 
 const {
   authenticate,
@@ -36,10 +38,16 @@ const {
 
 const pool = require('../config/database');
 
+// Lock policy: after this many wrong passwords the account is locked for a while
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+
 
 // =====================================================
-// HELPER — Issue JWT + build login response shape
+// HELPERS
 // =====================================================
+
+// Issue JWT + build login response shape
 const issueLoginResponse = (user) => {
   const token = jwt.sign(
     { id: user.id, email: user.email, role: user.role },
@@ -55,9 +63,37 @@ const issueLoginResponse = (user) => {
       lastName: user.last_name,
       email: user.email,
       role: user.role,
-      phone: user.phone
+      phone: user.phone,
+      mustChangePassword: !!user.must_change_password
     }
   };
+};
+
+// Message shown to a blocked person
+const blockedMessage = (user) => {
+  const reason = user.blocked_reason ? ` Reason: ${user.blocked_reason}.` : '';
+  return `Your account has been blocked.${reason} Please contact IT support.`;
+};
+
+// Is the account currently locked? Also clears an expired lock so the counter starts fresh.
+const checkLock = async (userId) => {
+  const result = await pool.query(
+    `SELECT (locked_until IS NOT NULL AND locked_until > CURRENT_TIMESTAMP) AS locked,
+            (locked_until IS NOT NULL AND locked_until <= CURRENT_TIMESTAMP) AS expired,
+            CEIL(EXTRACT(EPOCH FROM (locked_until - CURRENT_TIMESTAMP)) / 60)::int AS minutes_left
+     FROM users WHERE id = $1`,
+    [userId]
+  );
+  const row = result.rows[0] || {};
+
+  if (row.expired) {
+    await pool.query(
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
+      [userId]
+    );
+  }
+
+  return { locked: !!row.locked, minutesLeft: row.minutes_left || 1 };
 };
 
 
@@ -142,25 +178,78 @@ router.post(
 
       const user = await findUserByEmail(email);
 
+      // Unknown email: log it so IT can see guessing attempts
       if (!user) {
+        await logActivity({
+          action: 'LOGIN_FAILED',
+          details: `Unknown email: ${email}`,
+          ip: req.ip
+        });
         return res.status(401).json({
           success: false,
           message: 'Invalid email or password'
         });
       }
 
-      if (user.is_active === false) {
-        return res.status(403).json({
+      // Temporarily locked after too many wrong passwords
+      const lock = await checkLock(user.id);
+      if (lock.locked) {
+        return res.status(429).json({
           success: false,
-          message: 'Account is deactivated. Please contact support.'
+          code: 'ACCOUNT_LOCKED',
+          message: `Too many failed attempts. Try again in ${lock.minutesLeft} minute(s) or contact IT support.`
         });
       }
 
+      // Wrong password: count it, flag it, lock if the limit is reached
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
+        const result = await recordFailedLogin(user.id, MAX_FAILED_ATTEMPTS, LOCK_MINUTES);
+        const attempts = result ? result.failed_login_attempts : 0;
+
+        await logActivity({
+          action: 'LOGIN_FAILED',
+          targetType: 'user',
+          targetId: user.id,
+          details: `Wrong password for ${user.email} (attempt ${attempts})`,
+          ip: req.ip
+        });
+
+        if (attempts >= MAX_FAILED_ATTEMPTS) {
+          await logActivity({
+            action: 'ACCOUNT_LOCKED',
+            targetType: 'user',
+            targetId: user.id,
+            details: `${user.email} locked for ${LOCK_MINUTES} minutes after ${attempts} failed sign-ins`,
+            ip: req.ip
+          });
+          return res.status(429).json({
+            success: false,
+            code: 'ACCOUNT_LOCKED',
+            message: `Too many failed attempts. Account locked for ${LOCK_MINUTES} minutes.`
+          });
+        }
+
         return res.status(401).json({
           success: false,
           message: 'Invalid email or password'
+        });
+      }
+
+      // Correct password but the account is blocked: say so clearly.
+      // (Checked after the password so strangers can't probe which accounts are blocked.)
+      if (user.is_active === false) {
+        await logActivity({
+          action: 'LOGIN_BLOCKED',
+          targetType: 'user',
+          targetId: user.id,
+          details: `Blocked account tried to sign in: ${user.email}`,
+          ip: req.ip
+        });
+        return res.status(403).json({
+          success: false,
+          code: 'ACCOUNT_BLOCKED',
+          message: blockedMessage(user)
         });
       }
 
@@ -197,6 +286,16 @@ router.post(
 
       // No 2FA — log in normally
       await updateLastLogin(user.id);
+
+      if (user.role !== 'customer') {
+        await logActivity({
+          actor: user,
+          action: 'LOGIN_SUCCESS',
+          targetType: 'user',
+          targetId: user.id,
+          ip: req.ip
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -237,6 +336,23 @@ router.post(
 
       const { userId, code } = req.body;
 
+      const user = await findUserByIdWithPassword(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // A person blocked between password and code entry must not get in
+      if (user.is_active === false) {
+        return res.status(403).json({
+          success: false,
+          code: 'ACCOUNT_BLOCKED',
+          message: blockedMessage(user)
+        });
+      }
+
       const emailId = await getTwoFactorOtp(userId);
       if (!emailId) {
         return res.status(401).json({
@@ -254,16 +370,18 @@ router.post(
       }
 
       await clearTwoFactorOtp(userId);
+      await updateLastLogin(user.id);
 
-      const user = await findUserByIdWithPassword(userId);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
+      if (user.role !== 'customer') {
+        await logActivity({
+          actor: user,
+          action: 'LOGIN_SUCCESS',
+          targetType: 'user',
+          targetId: user.id,
+          details: 'Signed in with two-factor verification',
+          ip: req.ip
         });
       }
-
-      await updateLastLogin(user.id);
 
       return res.status(200).json({
         success: true,
@@ -294,6 +412,14 @@ router.post('/resend-otp', async (req, res) => {
     const user = await findUserByIdWithPassword(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.is_active === false) {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_BLOCKED',
+        message: blockedMessage(user)
+      });
     }
 
     const emailId = await sendStytchOtp(user.email);
@@ -389,6 +515,71 @@ router.post('/2fa/disable', authenticate, async (req, res) => {
 
 
 // =====================================================
+// CHANGE PASSWORD (signed-in user)
+// Also the way a person replaces the temporary password IT gave them.
+// =====================================================
+router.post(
+  '/change-password',
+  authenticate,
+  [
+    body('currentPassword').notEmpty().withMessage('Current password is required'),
+    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: errors.array()[0].msg,
+          errors: errors.array()
+        });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      const user = await findUserByIdWithPassword(req.user.id);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+      }
+
+      const sameAsOld = await bcrypt.compare(newPassword, user.password);
+      if (sameAsOld) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password must be different from the current one'
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await updatePassword(user.id, hashedPassword); // also clears must_change_password
+
+      await logActivity({
+        actor: req.user,
+        action: 'PASSWORD_CHANGED',
+        targetType: 'user',
+        targetId: user.id,
+        oldValues: { must_change_password: !!user.must_change_password },
+        newValues: { must_change_password: false },
+        details: 'User changed their own password',
+        ip: req.ip
+      });
+
+      return res.json({ success: true, message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('CHANGE PASSWORD ERROR:', error);
+      return res.status(500).json({ success: false, message: 'Error changing password' });
+    }
+  }
+);
+
+
+// =====================================================
 // FORGOT PASSWORD
 // =====================================================
 router.post(
@@ -449,7 +640,7 @@ router.post(
 
 
 // =====================================================
-// RESET PASSWORD
+// RESET PASSWORD (from the emailed link)
 // =====================================================
 router.post(
   '/reset-password',
@@ -482,6 +673,15 @@ router.post(
       await updatePassword(user.id, hashedPassword);
       await clearResetToken(user.id);
 
+      await logActivity({
+        actor: user,
+        action: 'PASSWORD_RESET_BY_LINK',
+        targetType: 'user',
+        targetId: user.id,
+        details: 'Password reset using the emailed link',
+        ip: req.ip
+      });
+
       return res.json({
         success: true,
         message: 'Password reset successfully. You can now log in.'
@@ -489,179 +689,6 @@ router.post(
 
     } catch (error) {
       console.error('RESET PASSWORD ERROR:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error resetting password'
-      });
-    }
-  }
-);
-
-
-// =====================================================
-// ADMIN — Create new admin
-// =====================================================
-router.post(
-  '/admin/create',
-  authenticate,
-  authorize('admin'),
-  [
-    body('firstName').trim().notEmpty().withMessage('First name is required'),
-    body('lastName').trim().notEmpty().withMessage('Last name is required'),
-    body('email').trim().isEmail().withMessage('Please provide a valid email'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: errors.array()
-        });
-      }
-
-      const firstName = req.body.firstName.trim();
-      const lastName = req.body.lastName.trim();
-      const email = req.body.email.trim().toLowerCase();
-      const password = req.body.password;
-      const phone = req.body.phone || null;
-
-      const existingUser = await findUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'User with this email already exists'
-        });
-      }
-
-      const user = await createUser({
-        firstName,
-        lastName,
-        email,
-        password,
-        role: 'admin',
-        phone
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Admin account created successfully',
-        data: user
-      });
-
-    } catch (error) {
-      console.error('ADMIN CREATE ERROR:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error creating admin account'
-      });
-    }
-  }
-);
-
-
-// =====================================================
-// ADMIN — Update status
-// =====================================================
-router.put(
-  '/admin/:id/status',
-  authenticate,
-  authorize('admin'),
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { isActive } = req.body;
-
-      if (parseInt(id) === req.user.id) {
-        return res.status(400).json({
-          success: false,
-          message: 'You cannot change your own status'
-        });
-      }
-
-      const query = `
-        UPDATE users
-        SET is_active = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2 AND role = 'admin'
-        RETURNING id, first_name, last_name, email, is_active
-      `;
-
-      const result = await pool.query(query, [isActive, id]);
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'Admin not found'
-        });
-      }
-
-      return res.json({
-        success: true,
-        message: isActive ? 'Admin activated' : 'Admin deactivated',
-        data: result.rows[0]
-      });
-
-    } catch (error) {
-      console.error('ADMIN STATUS ERROR:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error updating admin status'
-      });
-    }
-  }
-);
-
-
-// =====================================================
-// ADMIN — Reset user password
-// =====================================================
-router.put(
-  '/admin/:id/reset-password',
-  authenticate,
-  authorize('admin'),
-  [
-    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Password must be at least 6 characters'
-        });
-      }
-
-      const { id } = req.params;
-      const { newPassword } = req.body;
-
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-      const query = `
-        UPDATE users
-        SET password = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-        RETURNING id, first_name, last_name, email
-      `;
-
-      const result = await pool.query(query, [hashedPassword, id]);
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      return res.json({
-        success: true,
-        message: 'Password reset successfully'
-      });
-
-    } catch (error) {
-      console.error('ADMIN RESET PASSWORD ERROR:', error);
       return res.status(500).json({
         success: false,
         message: 'Error resetting password'

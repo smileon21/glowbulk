@@ -1,9 +1,11 @@
 const jwt = require('jsonwebtoken');
 const { findUserById } = require('../models/user.model');
 
+// Routes a user may call while they still must change a temporary password
+const PASSWORD_CHANGE_ALLOWED = ['/api/auth/me', '/api/auth/change-password'];
+
 const authenticate = async (req, res, next) => {
   try {
-    // Get token from header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
@@ -13,11 +15,9 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Find user
+
+    // Loaded from the database on every request, so a block applies on the next click
     const user = await findUserById(decoded.id);
     if (!user) {
       return res.status(401).json({
@@ -27,13 +27,28 @@ const authenticate = async (req, res, next) => {
     }
 
     if (!user.is_active) {
+      const reason = user.blocked_reason
+        ? ` Reason: ${user.blocked_reason}.`
+        : '';
       return res.status(403).json({
         success: false,
-        message: 'Account is deactivated. Please contact support.'
+        code: 'ACCOUNT_BLOCKED',
+        message: `Your account has been blocked.${reason} Please contact IT support.`
       });
     }
 
-    // Attach user to request
+    // Temporary password: only allow the password-change routes until it is changed
+    if (user.must_change_password) {
+      const path = req.originalUrl.split('?')[0];
+      if (!PASSWORD_CHANGE_ALLOWED.includes(path)) {
+        return res.status(403).json({
+          success: false,
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          message: 'You must change your temporary password before continuing.'
+        });
+      }
+    }
+
     req.user = user;
     next();
   } catch (error) {
@@ -49,15 +64,14 @@ const authenticate = async (req, res, next) => {
         message: 'Token expired. Please login again.'
       });
     }
+    console.error('Authentication error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Authentication error.',
-      error: error.message
+      message: 'Authentication error.'
     });
   }
 };
 
-// Role-based authorization
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -66,14 +80,14 @@ const authorize = (...roles) => {
         message: 'Not authenticated.'
       });
     }
-    
+
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: `Access denied. Requires role: ${roles.join(', ')}`
       });
     }
-    
+
     next();
   };
 };

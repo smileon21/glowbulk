@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import ChangePasswordForm from '../components/ChangePasswordForm';
 
 // Absolute backend URL to prevent relative routing and 308 redirects on Vercel
 const BACKEND_URL = 'https://glowbulk-api.onrender.com';
@@ -19,6 +20,18 @@ const Login = () => {
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
 
+  // Forced password change: holds the login result until the person sets their own password
+  const [pendingLogin, setPendingLogin] = useState(null);
+
+  // A message left by the session guard (blocked mid-session, password reset by IT)
+  useEffect(() => {
+    const notice = sessionStorage.getItem('authNotice');
+    if (notice) {
+      setError(notice);
+      sessionStorage.removeItem('authNotice');
+    }
+  }, []);
+
   const completeLogin = (data) => {
     localStorage.setItem('token', data.token);
     localStorage.setItem('userRole', data.user.role);
@@ -30,6 +43,17 @@ const Login = () => {
 
     // Full page navigation ensures a clean app re-init on the new route
     window.location.href = '/dashboard';
+  };
+
+  // Every successful sign-in ends here. A temporary password must be replaced first,
+  // and nothing is stored in the browser until that is done.
+  const handleLoginData = (data) => {
+    if (data.user && data.user.mustChangePassword) {
+      setError('');
+      setPendingLogin(data);
+    } else {
+      completeLogin(data);
+    }
   };
 
   // Handle standard password login
@@ -51,7 +75,7 @@ const Login = () => {
           setPendingUserId(data.userId);
           setAwaitingOtp(true);
         } else {
-          completeLogin(data);
+          handleLoginData(data);
         }
       } else {
         setError(response.data.message || 'Login failed');
@@ -83,7 +107,7 @@ const Login = () => {
       });
 
       if (response.data.success) {
-        completeLogin(response.data.data);
+        handleLoginData(response.data.data);
       } else {
         setError(response.data.message || 'Verification failed');
       }
@@ -115,10 +139,48 @@ const Login = () => {
   const backToLogin = () => {
     setAwaitingOtp(false);
     setPendingUserId(null);
+    setPendingLogin(null);
     setOtpCode('');
+    setPassword('');
     setError('');
     setResendMessage('');
   };
+
+  // Forced password change screen (temporary password from IT)
+  if (pendingLogin) {
+    return (
+      <div className="auth-container">
+        <div className="glow-card auth-card">
+          <h2>Set Your Password</h2>
+          <p className="sub-text">
+            IT gave you a temporary password. Choose your own to continue.
+          </p>
+
+          <ChangePasswordForm
+            token={pendingLogin.token}
+            baseUrl={BACKEND_URL}
+            forced
+            onSuccess={() =>
+              completeLogin({
+                ...pendingLogin,
+                user: { ...pendingLogin.user, mustChangePassword: false }
+              })
+            }
+          />
+
+          <p className="auth-link">
+            <button
+              type="button"
+              onClick={backToLogin}
+              style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: 0 }}
+            >
+              Back to login
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // 2FA Verification Screen
   if (awaitingOtp) {

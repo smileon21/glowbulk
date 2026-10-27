@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import TwoFactorSettings from '../components/TwoFactorSettings';
+import ChangePasswordForm from '../components/ChangePasswordForm';
 
 const Security = () => {
   const [account, setAccount] = useState(null);
@@ -39,6 +40,12 @@ const Security = () => {
       <p className="sub-text">Manage how you sign in to GlowBulk</p>
 
       <TwoFactorSettings initialEnabled={account?.two_factor_enabled} />
+
+      <div className="glow-card" style={{ marginTop: '1.5rem' }}>
+        <h3>Change password</h3>
+        <p className="sub-text">Use at least 8 characters.</p>
+        <ChangePasswordForm />
+      </div>
     </div>
   );
 };

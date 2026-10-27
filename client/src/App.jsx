@@ -22,6 +22,8 @@ import CreateOrder from './pages/CreateOrder';
 import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
+import Accounts from './pages/Accounts';
+import ActivityLog from './pages/ActivityLog';
 import NotificationBell from './components/NotificationBell';
 import { formatName } from './utils/format';
 
@@ -67,6 +69,9 @@ const LogoutIcon = () => (
   </svg>
 );
 
+// "admin" is the value stored in the database; on screen it is called IT
+const roleLabel = (role) => (role === 'admin' ? 'IT' : role);
+
 // =====================================================
 // SIDEBAR
 // =====================================================
@@ -77,6 +82,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   const userName = formatName(localStorage.getItem('userName'));
   const userEmail = localStorage.getItem('userEmail');
   const isStaff = userRole === 'admin' || userRole === 'marketing';
+  const isIT = userRole === 'admin';
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -114,6 +120,17 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
 
   if (isStaff) {
     navItems.push({ to: '/content', label: 'Content' });
+  }
+
+  // IT tools come right after the dashboard. The business pages stay for now and
+  // will be removed from IT accounts once marketing accounts are set up.
+  if (isIT) {
+    navItems.splice(
+      1,
+      0,
+      { to: '/accounts', label: 'Accounts' },
+      { to: '/activity-log', label: 'Activity Log' }
+    );
   }
 
   // No "Create Order" link: orders are created from an accepted quotation
@@ -187,7 +204,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
           </span>
           <span className="sidebar-profile-info">
             <span className="sidebar-profile-name">{userName || 'User'}</span>
-            <span className="sidebar-profile-role">{userRole || 'Customer'}</span>
+            <span className="sidebar-profile-role">{roleLabel(userRole) || 'Customer'}</span>
           </span>
           <span className={`dropdown-arrow ${profileOpen ? 'open' : ''}`}>▼</span>
         </button>
@@ -264,6 +281,24 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
           <Route path="/fuel-requests" element={<FuelRequests />} />
           <Route path="/quotations" element={<Quotations />} />
           <Route path="/orders" element={<Orders />} />
+
+          <Route
+            path="/accounts"
+            element={
+              <RoleProtectedRoute allowedRoles={['admin']}>
+                <Accounts />
+              </RoleProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/activity-log"
+            element={
+              <RoleProtectedRoute allowedRoles={['admin']}>
+                <ActivityLog />
+              </RoleProtectedRoute>
+            }
+          />
 
           <Route
             path="/create-order"
