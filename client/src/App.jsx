@@ -54,7 +54,7 @@ const RoleProtectedRoute = ({ children, allowedRoles }) => {
 // =====================================================
 const ProfileRoute = () => {
   const userRole = localStorage.getItem('userRole');
-  if (userRole !== 'customer') { {
+  if (userRole !== 'customer') {
     return <AdminProfile />;
   }
   return <CustomerProfile />;
