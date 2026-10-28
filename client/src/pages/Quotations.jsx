@@ -6,7 +6,7 @@ import { formatDate } from '../utils/format';
 
 // A quotation stays valid for this many hours
 const QUOTE_VALIDITY_HOURS = 72;
-// Marketing can edit a sent quotation for this many minutes
+// Marketing can edit a sent (or just-accepted) quotation for this many minutes
 const EDIT_WINDOW_MINUTES = 15;
 
 const Quotations = () => {
@@ -276,9 +276,11 @@ const Quotations = () => {
     return start.getTime() + EDIT_WINDOW_MINUTES * 60000;
   };
 
-  // Whole minutes left in the edit window, or 0 when it is closed
+  // Whole minutes left in the edit window, or 0 when it is closed.
+  // Works for 'sent' quotations and for 'accepted' ones (editing cancels the acceptance).
   var editMinutesLeft = function(quote) {
-    if (!isMarketing || getEffectiveStatus(quote) !== 'sent') return 0;
+    var st = getEffectiveStatus(quote);
+    if (!isMarketing || (st !== 'sent' && st !== 'accepted')) return 0;
     var end = getEditEndsAt(quote);
     if (end === null || now >= end) return 0;
     return Math.max(1, Math.ceil((end - now) / 60000));
@@ -363,7 +365,11 @@ const Quotations = () => {
         }
       );
       if (response.data.success) {
-        setMessage('Quotation updated. The customer has been notified of the change.');
+        setMessage(
+          response.data.wasAccepted
+            ? 'Quotation updated. The customer\'s acceptance was cancelled and they have been asked to accept the new version.'
+            : 'Quotation updated. The customer has been notified of the change.'
+        );
         setEditQuote(null);
         fetchData();
       }
@@ -669,17 +675,19 @@ const Quotations = () => {
                 </button>
               )}
 
-              {isMarketing && selectedQuote.status === 'sent' && (
+              {/* Marketing can edit a sent OR accepted quotation until the 15 minutes are up
+                  (an accepted one that already has an order can't be edited) */}
+              {isMarketing && (selectedQuote.status === 'sent' || selectedQuote.status === 'accepted') && !selectedQuote.has_order && (
                 editMinutesLeft(selectedQuote) > 0 ? (
                   <button className="glow-btn" onClick={function() { openEdit(selectedQuote); }}>
                     Edit ({editMinutesLeft(selectedQuote)} min left)
                   </button>
-                ) : (
+                ) : selectedQuote.status === 'sent' ? (
                   <span className="form-hint">
                     The {EDIT_WINDOW_MINUTES}-minute edit window has ended. To change the price, expire this
                     quotation and create a new one.
                   </span>
-                )
+                ) : null
               )}
 
               {getEffectiveStatus(selectedQuote) === 'sent' && isCustomer && (
@@ -723,6 +731,13 @@ const Quotations = () => {
                 ? 'You can edit for ' + editMinutesLeft(editQuote) + ' more minute(s). The customer will be notified of the change.'
                 : 'The edit window has ended. Saving will be refused.'}
             </p>
+
+            {editQuote.status === 'accepted' && (
+              <div className="error-message">
+                The customer already accepted this quotation. Saving will cancel their acceptance
+                and they will have to accept the new version.
+              </div>
+            )}
 
             {editError && <div className="error-message">{editError}</div>}
 

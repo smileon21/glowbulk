@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 
-// Marketing may edit a sent quotation for this long after it was sent
+// Marketing may edit a sent (or just-accepted) quotation for this long after it was sent
 const EDIT_WINDOW_MINUTES = 15;
 
 // Create a new quotation
@@ -149,12 +149,16 @@ const updateQuotation = async (id, quotationData) => {
 // 15-MINUTE EDIT WITH VERSION HISTORY
 // ==========================================
 
-// Edit a SENT quotation inside the edit window.
+// Edit a SENT or ACCEPTED quotation inside the edit window.
+// If the quotation was already accepted, the acceptance is cancelled and the
+// quotation goes back to 'sent', so the customer must accept the new version.
+// An accepted quotation that already has an order can no longer be edited.
+//
 // Everything happens in one transaction with the row locked, so an edit and a
 // customer accepting at the same moment can never both succeed.
 //
 // editor = { id, name }, data = { unitPrice, deliveryTerms, paymentTerms, notes, reason }
-// Returns { ok: true, quotation, previous, version }
+// Returns { ok: true, quotation, previous, version, wasAccepted }
 //      or { ok: false, code, message }
 const editSentQuotation = async (id, data, editor) => {
   const client = await pool.connect();
@@ -179,7 +183,7 @@ const editSentQuotation = async (id, data, editor) => {
 
     const q = found.rows[0];
 
-    if (q.status !== 'sent') {
+    if (!['sent', 'accepted'].includes(q.status)) {
       await client.query('ROLLBACK');
       return { ok: false, code: 'NOT_EDITABLE', message: `This quotation is '${q.status}' and can no longer be edited.` };
     }
@@ -194,6 +198,23 @@ const editSentQuotation = async (id, data, editor) => {
         code: 'EDIT_WINDOW_CLOSED',
         message: `The ${EDIT_WINDOW_MINUTES}-minute edit window has ended. Withdraw this quotation and send a new one.`
       };
+    }
+
+    // An accepted quotation can only be edited until the customer places an order from it
+    const wasAccepted = q.status === 'accepted';
+    if (wasAccepted) {
+      const order = await client.query(
+        'SELECT 1 FROM orders WHERE quotation_id = $1 LIMIT 1',
+        [q.id]
+      );
+      if (order.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return {
+          ok: false,
+          code: 'ORDER_EXISTS',
+          message: 'The customer has already placed an order from this quotation, so it can no longer be edited.'
+        };
+      }
     }
 
     // First edit ever: save the original as version 1 so history is complete
@@ -236,6 +257,9 @@ const editSentQuotation = async (id, data, editor) => {
       notes: q.notes
     };
 
+    // Tag the history entry when this edit cancelled a customer's acceptance
+    const historyReason = wasAccepted ? `${data.reason} (acceptance cancelled)` : data.reason;
+
     await client.query(
       `INSERT INTO quotation_versions
          (quotation_id, version_no, quantity, unit_price, total_amount,
@@ -244,10 +268,12 @@ const editSentQuotation = async (id, data, editor) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [q.id, nextVersion, q.quantity, newUnitPrice, newTotal,
        newDelivery, newPayment, newNotes,
-       editor.id, editor.name, data.reason, JSON.stringify(previous)]
+       editor.id, editor.name, historyReason, JSON.stringify(previous)]
     );
 
-    // Tax feature is removed, so grand_total always equals total_amount
+    // Tax feature is removed, so grand_total always equals total_amount.
+    // status goes back to 'sent' and the acceptance is cleared, so the customer
+    // has to accept the new version.
     const updated = await client.query(
       `UPDATE quotations
        SET unit_price = $1,
@@ -257,6 +283,9 @@ const editSentQuotation = async (id, data, editor) => {
            payment_terms = $4,
            notes = $5,
            current_version = $6,
+           status = 'sent',
+           accepted_date = NULL,
+           accepted_version = NULL,
            edited = TRUE,
            edited_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
@@ -266,7 +295,7 @@ const editSentQuotation = async (id, data, editor) => {
     );
 
     await client.query('COMMIT');
-    return { ok: true, quotation: updated.rows[0], previous, version: nextVersion };
+    return { ok: true, quotation: updated.rows[0], previous, version: nextVersion, wasAccepted };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

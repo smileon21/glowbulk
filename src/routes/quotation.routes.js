@@ -91,8 +91,9 @@ const notifyQuotationReady = (quotation) => {
   }).catch((err) => console.error('Quotation notification failed:', err));
 };
 
-// Tell the customer their quotation was edited (never breaks the request if it fails)
-const notifyQuotationEdited = (quotation, previous) => {
+// Tell the customer their quotation was edited (never breaks the request if it fails).
+// wasAccepted = the customer had already accepted, so that acceptance was cancelled.
+const notifyQuotationEdited = (quotation, previous, wasAccepted) => {
   const money = (n) => Number(n).toFixed(2);
   notifyCustomer(quotation.customer_id, {
     type: 'quotation_edited',
@@ -101,7 +102,8 @@ const notifyQuotationEdited = (quotation, previous) => {
       `Quotation ${quotation.quotation_number} was updated (version ${quotation.current_version}). ` +
       `Unit price: ${money(previous.unit_price)} to ${money(quotation.unit_price)}. ` +
       `Total: ${money(previous.total_amount)} to ${money(quotation.total_amount)}. ` +
-      'Please review the new version before accepting.',
+      (wasAccepted ? 'Your earlier acceptance was cancelled. ' : '') +
+      'Please review the new version and accept it again.',
     link: '/quotations'
   }).catch((err) => console.error('Quotation edit notification failed:', err));
 };
@@ -244,7 +246,8 @@ router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
 // Must be declared BEFORE router.get('/:id')
 // ==========================================
 
-// Marketing: edit a sent quotation within the 15-minute window
+// Marketing: edit a sent or accepted quotation within the 15-minute window.
+// Editing an accepted quotation cancels the acceptance (customer must accept again).
 router.put('/:id/edit', authenticate, authorize('marketing'), [
   body('unitPrice').isFloat({ gt: 0 }).withMessage('Unit price must be greater than 0'),
   body('reason').trim().notEmpty().withMessage('A reason for the edit is required')
@@ -278,11 +281,24 @@ router.put('/:id/edit', authenticate, authorize('marketing'), [
     //               oldValues: result.previous, newValues: { unit_price: result.quotation.unit_price,
     //               total_amount: result.quotation.total_amount }, details: req.body.reason });
 
-    notifyQuotationEdited(result.quotation, result.previous);
+    // The acceptance was cancelled, so the fuel request goes back to 'quoted'
+    if (result.wasAccepted) {
+      try {
+        await updateFuelRequestStatus(result.quotation.fuel_request_id, 'quoted');
+      } catch (err) {
+        // Never fail the edit because the fuel request status could not be reset
+        console.error('Could not reset fuel request status after edit:', err.message);
+      }
+    }
+
+    notifyQuotationEdited(result.quotation, result.previous, result.wasAccepted);
 
     res.json({
       success: true,
-      message: `Quotation updated to version ${result.version}`,
+      message: result.wasAccepted
+        ? `Quotation updated to version ${result.version}. The customer's acceptance was cancelled and they must accept again.`
+        : `Quotation updated to version ${result.version}`,
+      wasAccepted: result.wasAccepted,
       data: result.quotation
     });
   } catch (error) {
