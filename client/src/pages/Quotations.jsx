@@ -575,6 +575,9 @@ const Quotations = () => {
                     <p><strong>Fuel Type:</strong> {quote.fuel_type}</p>
                     <p><strong>Quantity:</strong> {quote.quantity} {quote.unit}</p>
                     <p><strong>Grand Total:</strong> {formatCurrency(quote.grand_total)}</p>
+                    {quote.created_by_name && (
+                      <p><strong>Prepared by:</strong> {quote.created_by_name}</p>
+                    )}
                     <p><strong>Expires:</strong> {getExpiresLabel(quote)}</p>
                   </div>
 
@@ -627,6 +630,12 @@ const Quotations = () => {
                 <div className="modal-detail-item">
                   <span className="detail-label">Customer</span>
                   <span className="detail-value">{selectedQuote.company_name}</span>
+                </div>
+              )}
+              {selectedQuote.created_by_name && (
+                <div className="modal-detail-item">
+                  <span className="detail-label">Prepared by</span>
+                  <span className="detail-value">{selectedQuote.created_by_name}</span>
                 </div>
               )}
               <div className="modal-detail-item">

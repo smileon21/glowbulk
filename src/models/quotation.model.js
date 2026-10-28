@@ -3,6 +3,10 @@ const pool = require('../config/database');
 // Marketing may edit a sent (or just-accepted) quotation for this long after it was sent
 const EDIT_WINDOW_MINUTES = 15;
 
+// Name of the staff member who created the quotation (falls back if the user is missing).
+// Expects the creator's users row to be joined as "cu".
+const CREATOR_NAME = `COALESCE(NULLIF(TRIM(CONCAT(cu.first_name, ' ', cu.last_name)), ''), 'Glow Petroleum') AS created_by_name`;
+
 // Create a new quotation
 const createQuotation = async (quotationData) => {
   const {
@@ -52,15 +56,26 @@ const createQuotation = async (quotationData) => {
 
 // Get quotation by ID
 const getQuotationById = async (id) => {
-  const query = 'SELECT * FROM quotations WHERE id = $1';
-  const result = await pool.query(query, [id]);
+  const result = await pool.query(
+    `SELECT q.*, ${CREATOR_NAME}
+     FROM quotations q
+     LEFT JOIN users cu ON cu.id = q.created_by
+     WHERE q.id = $1`,
+    [id]
+  );
   return result.rows[0];
 };
 
 // Get quotations by customer ID
 const getQuotationsByCustomer = async (customerId) => {
-  const query = 'SELECT * FROM quotations WHERE customer_id = $1 ORDER BY created_at DESC';
-  const result = await pool.query(query, [customerId]);
+  const result = await pool.query(
+    `SELECT q.*, ${CREATOR_NAME}
+     FROM quotations q
+     LEFT JOIN users cu ON cu.id = q.created_by
+     WHERE q.customer_id = $1
+     ORDER BY q.created_at DESC`,
+    [customerId]
+  );
   return result.rows;
 };
 
@@ -73,12 +88,16 @@ const getQuotationsByFuelRequest = async (fuelRequestId) => {
 
 // Get all quotations (for marketing/admin)
 const getAllQuotations = async () => {
+  // u = the customer's user (first_name / last_name are the CUSTOMER's name),
+  // cu = the staff member who created the quotation (created_by_name)
   const query = `
-    SELECT q.*, u.first_name, u.last_name, c.company_name, fr.fuel_type as request_fuel_type
+    SELECT q.*, u.first_name, u.last_name, c.company_name,
+           fr.fuel_type AS request_fuel_type, ${CREATOR_NAME}
     FROM quotations q
     JOIN customers c ON q.customer_id = c.id
     JOIN users u ON c.user_id = u.id
     JOIN fuel_requests fr ON q.fuel_request_id = fr.id
+    LEFT JOIN users cu ON cu.id = q.created_by
     ORDER BY q.created_at DESC
   `;
   const result = await pool.query(query);
