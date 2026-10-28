@@ -38,6 +38,7 @@ const Quotations = () => {
     deliveryTerms: '',
     paymentTerms: '',
     notes: '',
+    preparedBy: '',
     status: 'sent'
   });
 
@@ -124,6 +125,7 @@ const Quotations = () => {
 
       var payload = {
         ...formData,
+        preparedBy: formData.preparedBy.trim(),
         validUntil: validUntilStr,
         subtotal: subtotal.toFixed(2),
         taxAmount: '0.00',
@@ -143,12 +145,18 @@ const Quotations = () => {
           deliveryTerms: '',
           paymentTerms: '',
           notes: '',
+          preparedBy: '',
           status: 'sent'
         });
         fetchData();
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error creating quotation');
+      var data = error.response && error.response.data;
+      setError(
+        (data && data.errors && data.errors[0] && data.errors[0].msg) ||
+        (data && data.message) ||
+        'Error creating quotation'
+      );
     } finally {
       setLoading(false);
     }
@@ -516,6 +524,20 @@ const Quotations = () => {
                 onChange={handleChange}
                 rows="3"
                 placeholder="Any additional notes..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="glow-label">Prepared by *</label>
+              <input
+                type="text"
+                name="preparedBy"
+                className="glow-input"
+                value={formData.preparedBy}
+                onChange={handleChange}
+                required
+                maxLength={100}
+                placeholder="Enter your full name"
               />
             </div>
 

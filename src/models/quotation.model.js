@@ -3,9 +3,14 @@ const pool = require('../config/database');
 // Marketing may edit a sent (or just-accepted) quotation for this long after it was sent
 const EDIT_WINDOW_MINUTES = 15;
 
-// Name of the staff member who created the quotation (falls back if the user is missing).
-// Expects the creator's users row to be joined as "cu".
-const CREATOR_NAME = `COALESCE(NULLIF(TRIM(CONCAT(cu.first_name, ' ', cu.last_name)), ''), 'Glow Petroleum') AS created_by_name`;
+// Name shown as "Prepared by": the name typed by the quote writer (prepared_by) comes first.
+// Older quotations have no typed name, so they fall back to the account that created them.
+// Expects the quotations table as "q" and the creator's users row as "cu".
+const CREATOR_NAME = `COALESCE(
+  NULLIF(TRIM(q.prepared_by), ''),
+  NULLIF(TRIM(CONCAT(cu.first_name, ' ', cu.last_name)), ''),
+  'Glow Petroleum'
+) AS created_by_name`;
 
 // Create a new quotation
 const createQuotation = async (quotationData) => {
@@ -22,6 +27,7 @@ const createQuotation = async (quotationData) => {
     deliveryTerms,
     paymentTerms,
     createdBy,
+    preparedBy,
     notes,
     status = 'sent'
   } = quotationData;
@@ -32,9 +38,9 @@ const createQuotation = async (quotationData) => {
       fuel_type, quantity, unit,
       unit_price, total_amount, tax_rate, tax_amount, grand_total,
       valid_until, delivery_terms, payment_terms,
-      created_by, notes, status
+      created_by, notes, status, prepared_by
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *
   `;
 
@@ -47,7 +53,7 @@ const createQuotation = async (quotationData) => {
     fuelType, quantity, unit,
     unitPrice, totalAmount, 0, 0, grandTotal,
     validUntil, deliveryTerms, paymentTerms,
-    createdBy, notes, status
+    createdBy, notes, status, preparedBy
   ];
 
   const result = await pool.query(query, values);
@@ -89,7 +95,7 @@ const getQuotationsByFuelRequest = async (fuelRequestId) => {
 // Get all quotations (for marketing/admin)
 const getAllQuotations = async () => {
   // u = the customer's user (first_name / last_name are the CUSTOMER's name),
-  // cu = the staff member who created the quotation (created_by_name)
+  // cu = the staff member who created the quotation (account behind created_by)
   const query = `
     SELECT q.*, u.first_name, u.last_name, c.company_name,
            fr.fuel_type AS request_fuel_type, ${CREATOR_NAME}
