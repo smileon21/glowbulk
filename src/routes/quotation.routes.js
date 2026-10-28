@@ -122,7 +122,11 @@ const notifyQuotationResponse = (quotation, customer, accepted) => {
 // Marketing: Create quotation
 router.post('/', authenticate, authorize('marketing'), [
   body('fuelRequestId').isNumeric().withMessage('Fuel request ID is required'),
-  body('unitPrice').isNumeric().withMessage('Unit price is required')
+  body('unitPrice').isNumeric().withMessage('Unit price is required'),
+  body('preparedBy')
+    .trim()
+    .notEmpty().withMessage('Please enter the name of the person who prepared this quotation')
+    .isLength({ max: 100 }).withMessage('Prepared by must be 100 characters or less')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -167,7 +171,8 @@ router.post('/', authenticate, authorize('marketing'), [
       validUntil: validUntil,
       deliveryTerms: req.body.deliveryTerms,
       paymentTerms: req.body.paymentTerms,
-      createdBy: req.user.id,
+      createdBy: req.user.id,            // the logged-in account (kept for traceability)
+      preparedBy: req.body.preparedBy,   // the name typed by the quote writer (shown on the quote)
       notes: req.body.notes,
       status: req.body.status || 'draft'
     });

@@ -311,7 +311,14 @@ router.post('/upload-proof/:orderId', authenticate, authorize('customer', ...STA
 });
 
 // Staff: Upload Invoice
-router.post('/upload-invoice/:orderId', authenticate, authorize(...STAFF), upload.single('invoiceFile'), async (req, res) => {
+// The validators come AFTER upload.single() so the multipart text field "issuedBy" is already parsed.
+router.post('/upload-invoice/:orderId', authenticate, authorize(...STAFF), upload.single('invoiceFile'), [
+  body('issuedBy')
+    .trim()
+    .notEmpty().withMessage('Please enter the name of the person issuing this invoice')
+    .isLength({ max: 100 }).withMessage('Issued by must be 100 characters or less'),
+  handleValidation
+], async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -338,7 +345,8 @@ router.post('/upload-invoice/:orderId', authenticate, authorize(...STAFF), uploa
       req.file.mimetype
     );
 
-    const updatedOrder = await addInvoiceFile(orderId, filename, url, req.user.id);
+    // req.user.id = the logged-in account (traceability); req.body.issuedBy = the typed name (display)
+    const updatedOrder = await addInvoiceFile(orderId, filename, url, req.user.id, req.body.issuedBy);
 
     // Notify the customer
     try {
@@ -439,6 +447,10 @@ router.put('/:id/status', authenticate, authorize(...STAFF), [
 router.put('/:id/confirm-payment', authenticate, authorize(...STAFF), [
   param('id').isInt().withMessage('Invalid order ID'),
   body('notes').optional({ nullable: true }).isString(),
+  body('confirmedBy')
+    .trim()
+    .notEmpty().withMessage('Please enter the name of the person confirming this payment')
+    .isLength({ max: 100 }).withMessage('Confirmed by must be 100 characters or less'),
   handleValidation
 ], async (req, res) => {
   try {
@@ -447,11 +459,13 @@ router.put('/:id/confirm-payment', authenticate, authorize(...STAFF), [
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    // req.user.id = the logged-in account (traceability); req.body.confirmedBy = the typed name (display)
     const updatedOrder = await updatePaymentStatus(
       req.params.id,
       'confirmed',
       req.user.id,
-      req.body.notes || `Payment confirmed by ${req.user.first_name} ${req.user.last_name}`
+      req.body.notes || `Payment confirmed by ${req.body.confirmedBy}`,
+      req.body.confirmedBy
     );
 
     // Notify the customer

@@ -287,13 +287,16 @@ const updateOrderStatus = async (
 
 // ============================================================
 // UPDATE PAYMENT STATUS
+// verifiedBy       = id of the logged-in account (kept for traceability)
+// confirmedByName  = name typed by the person confirming (shown on the order)
 // ============================================================
 
 const updatePaymentStatus = async (
   id,
   paymentStatus,
   verifiedBy,
-  notes
+  notes,
+  confirmedByName
 ) => {
 
   const checkQuery = 'SELECT * FROM orders WHERE id = $1';
@@ -316,16 +319,18 @@ const updatePaymentStatus = async (
       payment_verified_by = $2,
       payment_verified_at = CURRENT_TIMESTAMP,
       payment_notes = $3,
+      payment_confirmed_by_name = $4,
       status = 'payment_confirmed',
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $4
+    WHERE id = $5
     RETURNING *
   `;
 
   const values = [
     paymentStatus,
     verifiedById,
-    notes || 'Payment confirmed by marketing',
+    notes || 'Payment confirmed',
+    confirmedByName || null,
     id
   ];
 
@@ -383,9 +388,11 @@ const addPaymentProof = async (id, filename, path) => {
 // ============================================================
 // ADD INVOICE FILE
 // Uploading the invoice ALSO marks the order as completed.
+// uploadedBy     = id of the logged-in account (kept for traceability)
+// issuedByName   = name typed by the person issuing the invoice (shown on the order)
 // ============================================================
 
-const addInvoiceFile = async (id, filename, path, uploadedBy) => {
+const addInvoiceFile = async (id, filename, path, uploadedBy, issuedByName) => {
 
   const query = `
     UPDATE orders
@@ -394,14 +401,21 @@ const addInvoiceFile = async (id, filename, path, uploadedBy) => {
       invoice_path = $2,
       invoice_uploaded_at = CURRENT_TIMESTAMP,
       invoice_uploaded_by = $3,
+      invoice_issued_by_name = $4,
       status = 'completed',
       completed_at = CURRENT_TIMESTAMP,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $4
+    WHERE id = $5
     RETURNING *
   `;
 
-  const result = await pool.query(query, [filename, path, uploadedBy, id]);
+  const result = await pool.query(query, [
+    filename,
+    path,
+    uploadedBy,
+    issuedByName || null,
+    id
+  ]);
 
   return result.rows[0];
 };
