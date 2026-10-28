@@ -2,7 +2,10 @@
    Colours use translucent greys and currentColor so they follow the app's
    automatic light/dark theme without needing any theme variables. */
 
-.it-page { display: flex; flex-direction: column; gap: 1rem; }
+/* color-scheme makes the browser draw dropdown lists, date pickers and
+   scrollbars in the same light/dark mode as the app (follows the system setting).
+   Canvas / CanvasText below are the matching background and text colours. */
+.it-page { display: flex; flex-direction: column; gap: 1rem; color-scheme: light dark; }
 
 .it-toolbar {
   display: flex;
@@ -10,6 +13,9 @@
   gap: 0.6rem;
   align-items: center;
 }
+
+/* Filter row with labelled boxes (Activity Log): line the boxes up along the bottom */
+.it-filters { align-items: flex-end; }
 
 .it-toolbar .it-spacer { flex: 1 1 auto; }
 
@@ -24,6 +30,16 @@
   padding: 0.5rem 0.7rem;
   min-width: 0;
 }
+
+/* The opened dropdown list: without this the browser paints it white
+   while the text stays light, so the options cannot be read */
+.it-select option {
+  background: Canvas;
+  color: CanvasText;
+}
+
+/* Search box: wide enough that the placeholder is not cut off */
+.it-search { min-width: 200px; }
 
 .it-input:focus,
 .it-select:focus,

@@ -99,11 +99,11 @@ const ActivityLog = () => {
 
       {error && <div className="error-message">{error}</div>}
 
-      <div className="it-toolbar">
+      <div className="it-toolbar it-filters">
         <input
-          className="it-input"
+          className="it-input it-search"
           type="search"
-          placeholder="Search person or details"
+          placeholder="Search person"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
         />
@@ -117,20 +117,26 @@ const ActivityLog = () => {
             <option key={a} value={a}>{actionLabel(a)}</option>
           ))}
         </select>
-        <input
-          className="it-input"
-          type="date"
-          value={from}
-          onChange={(e) => { setFrom(e.target.value); setPage(1); }}
-          aria-label="From date"
-        />
-        <input
-          className="it-input"
-          type="date"
-          value={to}
-          onChange={(e) => { setTo(e.target.value); setPage(1); }}
-          aria-label="To date"
-        />
+        <div className="it-field">
+          <label htmlFor="log-from">From</label>
+          <input
+            id="log-from"
+            className="it-input"
+            type="date"
+            value={from}
+            onChange={(e) => { setFrom(e.target.value); setPage(1); }}
+          />
+        </div>
+        <div className="it-field">
+          <label htmlFor="log-to">To</label>
+          <input
+            id="log-to"
+            className="it-input"
+            type="date"
+            value={to}
+            onChange={(e) => { setTo(e.target.value); setPage(1); }}
+          />
+        </div>
         {hasFilters && (
           <button type="button" className="it-btn ghost small" onClick={clearFilters}>
             Clear filters
