@@ -9,29 +9,6 @@ const QUOTE_VALIDITY_HOURS = 72;
 // Marketing can edit a sent (or just-accepted) quotation for this many minutes
 const EDIT_WINDOW_MINUTES = 15;
 
-// The marketing team shares one login, so each person types their own name.
-// The name is kept for this browser tab only (it is forgotten when the tab is closed),
-// so it is pre-filled for the next action but can always be changed.
-const NAME_STORAGE_KEY = 'marketingPersonName';
-
-var readSavedName = function() {
-  try {
-    return sessionStorage.getItem(NAME_STORAGE_KEY) || '';
-  } catch (e) {
-    return '';
-  }
-};
-
-// Prices keep up to 4 decimals (a 2.5 cent discount gives 1.475), totals keep 2
-var round4 = function(n) { return Math.round(n * 10000) / 10000; };
-var round2 = function(n) { return Math.round(n * 100) / 100; };
-
-var CATEGORY_LABELS = { regular: 'Regular', long_term: 'Long term' };
-
-var categoryLabel = function(category) {
-  return CATEGORY_LABELS[category] || 'Not set';
-};
-
 const Quotations = () => {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState([]);
@@ -46,28 +23,22 @@ const Quotations = () => {
   // Current time, refreshed every 10 seconds so countdowns stay live
   const [now, setNow] = useState(Date.now());
 
-  // The name of the marketing person using the shared login right now
-  const [myName, setMyNameState] = useState(readSavedName());
-
-  // Customer shown in the new-quotation form (details, category, discount)
-  const [customerInfo, setCustomerInfo] = useState(null);
-  const [infoLoading, setInfoLoading] = useState(false);
-  const [infoError, setInfoError] = useState('');
-
   // Edit-modal state (Marketing only)
   const [editQuote, setEditQuote] = useState(null);
   const [editForm, setEditForm] = useState({
-    basePrice: '', deliveryTerms: '', paymentTerms: '', notes: '', reason: ''
+    unitPrice: '', deliveryTerms: '', paymentTerms: '', notes: '', reason: ''
   });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
 
   const [formData, setFormData] = useState({
     fuelRequestId: '',
-    basePrice: '',
+    unitPrice: '',
+    validUntil: '',
     deliveryTerms: '',
     paymentTerms: '',
     notes: '',
+    preparedBy: '',
     status: 'sent'
   });
 
@@ -86,47 +57,6 @@ const Quotations = () => {
     var timer = setInterval(function() { setNow(Date.now()); }, 10000);
     return function() { clearInterval(timer); };
   }, []);
-
-  // Load the customer's details, category and discount when a fuel request is picked
-  useEffect(() => {
-    if (!showForm || !formData.fuelRequestId) {
-      setCustomerInfo(null);
-      setInfoError('');
-      return;
-    }
-
-    var cancelled = false;
-    setInfoLoading(true);
-    setInfoError('');
-    setCustomerInfo(null);
-
-    axios.get(API_BASE_URL + '/api/quotations/customer-info/' + formData.fuelRequestId)
-      .then(function(response) {
-        if (cancelled) return;
-        if (response.data.success) {
-          setCustomerInfo(response.data.data);
-        }
-      })
-      .catch(function(err) {
-        if (cancelled) return;
-        var data = err.response && err.response.data;
-        setInfoError((data && data.message) || 'Could not load the customer details');
-      })
-      .finally(function() {
-        if (!cancelled) setInfoLoading(false);
-      });
-
-    return function() { cancelled = true; };
-  }, [formData.fuelRequestId, showForm]);
-
-  const setMyName = function(value) {
-    setMyNameState(value);
-    try {
-      sessionStorage.setItem(NAME_STORAGE_KEY, value);
-    } catch (e) {
-      // Storage unavailable: the name just won't be remembered
-    }
-  };
 
   const fetchData = async () => {
     try {
@@ -170,48 +100,36 @@ const Quotations = () => {
     return req.id.toString() === formData.fuelRequestId.toString();
   });
 
-  // ----- New-quotation maths (the server repeats this and is the one that counts) -----
   var quantity = selectedFuelRequest ? parseFloat(selectedFuelRequest.quantity) || 0 : 0;
-  var requestUnit = selectedFuelRequest && selectedFuelRequest.unit ? selectedFuelRequest.unit : 'litres';
-  var basePrice = parseFloat(formData.basePrice) || 0;
-  var discountCents = customerInfo ? parseFloat(customerInfo.discount_cents_per_litre) || 0 : 0;
-  var discountDollars = discountCents / 100;
-  // Price per litre = the day's price minus the customer's discount
-  var finalPrice = round4(basePrice - discountDollars);
+  var unitPrice = parseFloat(formData.unitPrice) || 0;
 
-  var subtotal = round2(quantity * finalPrice);
+  var subtotal = quantity * unitPrice;
   var grandTotal = subtotal;
-
-  var priceTooLow = basePrice > 0 && finalPrice <= 0;
-  var nameMissing = !myName.trim();
-  var canCreate = fuelRequests.length > 0 && !!customerInfo && basePrice > 0 && finalPrice > 0 && !nameMissing;
 
   const handleSubmit = async function(e) {
     e.preventDefault();
     setMessage('');
     setError('');
     setJustAcceptedId(null);
-
-    if (nameMissing) {
-      setError('Please enter your name before creating the quotation');
-      return;
-    }
-
     setLoading(true);
 
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
-      // The server works out the discount, price per litre, total and validity itself
+      // Quotes are valid for 72 hours, so staff no longer pick a date
+      var validUntilDate = new Date(Date.now() + QUOTE_VALIDITY_HOURS * 3600000);
+      var pad = function(n) { return String(n).padStart(2, '0'); };
+      var validUntilStr = validUntilDate.getFullYear() + '-' +
+        pad(validUntilDate.getMonth() + 1) + '-' + pad(validUntilDate.getDate());
+
       var payload = {
-        fuelRequestId: formData.fuelRequestId,
-        basePrice: formData.basePrice,
-        deliveryTerms: formData.deliveryTerms,
-        paymentTerms: formData.paymentTerms,
-        notes: formData.notes,
-        status: formData.status,
-        preparedBy: myName.trim()
+        ...formData,
+        preparedBy: formData.preparedBy.trim(),
+        validUntil: validUntilStr,
+        subtotal: subtotal.toFixed(2),
+        taxAmount: '0.00',
+        grandTotal: grandTotal.toFixed(2)
       };
 
       const response = await axios.post(API_BASE_URL + '/api/quotations', payload);
@@ -220,13 +138,14 @@ const Quotations = () => {
         var statusText = formData.status === 'sent' ? ' and sent to customer' : '';
         setMessage('Quotation created successfully' + statusText + '!');
         setShowForm(false);
-        setCustomerInfo(null);
         setFormData({
           fuelRequestId: '',
-          basePrice: '',
+          unitPrice: '',
+          validUntil: '',
           deliveryTerms: '',
           paymentTerms: '',
           notes: '',
+          preparedBy: '',
           status: 'sent'
         });
         fetchData();
@@ -245,20 +164,13 @@ const Quotations = () => {
 
   const updateStatus = async function(id, status) {
     setJustAcceptedId(null);
-    setError('');
-
-    if (!myName.trim()) {
-      setError('Please enter your name first');
-      return;
-    }
-
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
       const response = await axios.put(
         API_BASE_URL + '/api/quotations/' + id + '/status',
-        { status: status, actorName: myName.trim() }
+        { status: status }
       );
 
       if (response.data.success) {
@@ -342,25 +254,6 @@ const Quotations = () => {
     return '$' + Number(amount).toFixed(2);
   };
 
-  // Price per litre: at least 2 decimals, up to 4 (1.50, 1.47, 1.475)
-  var formatPrice = function(amount) {
-    var n = Number(amount);
-    if (!isFinite(n)) return '$0.00';
-    return '$' + n.toFixed(4).replace(/0{1,2}$/, '');
-  };
-
-  // Cents per litre, e.g. "3 cents per litre"
-  var formatDiscount = function(cents) {
-    var n = Number(cents) || 0;
-    return String(n) + ' cents per litre';
-  };
-
-  var joinAddress = function(info) {
-    return [info.billing_address, info.billing_city, info.billing_state, info.billing_country]
-      .filter(function(part) { return part && String(part).trim(); })
-      .join(', ');
-  };
-
   // Date with time, e.g. "20 Oct 2026, 14:35"
   var formatDateTime = function(dateString) {
     if (!dateString) return 'Not specified';
@@ -442,19 +335,12 @@ const Quotations = () => {
     return end === null ? 'Not specified' : formatDateTime(end);
   };
 
-  // True when a quotation has the day's price and discount saved on it
-  // (quotations made before the discount feature only have a unit price)
-  var hasPriceBreakdown = function(quote) {
-    return quote.base_price !== null && quote.base_price !== undefined;
-  };
-
   // ----- Edit modal handlers (Marketing only) -----
 
   var openEdit = function(quote) {
     setEditError('');
     setEditForm({
-      // Older quotations have no day's price, and no discount either, so the unit price is the base
-      basePrice: hasPriceBreakdown(quote) ? quote.base_price : quote.unit_price,
+      unitPrice: quote.unit_price,
       deliveryTerms: quote.delivery_terms || '',
       paymentTerms: quote.payment_terms || '',
       notes: quote.notes || '',
@@ -472,12 +358,6 @@ const Quotations = () => {
     e.preventDefault();
     setEditError('');
     setMessage('');
-
-    if (!myName.trim()) {
-      setEditError('Please enter your name before saving the edit');
-      return;
-    }
-
     setEditSaving(true);
     try {
       const token = localStorage.getItem('token');
@@ -485,12 +365,11 @@ const Quotations = () => {
       const response = await axios.put(
         API_BASE_URL + '/api/quotations/' + editQuote.id + '/edit',
         {
-          basePrice: editForm.basePrice,
+          unitPrice: editForm.unitPrice,
           deliveryTerms: editForm.deliveryTerms,
           paymentTerms: editForm.paymentTerms,
           notes: editForm.notes,
-          reason: editForm.reason,
-          editedBy: myName.trim()
+          reason: editForm.reason
         }
       );
       if (response.data.success) {
@@ -515,14 +394,6 @@ const Quotations = () => {
       setEditSaving(false);
     }
   };
-
-  // Edit-modal maths: the discount saved on the quotation is kept, only the day's price changes
-  var editDiscountCents = editQuote ? parseFloat(editQuote.discount_cents_per_litre) || 0 : 0;
-  var editBasePrice = parseFloat(editForm.basePrice) || 0;
-  var editNewUnitPrice = round4(editBasePrice - editDiscountCents / 100);
-  var editQuantity = editQuote ? parseFloat(editQuote.quantity) || 0 : 0;
-  var editNewTotal = round2(editQuantity * editNewUnitPrice);
-  var editPriceTooLow = editBasePrice > 0 && editNewUnitPrice <= 0;
 
   // Newest first, so the most recent quote is always on top
   var sortedQuotations = quotations.slice().sort(function(a, b) {
@@ -588,65 +459,20 @@ const Quotations = () => {
               </select>
             </div>
 
-            {formData.fuelRequestId && infoLoading && (
-              <p className="form-hint">Loading customer details...</p>
-            )}
-            {formData.fuelRequestId && infoError && (
-              <div className="error-message">{infoError}</div>
-            )}
-
-            {customerInfo && (
-              <div className="calculation-summary">
-                <p>
-                  <strong>Customer:</strong>{' '}
-                  {customerInfo.company_name || customerInfo.contact_person_name || 'Customer #' + customerInfo.id}
-                </p>
-                {customerInfo.account_type && (
-                  <p><strong>Account type:</strong> {String(customerInfo.account_type).replace(/_/g, ' ')}</p>
-                )}
-                {customerInfo.contact_person_name && (
-                  <p><strong>Contact person:</strong> {customerInfo.contact_person_name}</p>
-                )}
-                {customerInfo.contact_person_email && (
-                  <p><strong>Email:</strong> {customerInfo.contact_person_email}</p>
-                )}
-                {customerInfo.contact_person_phone && (
-                  <p><strong>Phone:</strong> {customerInfo.contact_person_phone}</p>
-                )}
-                {joinAddress(customerInfo) && (
-                  <p><strong>Address:</strong> {joinAddress(customerInfo)}</p>
-                )}
-                {customerInfo.company_registration && (
-                  <p><strong>Registration:</strong> {customerInfo.company_registration}</p>
-                )}
-                {customerInfo.industry && (
-                  <p><strong>Industry:</strong> {customerInfo.industry}</p>
-                )}
-                <p><strong>Category:</strong> {categoryLabel(customerInfo.category)}</p>
-                <p><strong>Discount:</strong> {formatDiscount(discountCents)}</p>
-                {customerInfo.verification_status && customerInfo.verification_status !== 'verified' && (
-                  <p className="form-hint">
-                    This customer is not verified yet (status: {customerInfo.verification_status}).
-                  </p>
-                )}
-              </div>
-            )}
-
             <div className="form-row">
               <div className="form-group">
-                <label className="glow-label">Today's Price ($ per litre) *</label>
+                <label className="glow-label">Unit Price ($) *</label>
                 <input
                   type="number"
-                  name="basePrice"
+                  name="unitPrice"
                   className="glow-input"
-                  value={formData.basePrice}
+                  value={formData.unitPrice}
                   onChange={handleChange}
                   required
                   placeholder="e.g., 1.50"
-                  step="0.001"
+                  step="0.01"
                   min="0"
                 />
-                <span className="form-hint">The customer's discount is taken off this price automatically.</span>
               </div>
 
               <div className="form-group">
@@ -658,25 +484,11 @@ const Quotations = () => {
             </div>
 
             <div className="calculation-summary">
-              <p><strong>Today's price:</strong> {formatPrice(basePrice)} per litre</p>
-              <p>
-                <strong>Discount:</strong>{' '}
-                {customerInfo
-                  ? '- ' + formatPrice(discountDollars) + ' (' + formatDiscount(discountCents) + ')'
-                  : 'Select a fuel request to see the customer\'s discount'}
-              </p>
-              <p><strong>Price per litre:</strong> {formatPrice(finalPrice > 0 ? finalPrice : 0)}</p>
-              <p><strong>Subtotal:</strong> ${subtotal > 0 ? subtotal.toFixed(2) : '0.00'} ({quantity} {requestUnit} @ {formatPrice(finalPrice > 0 ? finalPrice : 0)})</p>
+              <p><strong>Subtotal:</strong> ${subtotal.toFixed(2)} ({quantity} units @ ${unitPrice || 0}/unit)</p>
               <p className="grand-total-line">
-                <strong>Grand Total:</strong> ${grandTotal > 0 ? grandTotal.toFixed(2) : '0.00'}
+                <strong>Grand Total:</strong> ${grandTotal.toFixed(2)}
               </p>
             </div>
-
-            {priceTooLow && (
-              <div className="error-message">
-                The discount is more than or equal to today's price. Enter a higher price.
-              </div>
-            )}
 
             <div className="form-row">
               <div className="form-group">
@@ -716,20 +528,17 @@ const Quotations = () => {
             </div>
 
             <div className="form-group">
-              <label className="glow-label">Your name (prepared by) *</label>
+              <label className="glow-label">Prepared by *</label>
               <input
                 type="text"
                 name="preparedBy"
                 className="glow-input"
-                value={myName}
-                onChange={function(e) { setMyName(e.target.value); }}
+                value={formData.preparedBy}
+                onChange={handleChange}
                 required
                 maxLength={100}
                 placeholder="Enter your full name"
               />
-              <span className="form-hint">
-                Several people use this login. Your name is shown on the quotation and saved in the Activity Log.
-              </span>
             </div>
 
             <div className="form-group">
@@ -746,7 +555,7 @@ const Quotations = () => {
               </select>
             </div>
 
-            <button type="submit" className="glow-btn" disabled={!canCreate}>
+            <button type="submit" className="glow-btn" disabled={fuelRequests.length === 0}>
               {fuelRequests.length === 0
                 ? 'No Requests Available'
                 : formData.status === 'sent' ? 'Create & Send' : 'Create Draft'}
@@ -845,12 +654,6 @@ const Quotations = () => {
                   <span className="detail-value">{selectedQuote.company_name}</span>
                 </div>
               )}
-              {isStaff && selectedQuote.customer_category && (
-                <div className="modal-detail-item">
-                  <span className="detail-label">Category</span>
-                  <span className="detail-value">{categoryLabel(selectedQuote.customer_category)}</span>
-                </div>
-              )}
               {selectedQuote.created_by_name && (
                 <div className="modal-detail-item">
                   <span className="detail-label">Prepared by</span>
@@ -865,21 +668,9 @@ const Quotations = () => {
                 <span className="detail-label">Quantity</span>
                 <span className="detail-value">{selectedQuote.quantity} {selectedQuote.unit}</span>
               </div>
-              {hasPriceBreakdown(selectedQuote) && (
-                <>
-                  <div className="modal-detail-item">
-                    <span className="detail-label">Today's Price</span>
-                    <span className="detail-value">{formatPrice(selectedQuote.base_price)}</span>
-                  </div>
-                  <div className="modal-detail-item">
-                    <span className="detail-label">Discount</span>
-                    <span className="detail-value">{formatDiscount(selectedQuote.discount_cents_per_litre)}</span>
-                  </div>
-                </>
-              )}
               <div className="modal-detail-item">
-                <span className="detail-label">{hasPriceBreakdown(selectedQuote) ? 'Price per litre' : 'Unit Price'}</span>
-                <span className="detail-value">{formatPrice(selectedQuote.unit_price)}</span>
+                <span className="detail-label">Unit Price</span>
+                <span className="detail-value">{formatCurrency(selectedQuote.unit_price)}</span>
               </div>
               <div className="modal-detail-item modal-detail-highlight">
                 <span className="detail-label">Grand Total</span>
@@ -903,38 +694,14 @@ const Quotations = () => {
               </div>
             )}
 
-            {/* Several people share the marketing login: each types their own name before acting */}
-            {isMarketing && (selectedQuote.status === 'draft' || selectedQuote.status === 'sent') && (
-              <div className="form-group">
-                <label className="glow-label">Your name *</label>
-                <input
-                  type="text"
-                  className="glow-input"
-                  value={myName}
-                  onChange={function(e) { setMyName(e.target.value); }}
-                  maxLength={100}
-                  placeholder="Enter your full name"
-                />
-                <span className="form-hint">Saved in the Activity Log with what you do here.</span>
-              </div>
-            )}
-
             <div className="modal-actions">
               {selectedQuote.status === 'draft' && isMarketing && (
-                <button
-                  className="glow-btn"
-                  disabled={nameMissing}
-                  onClick={function() { updateStatus(selectedQuote.id, 'sent'); }}
-                >
+                <button className="glow-btn" onClick={function() { updateStatus(selectedQuote.id, 'sent'); }}>
                   Send to Customer
                 </button>
               )}
               {(selectedQuote.status === 'draft' || selectedQuote.status === 'sent') && isMarketing && (
-                <button
-                  className="glow-btn glow-btn-secondary"
-                  disabled={nameMissing}
-                  onClick={function() { updateStatus(selectedQuote.id, 'expired'); }}
-                >
+                <button className="glow-btn glow-btn-secondary" onClick={function() { updateStatus(selectedQuote.id, 'expired'); }}>
                   Expire
                 </button>
               )}
@@ -1007,32 +774,22 @@ const Quotations = () => {
 
             <form onSubmit={submitEdit}>
               <div className="form-group">
-                <label className="glow-label">Today's Price ($ per litre) *</label>
+                <label className="glow-label">Unit Price ($) *</label>
                 <input
                   type="number"
-                  name="basePrice"
+                  name="unitPrice"
                   className="glow-input"
-                  value={editForm.basePrice}
+                  value={editForm.unitPrice}
                   onChange={handleEditChange}
                   required
-                  step="0.001"
+                  step="0.01"
                   min="0"
                 />
                 <span className="form-hint">
-                  Discount kept on this quotation: {formatDiscount(editDiscountCents)}.
-                  Price per litre: {formatPrice(editQuote.unit_price)} →{' '}
-                  <strong>{formatPrice(editNewUnitPrice > 0 ? editNewUnitPrice : 0)}</strong>
-                </span>
-                <span className="form-hint">
                   Total: {formatCurrency(editQuote.grand_total)} →{' '}
-                  <strong>{formatCurrency(editNewTotal > 0 ? editNewTotal : 0)}</strong>
+                  <strong>{formatCurrency((parseFloat(editQuote.quantity) || 0) * (parseFloat(editForm.unitPrice) || 0))}</strong>
                   {' '}({editQuote.quantity} {editQuote.unit})
                 </span>
-                {editPriceTooLow && (
-                  <span className="form-hint">
-                    The discount is more than or equal to today's price. Enter a higher price.
-                  </span>
-                )}
               </div>
 
               <div className="form-row">
@@ -1065,28 +822,11 @@ const Quotations = () => {
                   required
                   placeholder="e.g., Typed 1.05 instead of 1.50"
                 />
-              </div>
-
-              <div className="form-group">
-                <label className="glow-label">Your name *</label>
-                <input
-                  type="text"
-                  className="glow-input"
-                  value={myName}
-                  onChange={function(e) { setMyName(e.target.value); }}
-                  required
-                  maxLength={100}
-                  placeholder="Enter your full name"
-                />
-                <span className="form-hint">Saved with the reason in the quotation history and the Activity Log.</span>
+                <span className="form-hint">Saved with your name in the quotation history.</span>
               </div>
 
               <div className="modal-actions">
-                <button
-                  type="submit"
-                  className="glow-btn"
-                  disabled={editSaving || !editForm.reason.trim() || nameMissing || editBasePrice <= 0 || editPriceTooLow}
-                >
+                <button type="submit" className="glow-btn" disabled={editSaving || !editForm.reason.trim()}>
                   {editSaving ? 'Saving…' : 'Save changes'}
                 </button>
                 <button type="button" className="glow-btn glow-btn-secondary"
