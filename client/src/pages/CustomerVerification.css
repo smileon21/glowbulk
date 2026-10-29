@@ -1,0 +1,105 @@
+
+.verify-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+.verify-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.verify-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgba(127, 127, 127, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.verify-item:hover {
+  border-color: rgba(127, 127, 127, 0.6);
+}
+
+.verify-item:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.verify-item.selected {
+  border-color: currentColor;
+  box-shadow: inset 3px 0 0 currentColor;
+}
+
+.verify-item-name {
+  font-weight: 600;
+}
+
+.verify-item-meta {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.verify-empty {
+  margin-top: 16px;
+  padding: 24px;
+}
+
+.verify-detail h3 {
+  margin: 0 0 12px;
+}
+
+.verify-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 24px;
+  margin: 0 0 20px;
+}
+
+.verify-fields dt {
+  font-size: 0.85em;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.verify-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.verify-decision {
+  padding-top: 16px;
+  border-top: 1px solid rgba(127, 127, 127, 0.3);
+}
+
+.verify-decision h4 {
+  margin: 0 0 12px;
+}
+
+.verify-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .verify-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .verify-actions {
+    flex-direction: column-reverse;
+  }
+}

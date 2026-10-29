@@ -15,6 +15,7 @@ import AuthCallback from './pages/AuthCallback';
 import CustomerProfile from './pages/CustomerProfile';
 import AdminProfile from './pages/AdminProfile';
 import ContentManagement from './pages/ContentManagement';
+import CustomerVerification from './pages/CustomerVerification';
 import FuelRequests from './pages/FuelRequests';
 import Quotations from './pages/Quotations';
 import Orders from './pages/Orders';
@@ -118,6 +119,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   // Staff keep "Fuel Requests" (the list of incoming requests).
   // No "Create Order" link: orders are created from an accepted quotation
   // on the Quotations page (the /create-order route still exists for that).
+  // Marketing also gets "Verify Customers" (new registrations waiting for approval).
   const navItems = isIT
     ? [
         { to: '/dashboard', label: 'Dashboard' },
@@ -134,7 +136,12 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         { to: '/fuel-requests', label: isStaff ? 'Fuel Requests' : 'Get a Quote' },
         { to: '/quotations', label: 'Quotations' },
         { to: '/orders', label: 'Orders' },
-        ...(userRole === 'marketing' ? [{ to: '/content', label: 'Content' }] : []),
+        ...(userRole === 'marketing'
+          ? [
+              { to: '/verify-customers', label: 'Verify Customers' },
+              { to: '/content', label: 'Content' },
+            ]
+          : []),
       ];
 
   return (
@@ -334,6 +341,14 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
           />
 
           {/* Marketing only */}
+          <Route
+            path="/verify-customers"
+            element={
+              <RoleProtectedRoute allowedRoles={['marketing']}>
+                <CustomerVerification />
+              </RoleProtectedRoute>
+            }
+          />
           <Route
             path="/content"
             element={

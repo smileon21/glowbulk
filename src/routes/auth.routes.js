@@ -24,6 +24,8 @@ const {
   recordFailedLogin
 } = require('../models/user.model');
 
+const { createCustomerFromRegistration } = require('../models/customer.model');
+
 const {
   sendPasswordResetEmail
 } = require('../utils/email');
@@ -96,9 +98,47 @@ const checkLock = async (userId) => {
   return { locked: !!row.locked, minutesLeft: row.minutes_left || 1 };
 };
 
+// Customers must be verified by marketing before they can sign in.
+// Returns { status, body } to send back, or null if the person may continue.
+const customerGate = async (user) => {
+  if (user.role !== 'customer') return null;
+
+  const result = await pool.query(
+    'SELECT verification_status, rejection_reason FROM customers WHERE user_id = $1',
+    [user.id]
+  );
+  const customer = result.rows[0];
+
+  // No customer record (very old account) or already verified: let them in
+  if (!customer || customer.verification_status === 'verified') return null;
+
+  if (customer.verification_status === 'pending') {
+    return {
+      status: 403,
+      body: {
+        success: false,
+        code: 'ACCOUNT_PENDING',
+        message: 'Your account is awaiting verification by our team. We will notify you once it is approved.'
+      }
+    };
+  }
+
+  const reason = customer.rejection_reason ? ` Reason: ${customer.rejection_reason}.` : '';
+  return {
+    status: 403,
+    body: {
+      success: false,
+      code: 'ACCOUNT_REJECTED',
+      message: `Your registration was not approved.${reason} Please contact Glow Petroleum.`
+    }
+  };
+};
+
 
 // =====================================================
 // REGISTER
+// Creates the user and the customer record. The customer starts as
+// 'pending' and cannot log in until marketing verifies them.
 // =====================================================
 router.post(
   '/register',
@@ -106,6 +146,14 @@ router.post(
     body('firstName').trim().notEmpty().withMessage('First name is required'),
     body('lastName').trim().notEmpty().withMessage('Last name is required'),
     body('email').trim().isEmail().withMessage('Please provide a valid email'),
+    body('phone').trim().notEmpty().withMessage('Phone number is required'),
+    body('address').trim().notEmpty().withMessage('Address is required'),
+    body('accountType').isIn(['individual', 'company']).withMessage('Invalid account type'),
+    body('companyName')
+      .custom((value, { req }) =>
+        req.body.accountType !== 'company' || (value && String(value).trim())
+      )
+      .withMessage('Company name is required for company accounts'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
   ],
   async (req, res) => {
@@ -114,7 +162,7 @@ router.post(
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: errors.array()[0].msg,
           errors: errors.array()
         });
       }
@@ -122,9 +170,10 @@ router.post(
       const firstName = req.body.firstName.trim();
       const lastName = req.body.lastName.trim();
       const email = req.body.email.trim().toLowerCase();
+      const phone = req.body.phone.trim();
       const password = req.body.password;
-      const phone = req.body.phone || null;
-      const role = 'customer';
+      const accountType = req.body.accountType;
+      const isCompany = accountType === 'company';
 
       const existingUser = await findUserByEmail(email);
       if (existingUser) {
@@ -134,12 +183,37 @@ router.post(
         });
       }
 
-      const user = await createUser({ firstName, lastName, email, password, role, phone });
+      const user = await createUser({
+        firstName,
+        lastName,
+        email,
+        password,
+        role: 'customer',
+        phone
+      });
+
+      try {
+        await createCustomerFromRegistration({
+          userId: user.id,
+          accountType,
+          companyName: isCompany ? String(req.body.companyName).trim() : null,
+          companyRegistration: isCompany
+            ? String(req.body.companyRegistration || '').trim() || null
+            : null,
+          address: req.body.address.trim(),
+          contactName: `${firstName} ${lastName}`,
+          contactEmail: email,
+          contactPhone: phone
+        });
+      } catch (profileError) {
+        // Don't leave a user without a customer record
+        await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
+        throw profileError;
+      }
 
       return res.status(201).json({
         success: true,
-        message: 'User registered successfully',
-        data: user
+        message: 'Registration submitted. Your account is awaiting verification.'
       });
     } catch (error) {
       console.error('REGISTER ERROR:', error);
@@ -253,6 +327,13 @@ router.post(
         });
       }
 
+      // Customers must be verified by marketing first
+      // (also checked after the password, for the same reason as above)
+      const gate = await customerGate(user);
+      if (gate) {
+        return res.status(gate.status).json(gate.body);
+      }
+
       if (!process.env.JWT_SECRET) {
         console.error('JWT_SECRET is missing');
         return res.status(500).json({
@@ -353,6 +434,12 @@ router.post(
         });
       }
 
+      // Same for a customer whose verification changed in the meantime
+      const gate = await customerGate(user);
+      if (gate) {
+        return res.status(gate.status).json(gate.body);
+      }
+
       const emailId = await getTwoFactorOtp(userId);
       if (!emailId) {
         return res.status(401).json({
@@ -420,6 +507,11 @@ router.post('/resend-otp', async (req, res) => {
         code: 'ACCOUNT_BLOCKED',
         message: blockedMessage(user)
       });
+    }
+
+    const gate = await customerGate(user);
+    if (gate) {
+      return res.status(gate.status).json(gate.body);
     }
 
     const emailId = await sendStytchOtp(user.email);
