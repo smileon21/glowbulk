@@ -4,6 +4,8 @@ const { body, validationResult } = require('express-validator');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const {
   EDIT_WINDOW_MINUTES,
+  round2,
+  priceAfterDiscount,
   createQuotation,
   getQuotationById,
   getQuotationsByCustomer,
@@ -13,9 +15,10 @@ const {
   acceptQuotationVersion,
   getQuotationVersions
 } = require('../models/quotation.model');
-const { getCustomerByUserId } = require('../models/customer.model');
+const { getCustomerByUserId, getCustomerById } = require('../models/customer.model');
 const { getFuelRequestById, updateFuelRequestStatus } = require('../models/fuelRequest.model');
 const { notifyStaff, notifyCustomer } = require('../services/notification.service');
+const { logActivity } = require('../utils/activityLog');
 
 // A quotation stays valid for this many hours after it is sent
 const QUOTE_VALIDITY_HOURS = 72;
@@ -32,6 +35,33 @@ const generateQuotationNumber = () => {
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `Q-${year}${month}${day}-${random}`;
 };
+
+// ==========================================
+// ACTIVITY LOG
+// ==========================================
+// The marketing team shares one login, so the person's typed name goes into the log
+// text. The log entry itself still records the shared account as the actor.
+// Never breaks the request if logging fails.
+const logQuoteActivity = async (req, { action, quotation, oldValues, newValues, details }) => {
+  try {
+    await logActivity({
+      actor: req.user,
+      action,
+      targetType: 'quotation',
+      targetId: quotation.id,
+      oldValues: oldValues || null,
+      newValues: newValues || null,
+      details,
+      ip: req.ip
+    });
+  } catch (err) {
+    console.error('Quotation activity log failed:', err.message);
+  }
+};
+
+// Company name if there is one, otherwise the contact person
+const customerLabel = (customer) =>
+  customer.company_name || customer.contact_person_name || `customer #${customer.id}`;
 
 // ==========================================
 // 72-HOUR EXPIRY
@@ -120,13 +150,16 @@ const notifyQuotationResponse = (quotation, customer, accepted) => {
 };
 
 // Marketing: Create quotation
+// The marketing person enters the DAY'S PRICE (basePrice). The server takes the customer's
+// discount and category from the customer record, works out the price per litre
+// (day's price minus discount) and saves all of it on the quotation.
 router.post('/', authenticate, authorize('marketing'), [
   body('fuelRequestId').isNumeric().withMessage('Fuel request ID is required'),
-  body('unitPrice').isNumeric().withMessage('Unit price is required'),
+  body('basePrice').isFloat({ gt: 0 }).withMessage("Today's price must be greater than 0"),
   body('preparedBy')
     .trim()
-    .notEmpty().withMessage('Please enter the name of the person who prepared this quotation')
-    .isLength({ max: 100 }).withMessage('Prepared by must be 100 characters or less')
+    .notEmpty().withMessage('Please enter your name before creating the quotation')
+    .isLength({ max: 100 }).withMessage('Your name must be 100 characters or less')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -146,18 +179,39 @@ router.post('/', authenticate, authorize('marketing'), [
       });
     }
 
+    // The customer's saved category and discount (older accounts may have none: discount 0)
+    const customer = await getCustomerById(fuelRequest.customer_id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
     // ==========================================
-    // PRICING — no tax, no grand total
+    // PRICING: day's price minus the customer's discount (no tax)
     // ==========================================
     const quantity = parseFloat(fuelRequest.quantity) || 0;
-    const unitPrice = parseFloat(req.body.unitPrice) || 0;
-    const totalAmount = quantity * unitPrice;
+    const basePrice = parseFloat(req.body.basePrice);
+    const discountCents = parseFloat(customer.discount_cents_per_litre) || 0;
+    const unitPrice = priceAfterDiscount(basePrice, discountCents);
+
+    if (!(unitPrice > 0)) {
+      return res.status(400).json({
+        success: false,
+        message: `This customer's discount of ${discountCents} cents per litre is more than or equal to the price entered. Enter a higher price.`
+      });
+    }
+
+    const totalAmount = round2(quantity * unitPrice);
 
     // Validity is always 72 hours: the server sets it, staff don't pick a date.
     // (The exact moment comes from sent_at / expires_at in the database.)
     const validUntil = new Date(Date.now() + QUOTE_VALIDITY_HOURS * 3600000)
       .toISOString()
       .slice(0, 10);
+
+    const preparedBy = req.body.preparedBy.trim();
 
     const quotation = await createQuotation({
       fuelRequestId: fuelRequest.id,
@@ -168,11 +222,14 @@ router.post('/', authenticate, authorize('marketing'), [
       unit: fuelRequest.unit,
       unitPrice: unitPrice,
       totalAmount: totalAmount,
+      basePrice: basePrice,
+      discountCentsPerLitre: discountCents,
+      customerCategory: customer.category || null,
       validUntil: validUntil,
       deliveryTerms: req.body.deliveryTerms,
       paymentTerms: req.body.paymentTerms,
-      createdBy: req.user.id,            // the logged-in account (kept for traceability)
-      preparedBy: req.body.preparedBy,   // the name typed by the quote writer (shown on the quote)
+      createdBy: req.user.id,   // the logged-in (shared) account, kept for traceability
+      preparedBy: preparedBy,   // the name typed by the person writing the quote
       notes: req.body.notes,
       status: req.body.status || 'draft'
     });
@@ -184,6 +241,19 @@ router.post('/', authenticate, authorize('marketing'), [
     if (quotation.status === 'sent') {
       notifyQuotationReady(quotation);
     }
+
+    await logQuoteActivity(req, {
+      action: 'QUOTATION_CREATED',
+      quotation,
+      newValues: {
+        base_price: basePrice,
+        discount_cents_per_litre: discountCents,
+        unit_price: unitPrice,
+        total_amount: totalAmount,
+        status: quotation.status
+      },
+      details: `${preparedBy} created quotation ${quotation.quotation_number} for ${customerLabel(customer)} (${quotation.status})`
+    });
 
     res.status(201).json({
       success: true,
@@ -246,15 +316,61 @@ router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
   }
 });
 
+// Marketing: the customer behind a fuel request, with category and discount.
+// The quote form calls this when a fuel request is picked.
+router.get('/customer-info/:fuelRequestId', authenticate, authorize('marketing'), async (req, res) => {
+  try {
+    const fuelRequest = await getFuelRequestById(req.params.fuelRequestId);
+    if (!fuelRequest) {
+      return res.status(404).json({ success: false, message: 'Fuel request not found' });
+    }
+
+    const customer = await getCustomerById(fuelRequest.customer_id);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: customer.id,
+        account_type: customer.account_type,
+        company_name: customer.company_name,
+        company_registration: customer.company_registration,
+        industry: customer.industry,
+        tax_number: customer.tax_number,
+        contact_person_name: customer.contact_person_name,
+        contact_person_email: customer.contact_person_email,
+        contact_person_phone: customer.contact_person_phone,
+        billing_address: customer.billing_address,
+        billing_city: customer.billing_city,
+        billing_state: customer.billing_state,
+        billing_country: customer.billing_country,
+        verification_status: customer.verification_status,
+        category: customer.category,
+        discount_cents_per_litre: customer.discount_cents_per_litre
+      }
+    });
+  } catch (error) {
+    console.error('Get customer info error:', error);
+    res.status(500).json({ success: false, message: 'Error loading customer details' });
+  }
+});
+
 // ==========================================
 // EDIT / VERSIONS (Marketing writes; staff reads)
 // Must be declared BEFORE router.get('/:id')
 // ==========================================
 
 // Marketing: edit a sent or accepted quotation within the 15-minute window.
+// The person edits the day's price; the discount saved on the quotation is kept.
 // Editing an accepted quotation cancels the acceptance (customer must accept again).
 router.put('/:id/edit', authenticate, authorize('marketing'), [
-  body('unitPrice').isFloat({ gt: 0 }).withMessage('Unit price must be greater than 0'),
+  body('basePrice').isFloat({ gt: 0 }).withMessage("Today's price must be greater than 0"),
+  body('editedBy')
+    .trim()
+    .notEmpty().withMessage('Please enter your name before saving the edit')
+    .isLength({ max: 100 }).withMessage('Your name must be 100 characters or less'),
   body('reason').trim().notEmpty().withMessage('A reason for the edit is required')
 ], async (req, res) => {
   try {
@@ -263,13 +379,14 @@ router.put('/:id/edit', authenticate, authorize('marketing'), [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
+    // id = the shared account, name = the person who typed their name
     const editor = {
       id: req.user.id,
-      name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
+      name: req.body.editedBy.trim()
     };
 
     const result = await editSentQuotation(req.params.id, {
-      unitPrice: req.body.unitPrice,
+      basePrice: req.body.basePrice,
       deliveryTerms: req.body.deliveryTerms,
       paymentTerms: req.body.paymentTerms,
       notes: req.body.notes,
@@ -277,14 +394,24 @@ router.put('/:id/edit', authenticate, authorize('marketing'), [
     }, editor);
 
     if (!result.ok) {
-      const status = result.code === 'NOT_FOUND' ? 404 : 409;
+      let status = 409;
+      if (result.code === 'NOT_FOUND') status = 404;
+      if (result.code === 'PRICE_TOO_LOW') status = 400;
       return res.status(status).json({ success: false, code: result.code, message: result.message });
     }
 
-    // TODO: write to your activity log here, for example:
-    // logActivity({ user: req.user, action: 'QUOTATION_EDITED', recordId: result.quotation.id,
-    //               oldValues: result.previous, newValues: { unit_price: result.quotation.unit_price,
-    //               total_amount: result.quotation.total_amount }, details: req.body.reason });
+    await logQuoteActivity(req, {
+      action: 'QUOTATION_EDITED',
+      quotation: result.quotation,
+      oldValues: result.previous,
+      newValues: {
+        base_price: result.quotation.base_price,
+        unit_price: result.quotation.unit_price,
+        total_amount: result.quotation.total_amount,
+        version: result.version
+      },
+      details: `${editor.name} edited quotation ${result.quotation.quotation_number} (version ${result.version}): ${req.body.reason.trim()}`
+    });
 
     // The acceptance was cancelled, so the fuel request goes back to 'quoted'
     if (result.wasAccepted) {
@@ -520,16 +647,22 @@ router.put('/:id/reject', authenticate, async (req, res) => {
   }
 });
 
-// Marketing: Update quotation status (Send / Expire)
+// Marketing: Update quotation status (Send / Expire).
+// The person must type their name so the log shows who did it.
 router.put('/:id/status', authenticate, authorize('marketing'), [
-  body('status').isIn(['draft', 'sent', 'accepted', 'rejected', 'expired']).withMessage('Invalid status')
+  body('status').isIn(['draft', 'sent', 'accepted', 'rejected', 'expired']).withMessage('Invalid status'),
+  body('actorName')
+    .trim()
+    .notEmpty().withMessage('Please enter your name first')
+    .isLength({ max: 100 }).withMessage('Your name must be 100 characters or less')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        errors: errors.array()
+        errors: errors.array(),
+        message: errors.array()[0].msg
       });
     }
 
@@ -560,6 +693,24 @@ router.put('/:id/status', authenticate, authorize('marketing'), [
         notifyQuotationReady(quotation);
       }
     }
+
+    const actorName = req.body.actorName.trim();
+    const actionByStatus = {
+      sent: 'QUOTATION_SENT',
+      expired: 'QUOTATION_EXPIRED'
+    };
+    const verbByStatus = {
+      sent: 'sent',
+      expired: 'expired'
+    };
+    await logQuoteActivity(req, {
+      action: actionByStatus[req.body.status] || 'QUOTATION_STATUS_CHANGED',
+      quotation,
+      oldValues: { status: originalQuotation.status },
+      newValues: { status: quotation.status },
+      details: `${actorName} ${verbByStatus[req.body.status] || 'changed the status of'} quotation ${quotation.quotation_number}` +
+        (verbByStatus[req.body.status] ? '' : ` to ${req.body.status}`)
+    });
 
     res.json({
       success: true,
