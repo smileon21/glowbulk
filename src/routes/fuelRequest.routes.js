@@ -23,7 +23,12 @@ router.post('/', authenticate, authorize('customer'), [
     .notEmpty().withMessage('Fuel type is required')
     .isIn(['Diesel', 'Petrol']).withMessage('Fuel type must be Diesel or Petrol'),
   body('quantity').isNumeric().withMessage('Quantity must be a number'),
-  body('preferredDeliveryDate').notEmpty().withMessage('Delivery date is required')
+  body('preferredDeliveryDate').notEmpty().withMessage('Delivery date is required'),
+  // The exact delivery spot picked on the map
+  body('deliveryLatitude')
+    .isFloat({ min: -90, max: 90 }).withMessage('Please pin the delivery location on the map'),
+  body('deliveryLongitude')
+    .isFloat({ min: -180, max: 180 }).withMessage('Please pin the delivery location on the map')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -68,6 +73,7 @@ router.post('/', authenticate, authorize('customer'), [
       data: fuelRequest
     });
   } catch (error) {
+    console.error('Create fuel request error:', error);
     res.status(500).json({
       success: false,
       message: 'Error creating fuel request',
@@ -122,11 +128,15 @@ router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
 
 // =============================================
 // Get fuel requests available for quotation
+// (includes the customer details and delivery pin marketing needs to price the quote)
 // =============================================
 router.get('/available-for-quote', authenticate, authorize(...STAFF), async (req, res) => {
   try {
     const query = `
-      SELECT fr.*, u.first_name, u.last_name, c.company_name 
+      SELECT fr.*, u.first_name, u.last_name, u.email,
+             c.company_name, c.account_type, c.category, c.discount_cents_per_litre,
+             c.contact_person_name, c.contact_person_email, c.contact_person_phone,
+             c.billing_address
       FROM fuel_requests fr
       JOIN customers c ON fr.customer_id = c.id
       JOIN users u ON c.user_id = u.id

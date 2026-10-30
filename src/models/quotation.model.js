@@ -95,9 +95,12 @@ const getQuotationsByFuelRequest = async (fuelRequestId) => {
 // Get all quotations (for marketing/admin)
 const getAllQuotations = async () => {
   // u = the customer's user (first_name / last_name are the CUSTOMER's name),
+  // c = the customer profile (company_name is empty for individuals, so the contact
+  //     person's details are returned too),
   // cu = the staff member who created the quotation (account behind created_by)
   const query = `
-    SELECT q.*, u.first_name, u.last_name, c.company_name,
+    SELECT q.*, u.first_name, u.last_name, u.email,
+           c.company_name, c.contact_person_name, c.contact_person_phone, c.contact_person_email,
            fr.fuel_type AS request_fuel_type, ${CREATOR_NAME}
     FROM quotations q
     JOIN customers c ON q.customer_id = c.id

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { formatDate } from '../utils/format';
+import MapPicker from '../components/MapPicker';
 
 // A quotation stays valid for this many hours
 const QUOTE_VALIDITY_HOURS = 72;
@@ -105,6 +106,23 @@ const Quotations = () => {
 
   var subtotal = quantity * unitPrice;
   var grandTotal = subtotal;
+
+  // Individuals have no company name, so fall back to the person's own name
+  var personName = function(r) {
+    return r.contact_person_name || ((r.first_name || '') + ' ' + (r.last_name || '')).trim();
+  };
+  var customerName = function(r) {
+    return r.company_name || personName(r) || 'Customer';
+  };
+  var contactEmail = function(r) {
+    return r.contact_person_email || r.email || '';
+  };
+  var formatDay = function(dateString) {
+    if (!dateString) return 'Not specified';
+    var d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'Not specified';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
 
   const handleSubmit = async function(e) {
     e.preventDefault();
@@ -451,7 +469,7 @@ const Quotations = () => {
                   fuelRequests.map(function(request) {
                     return (
                       <option key={request.id} value={request.id}>
-                        {request.fuel_type} - {request.quantity} {request.unit} - {request.company_name || 'Customer'}
+                        {request.fuel_type} - {request.quantity} {request.unit} - {customerName(request)}
                       </option>
                     );
                   })
@@ -459,6 +477,73 @@ const Quotations = () => {
               </select>
             </div>
 
+            {/* The customer panel stays in view beside the price fields, so marketing sees who is asking while pricing */}
+            <div
+              className="quote-layout"
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', alignItems: 'start' }}
+            >
+              <aside className="customer-brief glow-card" style={{ position: 'sticky', top: '16px' }}>
+                {selectedFuelRequest ? (
+                  <>
+                    <h4 style={{ margin: 0 }}>{customerName(selectedFuelRequest)}</h4>
+                    <p className="form-hint" style={{ margin: '2px 0 12px' }}>
+                      {selectedFuelRequest.company_name ? 'Company account' : 'Individual customer'}
+                    </p>
+                    {selectedFuelRequest.company_name && personName(selectedFuelRequest) && (
+                      <p><strong>Contact person:</strong> {personName(selectedFuelRequest)}</p>
+                    )}
+                    <p>
+                      <strong>Phone:</strong>{' '}
+                      {selectedFuelRequest.contact_person_phone
+                        ? <a href={'tel:' + selectedFuelRequest.contact_person_phone}>{selectedFuelRequest.contact_person_phone}</a>
+                        : 'Not given'}
+                    </p>
+                    <p>
+                      <strong>Email:</strong>{' '}
+                      {contactEmail(selectedFuelRequest)
+                        ? <a href={'mailto:' + contactEmail(selectedFuelRequest)}>{contactEmail(selectedFuelRequest)}</a>
+                        : 'Not given'}
+                    </p>
+                    <p><strong>Category:</strong> {selectedFuelRequest.category || 'Not set'}</p>
+                    <p><strong>Discount:</strong> {selectedFuelRequest.discount_cents_per_litre || 0} cents per litre</p>
+                    <p>
+                      <strong>Request:</strong> {selectedFuelRequest.fuel_type}, {selectedFuelRequest.quantity} {selectedFuelRequest.unit},{' '}
+                      {selectedFuelRequest.priority} priority
+                    </p>
+                    <p><strong>Wanted by:</strong> {formatDay(selectedFuelRequest.preferred_delivery_date)}</p>
+                    <p>
+                      <strong>Delivery address:</strong>{' '}
+                      {[selectedFuelRequest.delivery_address, selectedFuelRequest.delivery_city]
+                        .filter(Boolean).join(', ') || 'Not given'}
+                    </p>
+                    {selectedFuelRequest.special_instructions && (
+                      <p><strong>Instructions:</strong> {selectedFuelRequest.special_instructions}</p>
+                    )}
+                    {selectedFuelRequest.delivery_latitude != null && selectedFuelRequest.delivery_longitude != null ? (
+                      <MapPicker
+                        key={selectedFuelRequest.id}
+                        readOnly
+                        height="260px"
+                        value={{
+                          lat: Number(selectedFuelRequest.delivery_latitude),
+                          lng: Number(selectedFuelRequest.delivery_longitude)
+                        }}
+                      />
+                    ) : (
+                      <p className="form-hint">This request has no map pin (it was made before pinning was added).</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <h4 style={{ margin: 0 }}>Customer details</h4>
+                    <p className="form-hint">
+                      Choose a fuel request above to see who is asking and where the fuel is going.
+                    </p>
+                  </>
+                )}
+              </aside>
+
+              <div className="quote-fields">
             <div className="form-row">
               <div className="form-group">
                 <label className="glow-label">Unit Price ($) *</label>
@@ -555,6 +640,9 @@ const Quotations = () => {
               </select>
             </div>
 
+              </div>
+            </div>
+
             <button type="submit" className="glow-btn" disabled={fuelRequests.length === 0}>
               {fuelRequests.length === 0
                 ? 'No Requests Available'
@@ -594,6 +682,9 @@ const Quotations = () => {
                     {getStatusBadge(effectiveStatus)}
                   </div>
                   <div className="quote-details">
+                    {isStaff && (
+                      <p><strong>Customer:</strong> {customerName(quote)}</p>
+                    )}
                     <p><strong>Fuel Type:</strong> {quote.fuel_type}</p>
                     <p><strong>Quantity:</strong> {quote.quantity} {quote.unit}</p>
                     <p><strong>Grand Total:</strong> {formatCurrency(quote.grand_total)}</p>
@@ -648,10 +739,18 @@ const Quotations = () => {
             </div>
 
             <div className="modal-details">
-              {selectedQuote.company_name && (
+              {isStaff && (
                 <div className="modal-detail-item">
                   <span className="detail-label">Customer</span>
-                  <span className="detail-value">{selectedQuote.company_name}</span>
+                  <span className="detail-value">{customerName(selectedQuote)}</span>
+                </div>
+              )}
+              {isStaff && selectedQuote.contact_person_phone && (
+                <div className="modal-detail-item">
+                  <span className="detail-label">Phone</span>
+                  <span className="detail-value">
+                    <a href={'tel:' + selectedQuote.contact_person_phone}>{selectedQuote.contact_person_phone}</a>
+                  </span>
                 </div>
               )}
               {selectedQuote.created_by_name && (

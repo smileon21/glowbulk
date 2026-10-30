@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import MapPicker from '../components/MapPicker';
 
 const emptyForm = {
   fuelType: 'Diesel',
@@ -10,6 +11,8 @@ const emptyForm = {
   deliveryAddress: '',
   deliveryCity: '',
   deliveryCountry: 'Zimbabwe',
+  deliveryLatitude: '',
+  deliveryLongitude: '',
   preferredDeliveryDate: '',
   preferredDeliveryTime: '',
   specialInstructions: '',
@@ -68,11 +71,26 @@ const FuelRequests = () => {
     });
   };
 
+  // Called by the map whenever the pin is placed or moved
+  const handlePinChange = function(pos) {
+    setFormData(function(prev) {
+      return { ...prev, deliveryLatitude: pos.lat, deliveryLongitude: pos.lng };
+    });
+  };
+
   const handleSubmit = async function(e) {
     e.preventDefault();
     if (submitting) return; // stops double-clicks creating duplicate requests
     setMessage('');
     setError('');
+
+    // The exact delivery spot is required
+    if (formData.deliveryLatitude === '' || formData.deliveryLongitude === '') {
+      setError('Please pin your delivery location on the map.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -88,7 +106,13 @@ const FuelRequests = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error submitting request');
+      var data = error.response && error.response.data;
+      setError(
+        (data && data.errors && data.errors[0] && data.errors[0].msg) ||
+        (data && data.message) ||
+        'Error submitting request'
+      );
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
     }
@@ -270,6 +294,19 @@ const FuelRequests = () => {
               </div>
             </div>
 
+            <div className="form-group">
+              <label className="glow-label">Exact Delivery Location *</label>
+              <MapPicker
+                value={formData.deliveryLatitude !== ''
+                  ? { lat: Number(formData.deliveryLatitude), lng: Number(formData.deliveryLongitude) }
+                  : null}
+                onChange={handlePinChange}
+              />
+              <small className="form-hint">
+                Click the map, drag the pin, search for a place, or use your current location.
+              </small>
+            </div>
+
             <div className="form-row">
               <div className="form-group">
                 <label className="glow-label">Preferred Delivery Date *</label>
@@ -336,7 +373,13 @@ const FuelRequests = () => {
                   </div>
                   <div className="request-details">
                     {isStaff && (
-                      <p><strong>Customer:</strong> <span>{request.company_name || 'N/A'}</span></p>
+                      <p>
+                        <strong>Customer:</strong>{' '}
+                        <span>
+                          {request.company_name || request.contact_person_name ||
+                            ((request.first_name || '') + ' ' + (request.last_name || '')).trim() || 'N/A'}
+                        </span>
+                      </p>
                     )}
                     <p><strong>Quantity:</strong> <span>{formatQuantity(request.quantity)} {request.unit}</span></p>
                     <p>
@@ -346,6 +389,22 @@ const FuelRequests = () => {
                     <p><strong>Delivery Date:</strong> <span>{formatDate(request.preferred_delivery_date)}</span></p>
                     <p><strong>Time:</strong> <span>{formatTime(request.preferred_delivery_time)}</span></p>
                     <p><strong>Address:</strong> <span>{request.delivery_address || 'Not specified'}</span></p>
+                    {request.delivery_latitude != null && request.delivery_longitude != null && (
+                      <p>
+                        <strong>Pin:</strong>{' '}
+                        <span>
+                          <a
+                            href={'https://www.openstreetmap.org/?mlat=' + request.delivery_latitude +
+                              '&mlon=' + request.delivery_longitude +
+                              '#map=17/' + request.delivery_latitude + '/' + request.delivery_longitude}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            View on map
+                          </a>
+                        </span>
+                      </p>
+                    )}
                     {request.special_instructions && (
                       <p><strong>Instructions:</strong> <span>{request.special_instructions}</span></p>
                     )}

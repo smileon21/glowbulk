@@ -12,6 +12,8 @@ const createFuelRequest = async (requestData) => {
     deliveryState,
     deliveryCountry,
     deliveryPostalCode,
+    deliveryLatitude,
+    deliveryLongitude,
     preferredDeliveryDate,
     preferredDeliveryTime,
     specialInstructions,
@@ -24,16 +26,18 @@ const createFuelRequest = async (requestData) => {
     INSERT INTO fuel_requests (
       customer_id, fuel_type, quantity, unit,
       delivery_address, delivery_city, delivery_state, delivery_country, delivery_postal_code,
+      delivery_latitude, delivery_longitude,
       preferred_delivery_date, preferred_delivery_time,
       special_instructions, priority, assigned_to, notes
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     RETURNING *
   `;
 
   const values = [
     customerId, fuelType, quantity, unit,
     deliveryAddress, deliveryCity, deliveryState, deliveryCountry, deliveryPostalCode,
+    deliveryLatitude, deliveryLongitude,
     preferredDeliveryDate, preferredDeliveryTime,
     specialInstructions, priority, assignedTo, notes
   ];
@@ -56,10 +60,13 @@ const getFuelRequestById = async (id) => {
   return result.rows[0];
 };
 
-// Get all fuel requests (for marketing)
+// Get all fuel requests (for marketing), with the customer details they need to price the quote
 const getAllFuelRequests = async () => {
   const query = `
-    SELECT fr.*, u.first_name, u.last_name, c.company_name 
+    SELECT fr.*, u.first_name, u.last_name, u.email,
+           c.company_name, c.account_type, c.category, c.discount_cents_per_litre,
+           c.contact_person_name, c.contact_person_email, c.contact_person_phone,
+           c.billing_address
     FROM fuel_requests fr
     JOIN customers c ON fr.customer_id = c.id
     JOIN users u ON c.user_id = u.id
