@@ -178,3 +178,7 @@
 .it-pagination { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
 
 .it-change { font-size: 0.82rem; word-break: break-word; }
+
+.it-btn:hover:not(:disabled) { filter: brightness(1.15); }
+.it-btn.ghost:hover:not(:disabled) { background: rgba(128, 128, 128, 0.15); }
+.it-btn.danger:hover:not(:disabled) { background: rgba(204, 0, 0, 0.12); }

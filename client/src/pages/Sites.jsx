@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import './ITAdmin.css';
@@ -211,6 +211,7 @@ const Sites = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [busyId, setBusyId] = useState(null); // site currently being activated/deactivated
 
   const [status, setStatus] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -218,6 +219,15 @@ const Sites = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
+  // The form, error and success messages all render at the top of the page.
+  // When a button lower down is clicked, scroll back up so the result is visible.
+  const topRef = useRef(null);
+  const scrollToTop = () => {
+    if (topRef.current) {
+      topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   // Wait a moment after typing before filtering
   useEffect(() => {
@@ -251,7 +261,9 @@ const Sites = () => {
   const openEdit = (site) => {
     setEditing(site);
     setNotice('');
+    setError('');
     setShowForm(true);
+    scrollToTop();
   };
 
   const closeForm = () => {
@@ -264,11 +276,13 @@ const Sites = () => {
     setError('');
     setNotice(message);
     loadSites();
+    scrollToTop();
   };
 
   const toggleActive = async (site) => {
     setError('');
     setNotice('');
+    setBusyId(site.id);
     try {
       await axios.patch(
         `${API_BASE_URL}/api/sites/${site.id}/status`,
@@ -279,6 +293,9 @@ const Sites = () => {
       loadSites();
     } catch (err) {
       setError(errorText(err, 'Unable to change the site status.'));
+    } finally {
+      setBusyId(null);
+      scrollToTop();
     }
   };
 
@@ -287,14 +304,14 @@ const Sites = () => {
     if (status === 'inactive' && site.is_active) return false;
     if (!search) return true;
     return (
-      site.name.toLowerCase().includes(search) ||
-      site.city.toLowerCase().includes(search) ||
-      site.region.toLowerCase().includes(search)
+      String(site.name).toLowerCase().includes(search) ||
+      String(site.city).toLowerCase().includes(search) ||
+      String(site.region).toLowerCase().includes(search)
     );
   });
 
   return (
-    <div className="it-page">
+    <div className="it-page" ref={topRef}>
       <div className="page-header">
         <h2>Sites</h2>
       </div>
@@ -304,7 +321,12 @@ const Sites = () => {
       {notice && <div className="success-message">{notice}</div>}
 
       {showForm ? (
-        <SiteForm site={editing} onSaved={handleSaved} onCancel={closeForm} />
+        <SiteForm
+          key={editing ? editing.id : 'new'}
+          site={editing}
+          onSaved={handleSaved}
+          onCancel={closeForm}
+        />
       ) : (
         <div className="it-toolbar">
           <button type="button" className="it-btn" onClick={openNew}>
@@ -355,7 +377,7 @@ const Sites = () => {
                   <td>{site.city}</td>
                   <td>{site.region}</td>
                   <td>
-                    {site.latitude.toFixed(5)}, {site.longitude.toFixed(5)}
+                    {Number(site.latitude).toFixed(5)}, {Number(site.longitude).toFixed(5)}
                   </td>
                   <td>{site.city_radius_km} km</td>
                   <td>
@@ -367,16 +389,30 @@ const Sites = () => {
                   </td>
                   <td>
                     <div className="it-actions">
-                      <button type="button" className="it-btn ghost small" onClick={() => openEdit(site)}>
+                      <button
+                        type="button"
+                        className="it-btn ghost small"
+                        onClick={() => openEdit(site)}
+                      >
                         Edit
                       </button>
                       {site.is_active ? (
-                        <button type="button" className="it-btn danger small" onClick={() => toggleActive(site)}>
-                          Deactivate
+                        <button
+                          type="button"
+                          className="it-btn danger small"
+                          onClick={() => toggleActive(site)}
+                          disabled={busyId === site.id}
+                        >
+                          {busyId === site.id ? 'Working...' : 'Deactivate'}
                         </button>
                       ) : (
-                        <button type="button" className="it-btn small" onClick={() => toggleActive(site)}>
-                          Activate
+                        <button
+                          type="button"
+                          className="it-btn small"
+                          onClick={() => toggleActive(site)}
+                          disabled={busyId === site.id}
+                        >
+                          {busyId === site.id ? 'Working...' : 'Activate'}
                         </button>
                       )}
                     </div>
