@@ -33,7 +33,11 @@ const FuelRequests = () => {
 
   const navigate = useNavigate();
   const userRole = localStorage.getItem('userRole');
-  const isStaff = userRole === 'admin' || userRole === 'marketing';
+  // Business staff see the list of incoming requests; customers see the quote form.
+  // This matches the backend. IT (admin) never reaches this page: App.jsx sends them to the dashboard.
+  const isStaff = ['marketing', 'pricing', 'finance'].includes(userRole);
+  // Only marketing writes quotations
+  const isMarketing = userRole === 'marketing';
 
   // Today's date (local time) in YYYY-MM-DD, so past delivery dates can't be picked
   const todayStr = (function() {
@@ -460,7 +464,7 @@ const FuelRequests = () => {
                     </div>
                   )}
 
-                  {isStaff && (request.status === 'pending' || request.status === 'quoted') && (
+                  {isMarketing && (request.status === 'pending' || request.status === 'quoted') && (
                     <div className="request-actions">
                       <button
                         className="glow-btn-small"
