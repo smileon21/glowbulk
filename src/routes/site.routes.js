@@ -15,7 +15,7 @@ const {
 
 const siteRules = [
   body('name').trim().notEmpty().withMessage('Site name is required'),
-  body('address').trim().notEmpty().withMessage('Physical address is required'),
+  body('region').trim().notEmpty().withMessage('Region is required'),
   body('city').trim().notEmpty().withMessage('City is required'),
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Latitude must be between -90 and 90'),
   body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180'),
@@ -31,7 +31,7 @@ const firstError = (req, res) => {
 
 const readSite = (b) => ({
   name: b.name.trim(),
-  address: b.address.trim(),
+  region: b.region.trim(),
   city: b.city.trim(),
   latitude: Number(b.latitude),
   longitude: Number(b.longitude),

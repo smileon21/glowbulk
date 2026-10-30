@@ -12,12 +12,25 @@ const errorText = (err, fallback) => (err.response && err.response.data && err.r
 
 const EMPTY_FORM = {
   name: '',
-  address: '',
+  region: '',
   city: '',
   latitude: '',
   longitude: '',
   cityRadiusKm: '20'
 };
+
+const REGIONS = [
+  'Harare',
+  'Bulawayo',
+  'Manicaland',
+  'Mashonaland Central',
+  'Mashonaland East',
+  'Mashonaland West',
+  'Masvingo',
+  'Matabeleland North',
+  'Matabeleland South',
+  'Midlands'
+];
 
 // ---------------------------------------------------------------
 // Register / edit a site
@@ -27,7 +40,7 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
     site
       ? {
           name: site.name,
-          address: site.address,
+          region: site.region,
           city: site.city,
           latitude: String(site.latitude),
           longitude: String(site.longitude),
@@ -83,7 +96,7 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
     try {
       const payload = {
         name: form.name.trim(),
-        address: form.address.trim(),
+        region: form.region.trim(),
         city: form.city.trim(),
         latitude,
         longitude,
@@ -129,17 +142,15 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
             required
           />
         </div>
-      </div>
-
-      <div className="it-field">
-        <label>Physical Address</label>
-        <input
-          className="it-input full"
-          placeholder="Street address and city"
-          value={form.address}
-          onChange={set('address')}
-          required
-        />
+        <div className="it-field">
+          <label>Region</label>
+          <select className="it-select" value={form.region} onChange={set('region')} required>
+            <option value="">Select a region</option>
+            {REGIONS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="it-form-grid">
@@ -278,7 +289,7 @@ const Sites = () => {
     return (
       site.name.toLowerCase().includes(search) ||
       site.city.toLowerCase().includes(search) ||
-      site.address.toLowerCase().includes(search)
+      site.region.toLowerCase().includes(search)
     );
   });
 
@@ -306,7 +317,7 @@ const Sites = () => {
         <input
           className="it-input"
           type="search"
-          placeholder="Search site, city or address"
+          placeholder="Search site, city or region"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
         />
@@ -330,6 +341,7 @@ const Sites = () => {
               <tr>
                 <th>Site</th>
                 <th>City (zone)</th>
+                <th>Region</th>
                 <th>Coordinates</th>
                 <th>Radius</th>
                 <th>Status</th>
@@ -339,11 +351,9 @@ const Sites = () => {
             <tbody>
               {visible.map((site) => (
                 <tr key={site.id}>
-                  <td>
-                    {site.name}
-                    <span className="it-sub">{site.address}</span>
-                  </td>
+                  <td>{site.name}</td>
                   <td>{site.city}</td>
+                  <td>{site.region}</td>
                   <td>
                     {site.latitude.toFixed(5)}, {site.longitude.toFixed(5)}
                   </td>
