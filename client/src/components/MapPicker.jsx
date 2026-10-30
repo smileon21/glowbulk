@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -41,10 +41,12 @@ function FlyTo({ target }) {
  * Props
  *  value     { lat, lng } or null
  *  onChange  function({ lat, lng })  (not needed when readOnly)
+ *  onAddress function({ address, city })  called with the street address found for the pin;
+ *            return true if the address was used (shows a short note under the map)
  *  readOnly  true = just show the pin (marketing view)
  *  height    CSS height of the map
  */
-const MapPicker = ({ value, onChange, readOnly = false, height = '320px' }) => {
+const MapPicker = ({ value, onChange, onAddress, readOnly = false, height = '320px' }) => {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [note, setNote] = useState('');
@@ -53,10 +55,53 @@ const MapPicker = ({ value, onChange, readOnly = false, height = '320px' }) => {
 
   const hasPin = value && Number.isFinite(value.lat) && Number.isFinite(value.lng);
 
+  // Turns the pin into a street address (reverse geocoding through Nominatim).
+  // Waits a moment after the last pin move and ignores answers for older pins,
+  // so the service sees at most one request per pin.
+  const lookupId = useRef(0);
+  const lookupTimer = useRef(null);
+
+  useEffect(function() {
+    return function() { clearTimeout(lookupTimer.current); };
+  }, []);
+
+  const lookupAddress = function(pos) {
+    if (!onAddress) return;
+    clearTimeout(lookupTimer.current);
+    lookupTimer.current = setTimeout(async function() {
+      var myId = ++lookupId.current;
+      try {
+        var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18' +
+          '&accept-language=en&lat=' + pos.lat + '&lon=' + pos.lng;
+        var res = await fetch(url, { headers: { Accept: 'application/json' } });
+        var data = await res.json();
+        if (myId !== lookupId.current) return; // a newer pin was placed meanwhile
+        var a = (data && data.address) || {};
+
+        var street = [a.house_number, a.road].filter(Boolean).join(' ');
+        var area = a.suburb || a.neighbourhood || a.hamlet || a.village || '';
+        var address = [street, area].filter(Boolean).join(', ');
+        if (!address) {
+          // Rural spots often have no street: use the place name or the first parts of the full name
+          address = data.name || (data.display_name || '').split(',').slice(0, 2).join(',').trim();
+        }
+        var city = a.city || a.town || a.village || a.municipality || a.county || a.state_district || '';
+
+        if (address || city) {
+          var used = onAddress({ address: address, city: city });
+          if (used) setNote('Address filled in from the pin. You can still edit it above.');
+        }
+      } catch (err) {
+        // Not critical: the customer can type the address instead
+      }
+    }, 600);
+  };
+
   const setPin = function(pos, fly) {
     setNote('');
     onChange(pos);
     if (fly) setFlyTarget(pos);
+    lookupAddress(pos);
   };
 
   // Address search through OpenStreetMap's Nominatim.

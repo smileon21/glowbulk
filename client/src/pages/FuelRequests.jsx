@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -27,6 +27,9 @@ const FuelRequests = () => {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
+
+  // True once the customer types in the address or city themselves, so the map stops overwriting it
+  const addressEdited = useRef(false);
 
   const navigate = useNavigate();
   const userRole = localStorage.getItem('userRole');
@@ -65,10 +68,26 @@ const FuelRequests = () => {
   };
 
   const handleChange = function(e) {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
+    var next = { ...formData, [e.target.name]: e.target.value };
+    setFormData(next);
+
+    // Typing in the address or city takes over from the map; emptying both hands it back
+    if (e.target.name === 'deliveryAddress' || e.target.name === 'deliveryCity') {
+      addressEdited.current = next.deliveryAddress !== '' || next.deliveryCity !== '';
+    }
+  };
+
+  // The map found a street address for the pin: fill the address and city (unless typed by hand)
+  const handleAddressFromMap = function(found) {
+    if (addressEdited.current) return false;
+    setFormData(function(prev) {
+      return {
+        ...prev,
+        deliveryAddress: found.address || prev.deliveryAddress,
+        deliveryCity: found.city || prev.deliveryCity
+      };
     });
+    return true;
   };
 
   // Called by the map whenever the pin is placed or moved
@@ -102,6 +121,7 @@ const FuelRequests = () => {
       if (response.data.success) {
         setMessage('Quote request sent! Our team will reply with a quotation shortly. You will find it under Quotations.');
         setFormData(emptyForm);
+        addressEdited.current = false;
         fetchRequests();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -301,6 +321,7 @@ const FuelRequests = () => {
                   ? { lat: Number(formData.deliveryLatitude), lng: Number(formData.deliveryLongitude) }
                   : null}
                 onChange={handlePinChange}
+                onAddress={handleAddressFromMap}
               />
               <small className="form-hint">
                 Click the map, drag the pin, search for a place, or use your current location.
