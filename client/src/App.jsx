@@ -24,6 +24,7 @@ import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import Accounts from './pages/Accounts';
+import Sites from './pages/Sites';
 import ActivityLog from './pages/ActivityLog';
 import NotificationBell from './components/NotificationBell';
 import { formatName } from './utils/format';
@@ -124,6 +125,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
     ? [
         { to: '/dashboard', label: 'Dashboard' },
         { to: '/accounts', label: 'Accounts' },
+        { to: '/sites', label: 'Sites' },
         { to: '/activity-log', label: 'Activity Log' },
         { to: '/profile', label: 'Profile' },
         { to: '/security', label: 'Security' },
@@ -294,6 +296,14 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
             element={
               <RoleProtectedRoute allowedRoles={IT_ROLES}>
                 <Accounts />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/sites"
+            element={
+              <RoleProtectedRoute allowedRoles={IT_ROLES}>
+                <Sites />
               </RoleProtectedRoute>
             }
           />

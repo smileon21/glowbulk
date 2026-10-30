@@ -18,6 +18,7 @@ const adminRoutes = require('./routes/admin.routes');
 const exportRoutes = require('./routes/export.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const pushRoutes = require('./routes/push.routes');
+const siteRoutes = require('./routes/site.routes');
 
 const app = express();
 
@@ -68,7 +69,8 @@ const corsOptions = {
     return callback(null, false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  // PATCH added: the Sites page uses it to activate / deactivate a site
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   optionsSuccessStatus: 200
 };
@@ -153,6 +155,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/sites', siteRoutes);
 
 // =====================================================
 // HOME / API STATUS
@@ -173,6 +176,7 @@ app.get('/', function(req, res) {
       orders: '/api/orders',
       content: '/api/content',
       admin: '/api/admin',
+      sites: '/api/sites',
       export: '/api/export/customers, /api/export/monthly-report, /api/export/monthly-orders-report'
     }
   });
