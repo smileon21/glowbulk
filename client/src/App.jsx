@@ -14,13 +14,13 @@ import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
 import CustomerProfile from './pages/CustomerProfile';
 import AdminProfile from './pages/AdminProfile';
-import ContentManagement from './pages/ContentManagement';
+import CustomerManagement from './pages/CustomerManagement';
+import MarketingToDoList from './pages/MarketingToDoList';
 import CustomerVerification from './pages/CustomerVerification';
 import FuelRequests from './pages/FuelRequests';
 import Quotations from './pages/Quotations';
 import Orders from './pages/Orders';
 import CreateOrder from './pages/CreateOrder';
-import Announcements from './pages/Announcements';
 import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import Accounts from './pages/Accounts';
@@ -120,7 +120,8 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   // Staff keep "Fuel Requests" (the list of incoming requests).
   // No "Create Order" link: orders are created from an accepted quotation
   // on the Quotations page (the /create-order route still exists for that).
-  // Marketing also gets "Verify Customers" (new registrations waiting for approval).
+  // Marketing also gets "Verify Customers" (new registrations waiting for approval),
+  // "Customers" (all registered customers) and "To-Do List".
   const navItems = isIT
     ? [
         { to: '/dashboard', label: 'Dashboard' },
@@ -132,7 +133,6 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
       ]
     : [
         { to: '/dashboard', label: 'Dashboard' },
-        { to: '/announcements', label: 'News & Updates' },
         { to: '/profile', label: 'Profile' },
         { to: '/security', label: 'Security' },
         { to: '/fuel-requests', label: isStaff ? 'Fuel Requests' : 'Get a Quote' },
@@ -141,7 +141,8 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         ...(userRole === 'marketing'
           ? [
               { to: '/verify-customers', label: 'Verify Customers' },
-              { to: '/content', label: 'Content' },
+              { to: '/customers', label: 'Customers' },
+              { to: '/to-do', label: 'To-Do List' },
             ]
           : []),
       ];
@@ -318,14 +319,6 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
 
           {/* Business pages: customers and business staff, never IT */}
           <Route
-            path="/announcements"
-            element={
-              <RoleProtectedRoute allowedRoles={BUSINESS_ROLES}>
-                <Announcements />
-              </RoleProtectedRoute>
-            }
-          />
-          <Route
             path="/fuel-requests"
             element={
               <RoleProtectedRoute allowedRoles={BUSINESS_ROLES}>
@@ -360,10 +353,18 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
             }
           />
           <Route
-            path="/content"
+            path="/customers"
             element={
               <RoleProtectedRoute allowedRoles={['marketing']}>
-                <ContentManagement />
+                <CustomerManagement />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/to-do"
+            element={
+              <RoleProtectedRoute allowedRoles={['marketing']}>
+                <MarketingToDoList />
               </RoleProtectedRoute>
             }
           />

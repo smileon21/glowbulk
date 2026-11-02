@@ -62,35 +62,8 @@ function buildActivity(requests, quotes, orders) {
     .slice(0, ACTIVITY_LIMIT);
 }
 
-// Shared by the customer and marketing dashboards
-const AnnouncementsSection = ({ announcements }) => {
-  if (announcements.length === 0) return null;
-
-  return (
-    <div className="announcements-section">
-      <h2>Announcements</h2>
-      <div className="announcements-grid">
-        {announcements.map(function(announcement) {
-          return (
-            <div key={announcement.id} className="announcement-card">
-              <div className="announcement-header">
-                <h3>{announcement.title}</h3>
-              </div>
-              <p>{announcement.content}</p>
-              <div className="announcement-footer">
-                <small>Posted: {formatDate(announcement.published_at || announcement.created_at)}</small>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
 const BusinessDashboard = () => {
   const [loading, setLoading] = useState(true);
-  const [announcements, setAnnouncements] = useState([]);
   const [activity, setActivity] = useState([]);
   const [stats, setStats] = useState({
     fuelRequests: 0,
@@ -111,25 +84,10 @@ const BusinessDashboard = () => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
       fetchUserData();
-      fetchAnnouncements();
     } else {
       setLoading(false);
     }
   }, []);
-
-  const fetchAnnouncements = async () => {
-    try {
-      const response = await axios.get(API_BASE_URL + '/api/content/published');
-      if (response.data.success) {
-        const items = response.data.data.filter(function(c) {
-          return c.content_type === 'announcement';
-        });
-        setAnnouncements(items.slice(0, 3));
-      }
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-    }
-  };
 
   const fetchUserData = async () => {
     try {
@@ -265,13 +223,13 @@ const BusinessDashboard = () => {
             </div>
           </div>
         </div>
-
-        <AnnouncementsSection announcements={announcements} />
       </div>
     );
   }
 
   // MARKETING DASHBOARD (marketing, pricing, finance)
+  const isMarketing = userRole === 'marketing';
+
   return (
     <div className="dashboard">
       <div className="dashboard-welcome">
@@ -282,20 +240,23 @@ const BusinessDashboard = () => {
           </div>
         </div>
         <div className="welcome-actions">
-          <button className="request-cta request-cta-secondary" onClick={() => navigate('/content')}>
-            <span className="request-cta-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" />
-                <path d="M16 9a3 3 0 0 1 0 6" />
-                <path d="M19 6a7 7 0 0 1 0 12" />
-              </svg>
-            </span>
-            <span className="request-cta-text">
-              <span className="request-cta-title">Manage Content</span>
-              <span className="request-cta-sub">Announcements &amp; news</span>
-            </span>
-            <span className="request-cta-arrow" aria-hidden="true">→</span>
-          </button>
+          {isMarketing && (
+            <button className="request-cta request-cta-secondary" onClick={() => navigate('/customers')}>
+              <span className="request-cta-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </span>
+              <span className="request-cta-text">
+                <span className="request-cta-title">Customers</span>
+                <span className="request-cta-sub">All registered customers</span>
+              </span>
+              <span className="request-cta-arrow" aria-hidden="true">→</span>
+            </button>
+          )}
 
           <button className="request-cta" onClick={() => navigate('/quotations')}>
             <span className="request-cta-icon" aria-hidden="true">
@@ -331,6 +292,13 @@ const BusinessDashboard = () => {
               <span className="detail-value">{stats.totalCustomers}</span>
             </div>
           </div>
+          {isMarketing && (
+            <div className="stat-card-footer">
+              <button className="stat-btn" onClick={() => navigate('/customers')}>
+                View All <span className="stat-btn-arrow">→</span>
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="stat-card stat-req">
@@ -387,8 +355,6 @@ const BusinessDashboard = () => {
           </div>
         </div>
       </div>
-
-      <AnnouncementsSection announcements={announcements} />
 
       <div className="recent-activity">
         <h2>Recent activity</h2>

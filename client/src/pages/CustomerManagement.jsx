@@ -23,8 +23,8 @@ const CustomerManagement = () => {
       setError('');
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: 'Bearer ' + token } };
-      // Expects: { success: true, data: [ { id, name/full_name, email, phone, company_name, city, created_at } ] }
-      const response = await axios.get(API_BASE_URL + '/api/marketing/customers', config);
+      // Existing staff route: { success: true, count, data: [ ...customer rows ] }
+      const response = await axios.get(API_BASE_URL + '/api/customers', config);
       if (response.data.success) {
         setCustomers(response.data.data);
       }
@@ -36,14 +36,17 @@ const CustomerManagement = () => {
     }
   };
 
-  const getName = (c) => c.name || c.full_name || c.contact_name || '-';
+  const getName = (c) => c.contact_person_name || c.name || c.full_name || '-';
+  const getEmail = (c) => c.contact_person_email || c.email || '';
+  const getPhone = (c) => c.contact_person_phone || c.phone || c.contact_phone || '';
+  const getStatus = (c) => c.verification_status || '-';
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = customers;
     if (q) {
       list = customers.filter((c) =>
-        [getName(c), c.company_name, c.email, c.phone, c.city]
+        [getName(c), c.company_name, getEmail(c), getPhone(c), c.city, getStatus(c)]
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(q))
       );
@@ -82,14 +85,15 @@ const CustomerManagement = () => {
   const arrow = (field) => (sortBy === field ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
 
   const exportCsv = () => {
-    const rows = [['Name', 'Company', 'Email', 'Phone', 'City', 'Registered']];
+    const rows = [['Name', 'Company', 'Email', 'Phone', 'City', 'Status', 'Registered']];
     filtered.forEach((c) => {
       rows.push([
         getName(c),
         c.company_name || '',
-        c.email || '',
-        c.phone || '',
+        getEmail(c),
+        getPhone(c),
         c.city || '',
+        getStatus(c),
         c.created_at ? new Date(c.created_at).toLocaleDateString() : ''
       ]);
     });
@@ -158,6 +162,9 @@ const CustomerManagement = () => {
                 <th style={{ cursor: 'pointer', textAlign: 'left' }} onClick={() => toggleSort('city')}>
                   City{arrow('city')}
                 </th>
+                <th style={{ cursor: 'pointer', textAlign: 'left' }} onClick={() => toggleSort('verification_status')}>
+                  Status{arrow('verification_status')}
+                </th>
                 <th style={{ cursor: 'pointer', textAlign: 'left' }} onClick={() => toggleSort('created_at')}>
                   Registered{arrow('created_at')}
                 </th>
@@ -168,9 +175,10 @@ const CustomerManagement = () => {
                 <tr key={c.id}>
                   <td>{getName(c)}</td>
                   <td>{c.company_name || '-'}</td>
-                  <td>{c.email || '-'}</td>
-                  <td>{c.phone || '-'}</td>
+                  <td>{getEmail(c) || '-'}</td>
+                  <td>{getPhone(c) || '-'}</td>
                   <td>{c.city || '-'}</td>
+                  <td style={{ textTransform: 'capitalize' }}>{getStatus(c)}</td>
                   <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
                 </tr>
               ))}
