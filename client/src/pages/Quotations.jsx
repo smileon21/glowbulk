@@ -6,7 +6,7 @@ import { formatDate } from '../utils/format';
 import MapPicker from '../components/MapPicker';
 
 // A quotation stays valid for this many hours
-const QUOTE_VALIDITY_HOURS = 72;
+const QUOTE_VALIDITY_HOURS = 24;
 // Marketing can edit a sent (or just-accepted) quotation for this many minutes
 const EDIT_WINDOW_MINUTES = 15;
 
@@ -135,7 +135,7 @@ const Quotations = () => {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
-      // Quotes are valid for 72 hours, so staff no longer pick a date
+      // Quotes are valid for 24 hours, so staff no longer pick a date
       var validUntilDate = new Date(Date.now() + QUOTE_VALIDITY_HOURS * 3600000);
       var pad = function(n) { return String(n).padStart(2, '0'); };
       var validUntilStr = validUntilDate.getFullYear() + '-' +
@@ -287,7 +287,7 @@ const Quotations = () => {
     });
   };
 
-  // When the 72-hour window ends: counted from when the quote was sent
+  // When the 24-hour window ends: counted from when the quote was sent
   // (falls back to when it was created if the API has no sent_at field)
   var getExpiresAt = function(quote) {
     var start = new Date(quote.sent_at || quote.created_at);
