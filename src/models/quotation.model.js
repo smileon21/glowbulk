@@ -197,7 +197,7 @@ const editSentQuotation = async (id, data, editor) => {
     const found = await client.query(
       `SELECT *,
          (now() <= COALESCE(sent_at, created_at) + make_interval(mins => $2::int)) AS in_window,
-         (now() >= COALESCE(expires_at, COALESCE(sent_at, created_at) + interval '72 hours')) AS is_expired
+         (now() >= COALESCE(expires_at, COALESCE(sent_at, created_at) + interval '24 hours')) AS is_expired
        FROM quotations
        WHERE id = $1
        FOR UPDATE`,
@@ -346,7 +346,7 @@ const acceptQuotationVersion = async (id, version) => {
      WHERE id = $1
        AND status = 'sent'
        AND current_version = $2
-       AND now() < COALESCE(expires_at, COALESCE(sent_at, created_at) + interval '72 hours')
+       AND now() < COALESCE(expires_at, COALESCE(sent_at, created_at) + interval '24 hours')
      RETURNING *`,
     [id, version]
   );

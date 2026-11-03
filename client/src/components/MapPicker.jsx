@@ -89,7 +89,7 @@ const MapPicker = ({ value, onChange, onAddress, readOnly = false, height = '320
 
         if (address || city) {
           var used = onAddress({ address: address, city: city });
-          if (used) setNote('Address filled in from the pin. You can still edit it above.');
+          if (used) setNote('Address filled in from the pin. You can still edit it below.');
         }
       } catch (err) {
         // Not critical: the customer can type the address instead

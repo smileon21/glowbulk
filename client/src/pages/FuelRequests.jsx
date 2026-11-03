@@ -282,44 +282,7 @@ const FuelRequests = () => {
             </div>
 
             <div className="form-group">
-              <label className="glow-label">Delivery Address</label>
-              <input
-                type="text"
-                name="deliveryAddress"
-                className="glow-input"
-                value={formData.deliveryAddress}
-                onChange={handleChange}
-                placeholder="Street address"
-              />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="glow-label">City</label>
-                <input
-                  type="text"
-                  name="deliveryCity"
-                  className="glow-input"
-                  value={formData.deliveryCity}
-                  onChange={handleChange}
-                  placeholder="City"
-                />
-              </div>
-              <div className="form-group">
-                <label className="glow-label">Country</label>
-                <input
-                  type="text"
-                  name="deliveryCountry"
-                  className="glow-input"
-                  value={formData.deliveryCountry}
-                  onChange={handleChange}
-                  placeholder="Country"
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="glow-label">Exact Delivery Location *</label>
+              <label className="glow-label">Delivery Location *</label>
               <MapPicker
                 value={formData.deliveryLatitude !== ''
                   ? { lat: Number(formData.deliveryLatitude), lng: Number(formData.deliveryLongitude) }
@@ -328,9 +291,36 @@ const FuelRequests = () => {
                 onAddress={handleAddressFromMap}
               />
               <small className="form-hint">
-                Click the map, drag the pin, search for a place, or use your current location.
+                Search for a place, use your current location, or click the map and drag the pin to your exact delivery point.
               </small>
             </div>
+
+            {formData.deliveryLatitude !== '' && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="glow-label">Street Address</label>
+                  <input
+                    type="text"
+                    name="deliveryAddress"
+                    className="glow-input"
+                    value={formData.deliveryAddress}
+                    onChange={handleChange}
+                    placeholder="Street address"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="glow-label">City</label>
+                  <input
+                    type="text"
+                    name="deliveryCity"
+                    className="glow-input"
+                    value={formData.deliveryCity}
+                    onChange={handleChange}
+                    placeholder="City"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="form-row">
               <div className="form-group">

@@ -18,7 +18,7 @@ const { getFuelRequestById, updateFuelRequestStatus } = require('../models/fuelR
 const { notifyStaff, notifyCustomer } = require('../services/notification.service');
 
 // A quotation stays valid for this many hours after it is sent
-const QUOTE_VALIDITY_HOURS = 72;
+const QUOTE_VALIDITY_HOURS = 24;
 
 // Staff = marketing, pricing, finance (read-only; writes are marketing-only)
 const STAFF = ['marketing', 'pricing', 'finance'];
@@ -34,11 +34,11 @@ const generateQuotationNumber = () => {
 };
 
 // ==========================================
-// 72-HOUR EXPIRY
+// 24-HOUR EXPIRY
 // ==========================================
 
 // True when a 'sent' quotation has run out of time.
-// Uses expires_at when the column exists, otherwise sent_at / created_at + 72 hours.
+// Uses expires_at when the column exists, otherwise sent_at / created_at + 24 hours.
 const isQuotationExpired = (quotation) => {
   if (quotation.status !== 'sent') return false;
 
@@ -153,7 +153,7 @@ router.post('/', authenticate, authorize('marketing'), [
     const unitPrice = parseFloat(req.body.unitPrice) || 0;
     const totalAmount = quantity * unitPrice;
 
-    // Validity is always 72 hours: the server sets it, staff don't pick a date.
+    // Validity is always 24 hours: the server sets it, staff don't pick a date.
     // (The exact moment comes from sent_at / expires_at in the database.)
     const validUntil = new Date(Date.now() + QUOTE_VALIDITY_HOURS * 3600000)
       .toISOString()
@@ -404,7 +404,7 @@ router.put('/:id/accept', authenticate, async (req, res) => {
       });
     }
 
-    // 72 hours passed: expire it and refuse the acceptance
+    // 24 hours passed: expire it and refuse the acceptance
     if (isQuotationExpired(quotation)) {
       await markExpired(quotation);
       return res.status(400).json({
@@ -483,7 +483,7 @@ router.put('/:id/reject', authenticate, async (req, res) => {
       });
     }
 
-    // 72 hours passed: nothing left to reject, it is already expired
+    // 24 hours passed: nothing left to reject, it is already expired
     if (isQuotationExpired(quotation)) {
       await markExpired(quotation);
       return res.status(400).json({
@@ -551,7 +551,7 @@ router.put('/:id/status', authenticate, authorize('marketing'), [
     }
 
     // If status changed to 'sent', update fuel request and notify the customer.
-    // The database stamps sent_at / expires_at at this moment, starting the 72 hours.
+    // The database stamps sent_at / expires_at at this moment, starting the 24 hours.
     if (req.body.status === 'sent') {
       await updateFuelRequestStatus(quotation.fuel_request_id, 'quoted');
 
