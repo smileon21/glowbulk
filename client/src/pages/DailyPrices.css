@@ -68,6 +68,25 @@
   padding: 7px 12px;
 }
 
+.dp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.dp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.dp-price {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
 .dp-hint {
   margin-top: 14px;
   font-size: 13px;

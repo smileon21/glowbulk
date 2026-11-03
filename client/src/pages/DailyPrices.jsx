@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import './DailyPrices.css';
@@ -17,10 +18,12 @@ const authConfig = (extra) => ({
 const cleanNumber = (value) => (value === null || value === undefined ? '' : String(Number(value)));
 
 const DailyPrices = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [inputs, setInputs] = useState({});
   const [preparedBy, setPreparedBy] = useState('');
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all'); // 'all' | 'priced' | 'unpriced'
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null); // { type: 'ok' | 'error', text }
@@ -99,8 +102,8 @@ const DailyPrices = () => {
         },
         authConfig()
       );
-      setNotice({ type: 'ok', text: res.data.message });
-      await load();
+      // Saved: go straight to the page that shows today's priced sites
+      navigate('/todays-prices', { state: { saved: res.data.message } });
     } catch (err) {
       setNotice({ type: 'error', text: err.response?.data?.message || 'Could not save prices' });
     } finally {
@@ -129,12 +132,21 @@ const DailyPrices = () => {
     }
   };
 
-  const shown = rows.filter((r) => {
-    const q = search.trim().toLowerCase();
-    return !q || (r.name + ' ' + r.city + ' ' + (r.region || '')).toLowerCase().includes(q);
-  });
+  const isPriced = (r) => r.diesel_price !== null || r.petrol_price !== null;
 
-  const pricedCount = rows.filter((r) => r.diesel_price !== null || r.petrol_price !== null).length;
+  // Priced sites come first, so today's prices are always at the top of the list
+  const shown = rows
+    .filter((r) => {
+      const q = search.trim().toLowerCase();
+      const matchesSearch =
+        !q || (r.name + ' ' + r.city + ' ' + (r.region || '')).toLowerCase().includes(q);
+      const matchesFilter =
+        filter === 'all' || (filter === 'priced' ? isPriced(r) : !isPriced(r));
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => Number(isPriced(b)) - Number(isPriced(a)));
+
+  const pricedCount = rows.filter(isPriced).length;
   const today = rows[0]?.price_date;
 
   if (loading) {
@@ -152,7 +164,16 @@ const DailyPrices = () => {
             Prices reset at midnight (Harare time).
           </p>
         </div>
-        <span className="status-badge active">{pricedCount} of {rows.length} sites priced</span>
+        <div className="dp-actions">
+          <span className="status-badge active">{pricedCount} of {rows.length} sites priced</span>
+          <button
+            type="button"
+            className="glow-btn glow-btn-secondary"
+            onClick={() => navigate('/todays-prices')}
+          >
+            View today's prices
+          </button>
+        </div>
       </div>
 
       {notice && (
@@ -186,6 +207,30 @@ const DailyPrices = () => {
             </button>
           </>
         )}
+      </div>
+
+      <div className="dp-filters">
+        <button
+          type="button"
+          className={'filter-chip' + (filter === 'all' ? ' active' : '')}
+          onClick={() => setFilter('all')}
+        >
+          All sites ({rows.length})
+        </button>
+        <button
+          type="button"
+          className={'filter-chip' + (filter === 'priced' ? ' active' : '')}
+          onClick={() => setFilter('priced')}
+        >
+          Priced today ({pricedCount})
+        </button>
+        <button
+          type="button"
+          className={'filter-chip' + (filter === 'unpriced' ? ' active' : '')}
+          onClick={() => setFilter('unpriced')}
+        >
+          Not priced ({rows.length - pricedCount})
+        </button>
       </div>
 
       <div className="glow-card users-table-container">

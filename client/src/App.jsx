@@ -25,6 +25,7 @@ import UploadProof from './pages/UploadProof';
 import Accounts from './pages/Accounts';
 import Sites from './pages/Sites';
 import DailyPrices from './pages/DailyPrices';
+import TodaysPrices from './pages/TodaysPrices';
 import ActivityLog from './pages/ActivityLog';
 import NotificationBell from './components/NotificationBell';
 import { formatName } from './utils/format';
@@ -142,6 +143,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         ...(userRole === 'marketing'
           ? [
               { to: '/daily-prices', label: 'Daily Prices' },
+              { to: '/todays-prices', label: "Today's Prices" },
               { to: '/verify-customers', label: 'Verify Customers' },
               { to: '/customers', label: 'Customers' },
             ]
@@ -350,6 +352,14 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
             element={
               <RoleProtectedRoute allowedRoles={['marketing']}>
                 <DailyPrices />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/todays-prices"
+            element={
+              <RoleProtectedRoute allowedRoles={['marketing']}>
+                <TodaysPrices />
               </RoleProtectedRoute>
             }
           />
