@@ -19,6 +19,7 @@ const exportRoutes = require('./routes/export.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const pushRoutes = require('./routes/push.routes');
 const siteRoutes = require('./routes/site.routes');
+const sitePriceRoutes = require('./routes/sitePrice.routes');
 
 const app = express();
 
@@ -156,6 +157,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/sites', siteRoutes);
+app.use('/api/site-prices', sitePriceRoutes);
 
 // =====================================================
 // HOME / API STATUS
@@ -177,6 +179,7 @@ app.get('/', function(req, res) {
       content: '/api/content',
       admin: '/api/admin',
       sites: '/api/sites',
+      sitePrices: '/api/site-prices',
       export: '/api/export/customers, /api/export/monthly-report, /api/export/monthly-orders-report'
     }
   });

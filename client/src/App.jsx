@@ -15,7 +15,6 @@ import AuthCallback from './pages/AuthCallback';
 import CustomerProfile from './pages/CustomerProfile';
 import AdminProfile from './pages/AdminProfile';
 import CustomerManagement from './pages/CustomerManagement';
-import MarketingToDoList from './pages/MarketingToDoList';
 import CustomerVerification from './pages/CustomerVerification';
 import FuelRequests from './pages/FuelRequests';
 import Quotations from './pages/Quotations';
@@ -25,6 +24,7 @@ import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import Accounts from './pages/Accounts';
 import Sites from './pages/Sites';
+import DailyPrices from './pages/DailyPrices';
 import ActivityLog from './pages/ActivityLog';
 import NotificationBell from './components/NotificationBell';
 import { formatName } from './utils/format';
@@ -120,8 +120,9 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
   // Staff keep "Fuel Requests" (the list of incoming requests).
   // No "Create Order" link: orders are created from an accepted quotation
   // on the Quotations page (the /create-order route still exists for that).
-  // Marketing also gets "Verify Customers" (new registrations waiting for approval),
-  // "Customers" (all registered customers) and "To-Do List".
+  // Marketing also gets "Daily Prices" (prices per site for automatic quotations),
+  // "Verify Customers" (new registrations waiting for approval)
+  // and "Customers" (all registered customers).
   const navItems = isIT
     ? [
         { to: '/dashboard', label: 'Dashboard' },
@@ -140,9 +141,9 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         { to: '/orders', label: 'Orders' },
         ...(userRole === 'marketing'
           ? [
+              { to: '/daily-prices', label: 'Daily Prices' },
               { to: '/verify-customers', label: 'Verify Customers' },
               { to: '/customers', label: 'Customers' },
-              { to: '/to-do', label: 'To-Do List' },
             ]
           : []),
       ];
@@ -345,6 +346,14 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
 
           {/* Marketing only */}
           <Route
+            path="/daily-prices"
+            element={
+              <RoleProtectedRoute allowedRoles={['marketing']}>
+                <DailyPrices />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
             path="/verify-customers"
             element={
               <RoleProtectedRoute allowedRoles={['marketing']}>
@@ -357,14 +366,6 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
             element={
               <RoleProtectedRoute allowedRoles={['marketing']}>
                 <CustomerManagement />
-              </RoleProtectedRoute>
-            }
-          />
-          <Route
-            path="/to-do"
-            element={
-              <RoleProtectedRoute allowedRoles={['marketing']}>
-                <MarketingToDoList />
               </RoleProtectedRoute>
             }
           />

@@ -1,0 +1,81 @@
+/* Daily Prices page. Reuses the global GlowBulk classes (glow-input, glow-btn,
+   glow-card, users-table, page-header, status-badge, success/error-message).
+   Only the page-specific bits live here. */
+
+.dp-page {
+  padding: 20px 0;
+  width: 100%;
+}
+
+.dp-sub {
+  color: var(--steel);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 640px;
+  margin-top: 6px;
+}
+
+.dp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dp-toolbar .glow-input {
+  width: auto;
+  flex: 1 1 220px;
+}
+
+.dp-toolbar .glow-btn {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 12px 24px;
+}
+
+.dp-site {
+  font-weight: 600;
+}
+
+.dp-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dp-page .dp-input {
+  width: 130px;
+  padding: 9px 12px;
+  font-family: var(--mono);
+}
+
+.dp-page .dp-input:disabled {
+  opacity: 0.7;
+}
+
+.dp-page .dp-input.dp-saved {
+  border-color: var(--green);
+}
+
+.dp-page .dp-input.dp-changed {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.08);
+}
+
+.dp-cell .glow-btn-small {
+  flex-shrink: 0;
+  padding: 7px 12px;
+}
+
+.dp-hint {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--steel);
+}
+
+@media (max-width: 640px) {
+  .dp-toolbar .glow-btn {
+    width: 100%;
+  }
+}

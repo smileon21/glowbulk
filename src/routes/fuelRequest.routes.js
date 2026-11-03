@@ -12,6 +12,7 @@ const {
 } = require('../models/fuelRequest.model');
 const { getCustomerByUserId } = require('../models/customer.model');
 const { notifyStaff } = require('../services/notification.service');
+const { tryAutoQuote } = require('../services/autoQuote.service');
 const pool = require('../config/database');
 
 // Business staff. IT ("admin") is deliberately not in this list.
@@ -54,6 +55,21 @@ router.post('/', authenticate, authorize('customer'), [
       unit: 'Liters' // quantity is always in liters
     });
 
+    // Automatic quotation: if a site with a price set today covers the delivery pin,
+    // the quotation is created and sent straight away. Otherwise (no price today, or
+    // the customer is outside every priced site's zone) the request stays 'pending'
+    // and marketing quotes it the old way. A failure here never blocks the request.
+    let auto = null;
+    try {
+      auto = await tryAutoQuote(fuelRequest, {
+        latitude: req.body.deliveryLatitude,
+        longitude: req.body.deliveryLongitude
+      });
+      if (auto) fuelRequest.status = 'quoted';
+    } catch (err) {
+      console.error('Auto quotation failed, falling back to manual:', err);
+    }
+
     // Tell staff about the new request.
     // Not awaited and wrapped in .catch so a notification problem never breaks the request.
     const who = customer.company_name || customer.contact_person_name || 'A customer';
@@ -61,7 +77,8 @@ router.post('/', authenticate, authorize('customer'), [
     notifyStaff({
       type: 'fuel_request_created',
       title: isUrgent ? 'URGENT fuel request' : 'New fuel request',
-      message: who + ' requested ' + Number(fuelRequest.quantity).toLocaleString() + ' liters of ' + fuelRequest.fuel_type + '.',
+      message: who + ' requested ' + Number(fuelRequest.quantity).toLocaleString() + ' liters of ' + fuelRequest.fuel_type + '.' +
+        (auto ? ' An automatic quotation ' + auto.quotation.quotation_number + ' was sent.' : ''),
       link: '/fuel-requests'
     }).catch(function(err) {
       console.error('Fuel request notification failed:', err);
@@ -69,8 +86,11 @@ router.post('/', authenticate, authorize('customer'), [
 
     res.status(201).json({
       success: true,
-      message: 'Fuel request submitted successfully',
-      data: fuelRequest
+      message: auto
+        ? 'Fuel request submitted and your quotation is ready'
+        : 'Fuel request submitted successfully',
+      data: fuelRequest,
+      autoQuotation: auto ? auto.quotation : null
     });
   } catch (error) {
     console.error('Create fuel request error:', error);
@@ -140,10 +160,10 @@ router.get('/available-for-quote', authenticate, authorize(...STAFF), async (req
       FROM fuel_requests fr
       JOIN customers c ON fr.customer_id = c.id
       JOIN users u ON c.user_id = u.id
-      WHERE fr.status = 'pending' 
+      WHERE fr.status = 'pending'
         AND NOT EXISTS (
-          SELECT 1 FROM quotations q 
-          WHERE q.fuel_request_id = fr.id 
+          SELECT 1 FROM quotations q
+          WHERE q.fuel_request_id = fr.id
             AND q.status IN ('draft', 'sent', 'accepted')
         )
       ORDER BY fr.created_at DESC
