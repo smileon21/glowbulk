@@ -10,6 +10,18 @@ const QUOTE_VALIDITY_HOURS = 24;
 // Marketing can edit a sent (or just-accepted) quotation for this many minutes
 const EDIT_WINDOW_MINUTES = 15;
 
+// Shown to customers on quotations that are still waiting for their answer
+const QuoteDisclaimer = () => (
+  <div className="quote-disclaimer" role="note">
+    <strong>DISCLAIMER:</strong> All quotations are subject to review, corrections,
+    omissions, and amendments within the first <strong>{EDIT_WINDOW_MINUTES} minutes from
+    the time of issuance</strong>, as indicated on the quotation. Customers are advised{' '}
+    <strong>not to make any payments during this period</strong>. Please allow the full{' '}
+    {EDIT_WINDOW_MINUTES} minutes to elapse and confirm the quotation's final status before
+    making payment. We appreciate your understanding and cooperation.
+  </div>
+);
+
 const Quotations = () => {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState([]);
@@ -339,10 +351,10 @@ const Quotations = () => {
     if (end === null) return null;
     var left = end - now;
     if (left <= 0) return { text: 'Expired', tone: 'late' };
-    // Less than 24 hours left = urgent
+    // Less than 6 hours left = urgent (the whole window is only 24 hours now)
     return {
       text: 'Expires in ' + formatTimeLeft(left),
-      tone: left < 24 * 3600000 ? 'soon' : 'ok'
+      tone: left < 6 * 3600000 ? 'soon' : 'ok'
     };
   };
 
@@ -792,6 +804,9 @@ const Quotations = () => {
                 This quotation has expired. Use Get a Quote to request a new one.
               </div>
             )}
+
+            {/* Customers see the 15-minute disclaimer while the quotation is waiting for their answer */}
+            {isCustomer && getEffectiveStatus(selectedQuote) === 'sent' && <QuoteDisclaimer />}
 
             <div className="modal-actions">
               {selectedQuote.status === 'draft' && isMarketing && (

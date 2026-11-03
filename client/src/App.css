@@ -4385,3 +4385,14 @@ input[type="file"]::file-selector-button:hover {
   background: #fff3cd;
   color: #7a5b00;
 }
+
+.quote-disclaimer {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-left: 4px solid #E8A33D;
+  border-radius: 6px;
+  background: rgba(232, 163, 61, 0.12);
+  color: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
