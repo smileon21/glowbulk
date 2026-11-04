@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
+import PaymentDetails from '../components/PaymentDetails';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -10,14 +11,13 @@ const Orders = () => {
   const [error, setError] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
-  // Names typed by the staff member doing the action (shown on the order)
-  const [confirmedBy, setConfirmedBy] = useState('');
-  const [issuedBy, setIssuedBy] = useState('');
   const navigate = useNavigate();
 
   const userRole = localStorage.getItem('userRole');
   // Must match the STAFF list on the server (admin/IT is not business staff)
   const isStaff = ['marketing', 'pricing', 'finance'].includes(userRole);
+  // Only finance confirms payments and issues invoices
+  const isFinance = userRole === 'finance';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -29,12 +29,6 @@ const Orders = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
-
-  // Start with empty name boxes every time a different order is opened
-  useEffect(() => {
-    setConfirmedBy('');
-    setIssuedBy('');
-  }, [selectedOrder && selectedOrder.id]);
 
   const fetchOrders = async () => {
     try {
@@ -68,11 +62,8 @@ const Orders = () => {
     }
   };
 
+  // The server records who confirmed the payment from the logged-in finance account
   const confirmPayment = async function(id) {
-    if (!confirmedBy.trim()) {
-      setError('Please enter the name of the person confirming this payment');
-      return;
-    }
     if (!window.confirm('Confirm payment for this order?')) return;
 
     setError('');
@@ -86,10 +77,7 @@ const Orders = () => {
 
       const response = await axios.put(
         API_BASE_URL + '/api/orders/' + id + '/confirm-payment',
-        {
-          notes: 'Payment verified in company bank account',
-          confirmedBy: confirmedBy.trim()
-        },
+        { notes: 'Payment verified in company bank account' },
         config
       );
 
@@ -137,15 +125,11 @@ const Orders = () => {
   };
 
   // =====================================================
-  // STAFF: Upload invoice (auto-completes the order)
+  // FINANCE: Upload invoice (auto-completes the order)
+  // The server records who issued it from the logged-in account.
   // =====================================================
   const handleUploadInvoice = async function(orderId, file) {
     if (!file) return;
-
-    if (!issuedBy.trim()) {
-      setError('Please enter the name of the person issuing this invoice');
-      return;
-    }
 
     setUploadingInvoice(true);
     setError('');
@@ -154,8 +138,6 @@ const Orders = () => {
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
-      // Text fields go before the file so the server reads them reliably
-      formData.append('issuedBy', issuedBy.trim());
       formData.append('invoiceFile', file);
 
       const response = await axios.post(
@@ -281,10 +263,10 @@ const Orders = () => {
     return '$' + Number(amount).toFixed(2);
   };
 
-  // Invoice can be uploaded by staff when payment is confirmed and no invoice yet.
+  // Invoice can be uploaded by finance when payment is confirmed and no invoice yet.
   // Uploading the invoice will automatically mark the order as completed.
   var canUploadInvoice = function(order) {
-    if (!isStaff) return false;
+    if (!isFinance) return false;
     if (!order) return false;
     if (order.invoice_path) return false;
     return order.status === 'payment_confirmed';
@@ -1070,33 +1052,24 @@ const Orders = () => {
 
             </div>
 
+            {/* Bank details and tax clearance, shown to the customer while the order awaits payment */}
+            {!isStaff && selectedOrder.status === 'pending_payment' && (
+              <PaymentDetails />
+            )}
+
             <div className="modal-actions">
 
               {selectedOrder.status === 'pending_payment' &&
-                isStaff && (
+                isFinance && (
 
-                <div style={{ width: '100%' }}>
-                  <div className="form-group">
-                    <label className="glow-label">Confirmed by *</label>
-                    <input
-                      type="text"
-                      className="glow-input"
-                      value={confirmedBy}
-                      onChange={function(e) { setConfirmedBy(e.target.value); }}
-                      maxLength={100}
-                      placeholder="Enter your full name"
-                    />
-                  </div>
-                  <button
-                    className="glow-btn"
-                    disabled={!confirmedBy.trim()}
-                    onClick={function() {
-                      confirmPayment(selectedOrder.id);
-                    }}
-                  >
-                    Confirm Payment
-                  </button>
-                </div>
+                <button
+                  className="glow-btn"
+                  onClick={function() {
+                    confirmPayment(selectedOrder.id);
+                  }}
+                >
+                  Confirm Payment
+                </button>
 
               )}
 
@@ -1133,32 +1106,13 @@ const Orders = () => {
 
               {canUploadInvoice(selectedOrder) && (
                 <div style={{ marginTop: '8px', width: '100%' }}>
-                  <div className="form-group">
-                    <label className="glow-label">Issued by *</label>
-                    <input
-                      type="text"
-                      className="glow-input"
-                      value={issuedBy}
-                      onChange={function(e) { setIssuedBy(e.target.value); }}
-                      maxLength={100}
-                      placeholder="Enter your full name"
-                      disabled={uploadingInvoice}
-                    />
-                    {!issuedBy.trim() && (
-                      <span className="form-hint">
-                        Enter your name to enable the invoice upload.
-                      </span>
-                    )}
-                  </div>
                   <label
                     htmlFor={'invoice-upload-' + selectedOrder.id}
                     className="glow-btn"
                     style={{
                       display: 'inline-block',
-                      cursor: uploadingInvoice
-                        ? 'wait'
-                        : (issuedBy.trim() ? 'pointer' : 'not-allowed'),
-                      opacity: (uploadingInvoice || !issuedBy.trim()) ? 0.6 : 1
+                      cursor: uploadingInvoice ? 'wait' : 'pointer',
+                      opacity: uploadingInvoice ? 0.6 : 1
                     }}
                   >
                     {uploadingInvoice ? 'Uploading...' : ' Upload Invoice & Complete Order'}
@@ -1168,7 +1122,7 @@ const Orders = () => {
                     type="file"
                     accept="application/pdf,image/jpeg,image/png,image/jpg"
                     style={{ display: 'none' }}
-                    disabled={uploadingInvoice || !issuedBy.trim()}
+                    disabled={uploadingInvoice}
                     onChange={function(e) {
                       const file = e.target.files && e.target.files[0];
                       if (file) {

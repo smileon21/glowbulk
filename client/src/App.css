@@ -4396,3 +4396,76 @@ input[type="file"]::file-selector-button:hover {
   font-size: 0.85rem;
   line-height: 1.5;
 }
+
+/* ---------- Payment details (customer-facing) ---------- */
+
+.payment-details {
+  margin: 16px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--green);
+  border-radius: 6px;
+  background: var(--paper);
+}
+
+.payment-details h4 {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px dashed var(--line);
+}
+
+.pay-method + .pay-method {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.pay-method-title {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.pay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--line);
+}
+
+.pay-label {
+  font-size: 13px;
+  color: var(--steel);
+  white-space: nowrap;
+}
+
+.pay-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: right;
+  word-break: break-all;
+  user-select: all;
+}
+
+.pay-instructions {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.pay-download {
+  display: inline-flex;
+  margin-top: 10px;
+  text-decoration: none;
+}

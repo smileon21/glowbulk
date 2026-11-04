@@ -25,6 +25,7 @@ const { getCustomerByUserId, getCustomerById } = require('../models/customer.mod
 const { getQuotationById } = require('../models/quotation.model');
 const { updateFuelRequestStatus } = require('../models/fuelRequest.model');
 const { uploadToSupabase } = require('../utils/supabaseUpload');
+const { accountName, rejectPayment } = require('../models/finance.model');
 
 // === notification service ===
 const { notifyStaff, notifyCustomer } = require('../services/notification.service');
@@ -312,10 +313,10 @@ router.post('/upload-proof/:orderId', authenticate, authorize('customer', ...STA
 
 // Staff: Upload Invoice
 // The validators come AFTER upload.single() so the multipart text field "issuedBy" is already parsed.
-router.post('/upload-invoice/:orderId', authenticate, authorize(...STAFF), upload.single('invoiceFile'), [
+router.post('/upload-invoice/:orderId', authenticate, authorize('finance'), upload.single('invoiceFile'), [
   body('issuedBy')
+    .optional({ nullable: true })
     .trim()
-    .notEmpty().withMessage('Please enter the name of the person issuing this invoice')
     .isLength({ max: 100 }).withMessage('Issued by must be 100 characters or less'),
   handleValidation
 ], async (req, res) => {
@@ -346,7 +347,8 @@ router.post('/upload-invoice/:orderId', authenticate, authorize(...STAFF), uploa
     );
 
     // req.user.id = the logged-in account (traceability); req.body.issuedBy = the typed name (display)
-    const updatedOrder = await addInvoiceFile(orderId, filename, url, req.user.id, req.body.issuedBy);
+    const issuedByName = (req.body.issuedBy || '').trim() || accountName(req.user);
+    const updatedOrder = await addInvoiceFile(orderId, filename, url, req.user.id, issuedByName);
 
     // Notify the customer
     try {
@@ -416,6 +418,10 @@ router.put('/:id/status', authenticate, authorize(...STAFF), [
   handleValidation
 ], async (req, res) => {
   try {
+    if (req.body.status === 'payment_confirmed' && req.user.role !== 'finance') {
+      return res.status(403).json({ success: false, message: 'Only finance can confirm payment' });
+    }
+
     const order = await updateOrderStatus(req.params.id, req.body.status, req.body.notes);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -444,12 +450,12 @@ router.put('/:id/status', authenticate, authorize(...STAFF), [
 });
 
 // Staff: Confirm payment
-router.put('/:id/confirm-payment', authenticate, authorize(...STAFF), [
+router.put('/:id/confirm-payment', authenticate, authorize('finance'), [
   param('id').isInt().withMessage('Invalid order ID'),
   body('notes').optional({ nullable: true }).isString(),
   body('confirmedBy')
+    .optional({ nullable: true })
     .trim()
-    .notEmpty().withMessage('Please enter the name of the person confirming this payment')
     .isLength({ max: 100 }).withMessage('Confirmed by must be 100 characters or less'),
   handleValidation
 ], async (req, res) => {
@@ -459,13 +465,23 @@ router.put('/:id/confirm-payment', authenticate, authorize(...STAFF), [
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // req.user.id = the logged-in account (traceability); req.body.confirmedBy = the typed name (display)
+    // Only an order that is still waiting for payment can be confirmed
+    if (order.status !== 'pending_payment') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only an order that is pending payment can be confirmed'
+      });
+    }
+
+    // req.user.id = the logged-in account (traceability); the name shown on the order is the account's name
+    // unless the form sent one
+    const confirmedByName = (req.body.confirmedBy || '').trim() || accountName(req.user);
     const updatedOrder = await updatePaymentStatus(
       req.params.id,
       'confirmed',
       req.user.id,
-      req.body.notes || `Payment confirmed by ${req.body.confirmedBy}`,
-      req.body.confirmedBy
+      req.body.notes || `Payment confirmed by ${confirmedByName}`,
+      confirmedByName
     );
 
     // Notify the customer
@@ -485,6 +501,49 @@ router.put('/:id/confirm-payment', authenticate, authorize(...STAFF), [
   } catch (error) {
     console.error('Error confirming payment:', error);
     res.status(500).json({ success: false, message: 'Error confirming payment', error: error.message });
+  }
+});
+
+// Finance: reject a proof of payment (the customer is told why and can upload a new one)
+router.put('/:id/reject-payment', authenticate, authorize('finance'), [
+  param('id').isInt().withMessage('Invalid order ID'),
+  body('reason')
+    .trim()
+    .notEmpty().withMessage('Please give the customer a reason for rejecting the proof')
+    .isLength({ max: 300 }).withMessage('Reason must be 300 characters or less'),
+  handleValidation
+], async (req, res) => {
+  try {
+    const order = await getOrderById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const updatedOrder = await rejectPayment(req.params.id, accountName(req.user), req.body.reason);
+    if (!updatedOrder) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only an order that is pending payment can have its proof rejected'
+      });
+    }
+
+    try {
+      const orderRef = updatedOrder.order_number || order.order_number || ('#' + order.id);
+      await notifyCustomer(order.customer_id, {
+        type: 'payment_rejected',
+        title: 'Proof of payment rejected: ' + orderRef,
+        message: 'Your proof of payment for order ' + orderRef + ' was not accepted. Reason: ' +
+                 req.body.reason + '. Please upload a new proof.',
+        link: '/orders'
+      });
+    } catch (notifyErr) {
+      console.error('Payment-rejected notification failed:', notifyErr);
+    }
+
+    res.json({ success: true, message: 'Proof of payment rejected', data: updatedOrder });
+  } catch (error) {
+    console.error('Error rejecting payment:', error);
+    res.status(500).json({ success: false, message: 'Error rejecting payment', error: error.message });
   }
 });
 

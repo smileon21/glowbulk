@@ -18,6 +18,9 @@ const DEFAULT_CENTER = [-19.0154, 29.1549];
 const DEFAULT_ZOOM = 6;
 const PIN_ZOOM = 15;
 
+// Rough bounding box of Zimbabwe for Photon: minLon, minLat, maxLon, maxLat
+const ZW_BBOX = '25.2,-22.5,33.1,-15.6';
+
 // Click anywhere on the map to move the pin
 function ClickToPin({ onPick }) {
   useMapEvents({
@@ -50,6 +53,7 @@ const MapPicker = ({ value, onChange, onAddress, readOnly = false, height = '320
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [note, setNote] = useState('');
+  const [results, setResults] = useState([]);
   // Only changes when the pin is set by search or GPS, so dragging/clicking does not re-zoom the map
   const [flyTarget, setFlyTarget] = useState(null);
 
@@ -99,27 +103,70 @@ const MapPicker = ({ value, onChange, onAddress, readOnly = false, height = '320
 
   const setPin = function(pos, fly) {
     setNote('');
+    setResults([]);
     onChange(pos);
     if (fly) setFlyTarget(pos);
     lookupAddress(pos);
   };
 
-  // Address search through OpenStreetMap's Nominatim.
-  // Runs only when the user presses Search or Enter (the service allows about 1 request per second).
+  // Place search. Tries OpenStreetMap's Nominatim first (Zimbabwe only, up to 5 matches),
+  // then falls back to Photon, which handles partial and fuzzy names better.
+  // Runs only when the user presses Search or Enter.
   const search = async function() {
     var q = query.trim();
     if (!q) return;
     setSearching(true);
     setNote('');
+    setResults([]);
     try {
-      var url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=zw&q=' +
-        encodeURIComponent(q);
-      var res = await fetch(url, { headers: { Accept: 'application/json' } });
-      var data = await res.json();
-      if (data.length === 0) {
-        setNote('No match found. Try a nearby town or click the map instead.');
+      var found = [];
+
+      // 1) Nominatim
+      try {
+        var r1 = await fetch(
+          'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=zw&q=' +
+            encodeURIComponent(q),
+          { headers: { Accept: 'application/json' } }
+        );
+        if (r1.ok) {
+          var d1 = await r1.json();
+          found = d1.map(function(x) {
+            return { label: x.display_name, lat: parseFloat(x.lat), lng: parseFloat(x.lon) };
+          });
+        }
+      } catch (e) {
+        // fall through to Photon
+      }
+
+      // 2) Photon fallback, limited to a Zimbabwe bounding box
+      if (found.length === 0) {
+        try {
+          var r2 = await fetch(
+            'https://photon.komoot.io/api/?limit=5&bbox=' + ZW_BBOX + '&q=' + encodeURIComponent(q)
+          );
+          if (r2.ok) {
+            var d2 = await r2.json();
+            found = (d2.features || []).map(function(f) {
+              var p = f.properties || {};
+              var label = [p.name, p.street, p.city || p.county, p.state].filter(Boolean).join(', ');
+              return {
+                label: label || 'Unnamed place',
+                lat: f.geometry.coordinates[1],
+                lng: f.geometry.coordinates[0]
+              };
+            });
+          }
+        } catch (e) {
+          // handled below
+        }
+      }
+
+      if (found.length === 0) {
+        setNote('No match found. Try a nearby town or road, or click the map to place the pin.');
+      } else if (found.length === 1) {
+        setPin({ lat: found[0].lat, lng: found[0].lng }, true);
       } else {
-        setPin({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }, true);
+        setResults(found); // let the customer choose
       }
     } catch (err) {
       setNote('Search is unavailable right now. Click the map to place the pin.');
@@ -158,7 +205,7 @@ const MapPicker = ({ value, onChange, onAddress, readOnly = false, height = '320
             type="text"
             className="glow-input"
             style={{ flex: '1 1 220px' }}
-            placeholder="Search a place, e.g. Mvurwi or Samora Machel Ave, Harare"
+            placeholder="Search a town or road, e.g. Mvurwi or Samora Machel Ave"
             value={query}
             onChange={function(e) { setQuery(e.target.value); }}
             onKeyDown={function(e) {
@@ -173,6 +220,25 @@ const MapPicker = ({ value, onChange, onAddress, readOnly = false, height = '320
             Use my location
           </button>
         </div>
+      )}
+
+      {!readOnly && results.length > 0 && (
+        <ul style={{ listStyle: 'none', margin: '0 0 8px', padding: 0 }}>
+          {results.map(function(r, i) {
+            return (
+              <li key={i}>
+                <button
+                  type="button"
+                  className="glow-btn glow-btn-small glow-btn-secondary"
+                  style={{ width: '100%', textAlign: 'left', marginBottom: '4px' }}
+                  onClick={function() { setPin({ lat: r.lat, lng: r.lng }, true); }}
+                >
+                  {r.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       <MapContainer

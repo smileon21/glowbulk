@@ -20,6 +20,7 @@ const notificationRoutes = require('./routes/notification.routes');
 const pushRoutes = require('./routes/push.routes');
 const siteRoutes = require('./routes/site.routes');
 const sitePriceRoutes = require('./routes/sitePrice.routes');
+const financeRoutes = require('./routes/finance.routes');
 
 const app = express();
 
@@ -158,6 +159,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/sites', siteRoutes);
 app.use('/api/site-prices', sitePriceRoutes);
+app.use('/api/finance', financeRoutes);
 
 // =====================================================
 // HOME / API STATUS

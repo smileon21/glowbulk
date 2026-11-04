@@ -4,7 +4,8 @@
 const pool = require('../config/database');
 const webpush = require('web-push');
 
-// Staff roles that receive "staff" notifications
+// Staff roles that receive general "staff" notifications.
+// Finance is NOT here on purpose: use notifyFinance() for finance-only alerts.
 const STAFF_ROLES = ['admin', 'marketing'];
 
 // ---- Web Push setup (uses VAPID keys from .env) ----
@@ -83,15 +84,25 @@ async function notifyUser(payload) {
   return createNotification(payload);
 }
 
-/** Notify every active staff member (admin + marketing). */
-async function notifyStaff({ type, title, message, link = null }) {
+/** Notify every active user who has one of the given roles. */
+async function notifyRoles(roles, { type, title, message, link = null }) {
   const { rows } = await pool.query(
     'SELECT id FROM users WHERE role = ANY($1) AND is_active = TRUE',
-    [STAFF_ROLES]
+    [roles]
   );
   await Promise.all(
     rows.map((u) => notifyUser({ userId: u.id, type, title, message, link }))
   );
+}
+
+/** Notify every active staff member (admin + marketing). */
+async function notifyStaff(payload) {
+  return notifyRoles(STAFF_ROLES, payload);
+}
+
+/** Notify finance only (e.g. "proof of payment uploaded"). */
+async function notifyFinance(payload) {
+  return notifyRoles(['finance'], payload);
 }
 
 /**
@@ -111,7 +122,9 @@ module.exports = {
   STAFF_ROLES,
   createNotification,
   notifyUser,
+  notifyRoles,
   notifyStaff,
+  notifyFinance,
   notifyCustomer,
   sendPushToUser
 };

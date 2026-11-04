@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { formatDate } from '../utils/format';
 import MapPicker from '../components/MapPicker';
+import PaymentDetails from '../components/PaymentDetails';
 
 // A quotation stays valid for this many hours
 const QUOTE_VALIDITY_HOURS = 24;
@@ -807,6 +808,11 @@ const Quotations = () => {
 
             {/* Customers see the 15-minute disclaimer while the quotation is waiting for their answer */}
             {isCustomer && getEffectiveStatus(selectedQuote) === 'sent' && <QuoteDisclaimer />}
+
+            {/* Bank details and tax clearance appear only once the customer has accepted */}
+            {isCustomer && selectedQuote.status === 'accepted' && !selectedQuote.has_order && (
+              <PaymentDetails />
+            )}
 
             <div className="modal-actions">
               {selectedQuote.status === 'draft' && isMarketing && (

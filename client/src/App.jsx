@@ -27,6 +27,10 @@ import Sites from './pages/Sites';
 import DailyPrices from './pages/DailyPrices';
 import TodaysPrices from './pages/TodaysPrices';
 import ActivityLog from './pages/ActivityLog';
+import FinanceDashboard from './pages/FinanceDashboard';
+import FinancePayments from './pages/FinancePayments';
+import PaymentMethods from './pages/PaymentMethods';
+import TaxClearance from './pages/TaxClearance';
 import NotificationBell from './components/NotificationBell';
 import { formatName } from './utils/format';
 
@@ -130,6 +134,16 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         { to: '/accounts', label: 'Accounts' },
         { to: '/sites', label: 'Sites' },
         { to: '/activity-log', label: 'Activity Log' },
+        { to: '/profile', label: 'Profile' },
+        { to: '/security', label: 'Security' },
+      ]
+    : userRole === 'finance'
+    ? [
+        { to: '/dashboard', label: 'Dashboard' },
+        { to: '/finance/payments', label: 'Payments & Invoices' },
+        { to: '/orders', label: 'Orders' },
+        { to: '/finance/payment-methods', label: 'Payment Methods' },
+        { to: '/finance/tax-clearance', label: 'Tax Clearance' },
         { to: '/profile', label: 'Profile' },
         { to: '/security', label: 'Security' },
       ]
@@ -290,7 +304,10 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
           <Route path="/register" element={<Navigate to="/dashboard" replace />} />
 
           {/* Shared by every role: Dashboard shows the IT console or the business view */}
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/dashboard"
+            element={userRole === 'finance' ? <FinanceDashboard /> : <Dashboard />}
+          />
           <Route path="/profile" element={<ProfileRoute />} />
           <Route path="/security" element={<Security />} />
 
@@ -376,6 +393,32 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
             element={
               <RoleProtectedRoute allowedRoles={['marketing']}>
                 <CustomerManagement />
+              </RoleProtectedRoute>
+            }
+          />
+
+          {/* Finance only */}
+          <Route
+            path="/finance/payments"
+            element={
+              <RoleProtectedRoute allowedRoles={['finance']}>
+                <FinancePayments />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/payment-methods"
+            element={
+              <RoleProtectedRoute allowedRoles={['finance']}>
+                <PaymentMethods />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/tax-clearance"
+            element={
+              <RoleProtectedRoute allowedRoles={['finance']}>
+                <TaxClearance />
               </RoleProtectedRoute>
             }
           />
