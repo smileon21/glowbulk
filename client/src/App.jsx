@@ -24,6 +24,7 @@ import Security from './pages/Security';
 import UploadProof from './pages/UploadProof';
 import Accounts from './pages/Accounts';
 import Sites from './pages/Sites';
+import Zones from './pages/Zones';
 import DailyPrices from './pages/DailyPrices';
 import TodaysPrices from './pages/TodaysPrices';
 import ActivityLog from './pages/ActivityLog';
@@ -133,6 +134,7 @@ const Sidebar = ({ userRole, handleLogout, sidebarOpen, setSidebarOpen }) => {
         { to: '/dashboard', label: 'Dashboard' },
         { to: '/accounts', label: 'Accounts' },
         { to: '/sites', label: 'Sites' },
+        { to: '/zones', label: 'Zones' },
         { to: '/activity-log', label: 'Activity Log' },
         { to: '/profile', label: 'Profile' },
         { to: '/security', label: 'Security' },
@@ -325,6 +327,14 @@ const AuthenticatedLayout = ({ userRole, handleLogout, sidebarOpen, setSidebarOp
             element={
               <RoleProtectedRoute allowedRoles={IT_ROLES}>
                 <Sites />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/zones"
+            element={
+              <RoleProtectedRoute allowedRoles={IT_ROLES}>
+                <Zones />
               </RoleProtectedRoute>
             }
           />
