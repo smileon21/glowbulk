@@ -20,7 +20,8 @@ const generateQuotationNumber = () => {
  * 2. Finds a site that has a price today for that fuel and belongs to a city zone
  *    whose radius (measured from the CITY CENTRE) covers the pin. The nearest such
  *    site is used; sites without a price today are skipped.
- * 3. Creates a 'sent' quotation at that price.
+ * 3. Creates a 'sent' quotation at that price, saving the site on the quotation so
+ *    marketing and the customer can see which site it is from.
  *
  * Returns { quotation, site } or null. null means "do it the old way": no pin,
  * no priced site covers the customer, or marketing has not set today's price.
@@ -43,6 +44,7 @@ const tryAutoQuote = async (fuelRequest, { latitude, longitude }) => {
   const quotation = await createQuotation({
     fuelRequestId: fuelRequest.id,
     customerId: fuelRequest.customer_id,
+    siteId: site.site_id,
     quotationNumber: generateQuotationNumber(),
     fuelType: fuelRequest.fuel_type,
     quantity: fuelRequest.quantity,
@@ -65,7 +67,7 @@ const tryAutoQuote = async (fuelRequest, { latitude, longitude }) => {
   notifyCustomer(quotation.customer_id, {
     type: 'quotation_ready',
     title: 'New response from Glow Petroleum',
-    message: `Your quotation ${quotation.quotation_number} is ready. It is valid for ${QUOTE_VALIDITY_HOURS} hours.`,
+    message: `Your quotation ${quotation.quotation_number} is ready (priced at ${site.name}, ${site.city}). It is valid for ${QUOTE_VALIDITY_HOURS} hours.`,
     link: '/quotations'
   }).catch((err) => console.error('Auto quotation notification failed:', err));
 

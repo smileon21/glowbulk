@@ -142,6 +142,13 @@ const Quotations = () => {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  // The site an automatic quotation was priced at, e.g. "Msasa Depot (Harare)".
+  // Empty for manual quotations and for quotations made before sites were saved.
+  var siteLabel = function(quote) {
+    if (!quote || !quote.site_name) return '';
+    return quote.site_city ? quote.site_name + ' (' + quote.site_city + ')' : quote.site_name;
+  };
+
   const handleSubmit = async function(e) {
     e.preventDefault();
     setMessage('');
@@ -772,6 +779,9 @@ const Quotations = () => {
                       <p><strong>Customer:</strong> {customerName(quote)}</p>
                     )}
                     <p><strong>Fuel Type:</strong> {quote.fuel_type}</p>
+                    {siteLabel(quote) && (
+                      <p><strong>Site:</strong> {siteLabel(quote)}</p>
+                    )}
                     <p><strong>Quantity:</strong> {quote.quantity} {quote.unit}</p>
                     <p><strong>Grand Total:</strong> {formatCurrency(quote.grand_total)}</p>
                     {quote.created_by_name && (
@@ -849,6 +859,12 @@ const Quotations = () => {
                 <span className="detail-label">Fuel Type</span>
                 <span className="detail-value">{selectedQuote.fuel_type}</span>
               </div>
+              {siteLabel(selectedQuote) && (
+                <div className="modal-detail-item">
+                  <span className="detail-label">Site</span>
+                  <span className="detail-value">{siteLabel(selectedQuote)}</span>
+                </div>
+              )}
               <div className="modal-detail-item">
                 <span className="detail-label">Quantity</span>
                 <span className="detail-value">{selectedQuote.quantity} {selectedQuote.unit}</span>
@@ -933,136 +949,3 @@ const Quotations = () => {
                   </button>
                   <button className="glow-btn glow-btn-secondary" onClick={function() { rejectQuotation(selectedQuote.id); }}>
                     Reject
-                  </button>
-                </>
-              )}
-
-              {/* Only one of these shows: create the order, or view the one already placed */}
-              {isReadyToOrder(selectedQuote) && (
-                <button className="glow-btn" onClick={function() { handleCreateOrder(selectedQuote.id); }}>
-                  Create Order
-                </button>
-              )}
-
-              {selectedQuote.status === 'accepted' && isCustomer && selectedQuote.has_order && (
-                <button className="glow-btn glow-btn-secondary" onClick={function() { navigate('/orders'); }}>
-                  View Order
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editQuote && (
-        <div className="modal-overlay" onClick={function() { if (!editSaving) setEditQuote(null); }}>
-          <div className="modal-content glow-card" onClick={function(e) { e.stopPropagation(); }}>
-            <div className="modal-header">
-              <h3>Edit {editQuote.quotation_number}</h3>
-              <button className="modal-close" onClick={function() { setEditQuote(null); }}>✕</button>
-            </div>
-
-            <p className="form-hint">
-              {editMinutesLeft(editQuote) > 0
-                ? 'You can edit for ' + editMinutesLeft(editQuote) + ' more minute(s). The customer will be notified of the change.'
-                : 'The edit window has ended. Saving will be refused.'}
-            </p>
-
-            {editQuote.status === 'accepted' && (
-              <div className="error-message">
-                The customer already accepted this quotation. Saving will cancel their acceptance
-                and they will have to accept the new version.
-              </div>
-            )}
-
-            {editError && <div className="error-message">{editError}</div>}
-
-            <form onSubmit={submitEdit}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="glow-label">Unit Price ($ per litre) *</label>
-                  <input
-                    type="number"
-                    name="unitPrice"
-                    className="glow-input"
-                    value={editForm.unitPrice}
-                    onChange={handleEditChange}
-                    required
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="glow-label">Discount (cents per litre)</label>
-                  <input
-                    type="number"
-                    name="discountCents"
-                    className="glow-input"
-                    value={editForm.discountCents}
-                    onChange={handleEditChange}
-                    step="0.01"
-                    min="0"
-                    max="100"
-                  />
-                </div>
-              </div>
-              <span className="form-hint">
-                {(parseFloat(editForm.discountCents) || 0) > 0 && (
-                  <span>Price after discount: <strong>{formatUnitPrice(editNetPrice())}</strong>/litre. </span>
-                )}
-                Total: {formatCurrency(editQuote.grand_total)} →{' '}
-                <strong>{formatCurrency((parseFloat(editQuote.quantity) || 0) * editNetPrice())}</strong>
-                {' '}({editQuote.quantity} {editQuote.unit})
-              </span>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="glow-label">Delivery Terms</label>
-                  <input type="text" name="deliveryTerms" className="glow-input"
-                    value={editForm.deliveryTerms} onChange={handleEditChange} />
-                </div>
-                <div className="form-group">
-                  <label className="glow-label">Payment Terms</label>
-                  <input type="text" name="paymentTerms" className="glow-input"
-                    value={editForm.paymentTerms} onChange={handleEditChange} />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="glow-label">Notes</label>
-                <textarea name="notes" className="glow-input" rows="2"
-                  value={editForm.notes} onChange={handleEditChange} />
-              </div>
-
-              <div className="form-group">
-                <label className="glow-label">Reason for the edit *</label>
-                <input
-                  type="text"
-                  name="reason"
-                  className="glow-input"
-                  value={editForm.reason}
-                  onChange={handleEditChange}
-                  required
-                  placeholder="e.g., Typed 1.05 instead of 1.50"
-                />
-                <span className="form-hint">Saved with your name in the quotation history.</span>
-              </div>
-
-              <div className="modal-actions">
-                <button type="submit" className="glow-btn" disabled={editSaving || !editForm.reason.trim()}>
-                  {editSaving ? 'Saving…' : 'Save changes'}
-                </button>
-                <button type="button" className="glow-btn glow-btn-secondary"
-                  onClick={function() { setEditQuote(null); }} disabled={editSaving}>
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Quotations;

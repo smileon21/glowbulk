@@ -12,6 +12,11 @@ const CREATOR_NAME = `COALESCE(
   'Glow Petroleum'
 ) AS created_by_name`;
 
+// The site a quotation was priced at (automatic quotations only; empty for manual ones).
+// Expects the quotations table as "q" and the sites table as "st".
+const SITE_COLUMNS = `st.name AS site_name, st.city AS site_city`;
+const SITE_JOIN = `LEFT JOIN sites st ON st.id = q.site_id`;
+
 // Price per litre after the discount: list price minus the discount (cents per litre).
 // Example: list 1.50, discount 5 cents -> 1.45
 const computeNetPrice = (listPrice, discountCentsPerLitre) => {
@@ -23,10 +28,12 @@ const computeNetPrice = (listPrice, discountCentsPerLitre) => {
 // Create a new quotation.
 // unitPrice = price per litre AFTER the discount (this is what the customer pays per litre).
 // listPricePerLitre and discountCentsPerLitre are stored so the discount stays visible.
+// siteId (optional) = the site an automatic quotation was priced at.
 const createQuotation = async (quotationData) => {
   const {
     fuelRequestId,
     customerId,
+    siteId = null,
     quotationNumber,
     fuelType,
     quantity,
@@ -51,9 +58,9 @@ const createQuotation = async (quotationData) => {
       unit_price, total_amount, tax_rate, tax_amount, grand_total,
       valid_until, delivery_terms, payment_terms,
       created_by, notes, status, prepared_by,
-      list_price_per_litre, discount_cents_per_litre
+      list_price_per_litre, discount_cents_per_litre, site_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
     RETURNING *
   `;
 
@@ -67,7 +74,7 @@ const createQuotation = async (quotationData) => {
     unitPrice, totalAmount, 0, 0, grandTotal,
     validUntil, deliveryTerms, paymentTerms,
     createdBy, notes, status, preparedBy,
-    listPricePerLitre, discountCentsPerLitre
+    listPricePerLitre, discountCentsPerLitre, siteId
   ];
 
   const result = await pool.query(query, values);
@@ -77,9 +84,10 @@ const createQuotation = async (quotationData) => {
 // Get quotation by ID
 const getQuotationById = async (id) => {
   const result = await pool.query(
-    `SELECT q.*, ${CREATOR_NAME}
+    `SELECT q.*, ${CREATOR_NAME}, ${SITE_COLUMNS}
      FROM quotations q
      LEFT JOIN users cu ON cu.id = q.created_by
+     ${SITE_JOIN}
      WHERE q.id = $1`,
     [id]
   );
@@ -89,9 +97,10 @@ const getQuotationById = async (id) => {
 // Get quotations by customer ID
 const getQuotationsByCustomer = async (customerId) => {
   const result = await pool.query(
-    `SELECT q.*, ${CREATOR_NAME}
+    `SELECT q.*, ${CREATOR_NAME}, ${SITE_COLUMNS}
      FROM quotations q
      LEFT JOIN users cu ON cu.id = q.created_by
+     ${SITE_JOIN}
      WHERE q.customer_id = $1
      ORDER BY q.created_at DESC`,
     [customerId]
@@ -111,16 +120,18 @@ const getAllQuotations = async () => {
   // u = the customer's user (first_name / last_name are the CUSTOMER's name),
   // c = the customer profile (company_name is empty for individuals, so the contact
   //     person's details are returned too),
-  // cu = the staff member who created the quotation (account behind created_by)
+  // cu = the staff member who created the quotation (account behind created_by),
+  // st = the site an automatic quotation was priced at
   const query = `
     SELECT q.*, u.first_name, u.last_name, u.email,
            c.company_name, c.contact_person_name, c.contact_person_phone, c.contact_person_email,
-           fr.fuel_type AS request_fuel_type, ${CREATOR_NAME}
+           fr.fuel_type AS request_fuel_type, ${CREATOR_NAME}, ${SITE_COLUMNS}
     FROM quotations q
     JOIN customers c ON q.customer_id = c.id
     JOIN users u ON c.user_id = u.id
     JOIN fuel_requests fr ON q.fuel_request_id = fr.id
     LEFT JOIN users cu ON cu.id = q.created_by
+    ${SITE_JOIN}
     ORDER BY q.created_at DESC
   `;
   const result = await pool.query(query);
