@@ -1,0 +1,507 @@
+/* ============================================
+   IT DASHBOARD
+   Layout and styling only. Every colour comes from the variables already
+   defined in App.css (so light/dark mode keeps working), and every rule is
+   scoped to .itd-* so the Marketing and Customer dashboards are untouched.
+   ============================================ */
+
+.itd {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  width: 100%;
+}
+
+/* ---------- Top line: date, sits beside the floating bell ---------- */
+
+.itd-topline {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 42px;
+  padding-right: 58px;
+  margin-bottom: -8px;
+}
+
+.itd-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: var(--steel);
+}
+
+.itd-date svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- Welcome banner ---------- */
+
+.itd-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 36px 38px;
+  border-radius: 14px;
+  background: linear-gradient(110deg, var(--navy) 0%, var(--navy-2) 100%);
+  border: 1px solid var(--line-dark);
+  box-shadow: 0 10px 30px rgba(20, 20, 31, 0.18);
+}
+
+/* Station photo fading in from the right (same image the login page uses) */
+.itd-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 62%;
+  background: url('/station-bg.jpeg') center / cover no-repeat;
+  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 55%);
+  z-index: -2;
+}
+
+/* Diagonal accent stripe */
+.itd-hero::after {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 60%;
+  width: 34px;
+  background: var(--red);
+  transform: skewX(-24deg);
+  opacity: 0.9;
+  z-index: -1;
+}
+
+.itd-hero-text {
+  min-width: 0;
+  max-width: 560px;
+}
+
+.itd-hero h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.2px;
+  color: #ffffff;
+}
+
+.itd-hero h1 .itd-name {
+  color: var(--red);
+}
+
+.itd-hero p {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.itd-hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Stat cards ---------- */
+
+.itd-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.itd-stat {
+  --accent: var(--steel);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 22px 26px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(20, 20, 31, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Coloured base bar */
+.itd-stat::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--accent);
+}
+
+.itd-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(20, 20, 31, 0.1);
+}
+
+.itd-stat--green { --accent: var(--green); }
+.itd-stat--steel { --accent: var(--steel); }
+.itd-stat--red   { --accent: var(--red); }
+.itd-stat--amber { --accent: var(--amber); }
+
+.itd-stat-icon {
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.itd-stat-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.itd-stat-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.itd-stat h3 {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--ink);
+}
+
+.itd-stat-figure {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.itd-stat-value {
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.itd-stat-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--steel);
+}
+
+.itd-stat-chip b {
+  margin-left: 4px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.itd-stat-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.itd-stat-link span {
+  color: var(--red);
+  transition: transform 0.18s ease;
+}
+
+.itd-stat-link:hover {
+  color: var(--red);
+}
+
+.itd-stat-link:hover span {
+  transform: translateX(3px);
+}
+
+.itd-stat-link:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ---------- Panels (Needs attention / Recent IT activity) ---------- */
+
+.itd-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.itd-panel {
+  overflow: hidden;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(20, 20, 31, 0.06);
+}
+
+.itd-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: var(--navy);
+  color: #ffffff;
+}
+
+.itd-panel-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #ffffff;
+}
+
+.itd-panel-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.itd-panel-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #ffffff;
+}
+
+.itd-count {
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--red);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Rows */
+.itd-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+
+.itd-row:last-child {
+  border-bottom: none;
+}
+
+.itd-row:hover {
+  background: var(--paper);
+}
+
+.itd-row-icon {
+  --tone: var(--slate);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+
+.itd-row-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.itd-tone-red   { --tone: var(--red); }
+.itd-tone-green { --tone: var(--green); }
+.itd-tone-slate { --tone: var(--slate); }
+.itd-tone-amber { --tone: var(--amber); }
+
+.itd-row-text {
+  min-width: 0;
+}
+
+.itd-row-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.itd-row-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--steel);
+  overflow-wrap: anywhere;
+}
+
+.itd-row-time {
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--steel);
+}
+
+/* Empty states */
+.itd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 22px;
+  text-align: center;
+}
+
+.itd-empty p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--steel);
+}
+
+.itd-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: var(--green-text);
+  background: var(--green-tint);
+}
+
+.itd-empty-icon--neutral {
+  color: var(--steel);
+  background: var(--paper);
+}
+
+.itd-empty-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ---------- Wide screens: 4 stat cards in a row, panels side by side ---------- */
+
+@media (min-width: 1360px) {
+  .itd-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .itd-panels {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  }
+}
+
+/* ---------- Smaller screens ---------- */
+
+@media (max-width: 1100px) {
+  /* The stripe would run behind the heading once the banner is narrow */
+  .itd-hero::after {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  /* On phones/tablets the bell lives in the navy top bar, so the date goes left */
+  .itd-topline {
+    justify-content: flex-start;
+    min-height: 0;
+    padding-right: 0;
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .itd {
+    gap: 20px;
+  }
+
+  .itd-hero {
+    padding: 26px 22px;
+  }
+
+  .itd-hero h1 {
+    font-size: 28px;
+  }
+
+  .itd-hero-actions {
+    width: 100%;
+  }
+
+  .itd-row {
+    padding: 12px 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .itd-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .itd-row {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .itd-row-time {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .itd-stat,
+  .itd-stat-link,
+  .itd-stat-link span,
+  .itd-row {
+    transition: none;
+  }
+
+  .itd-stat:hover {
+    transform: none;
+  }
+}
