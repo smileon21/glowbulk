@@ -14,18 +14,15 @@ function actionLabel(action) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-// Picks an icon and colour for a log entry from its action name.
-// Anything it does not recognise falls back to a neutral "activity" icon.
-function entryKind(action) {
+// Dot colour for a log entry, picked from its action name
+function entryTone(action) {
   const a = String(action || '').toUpperCase();
-  if (a.includes('UNBLOCK') || a.includes('UNLOCK')) return { icon: 'unlock', tone: 'green' };
-  if (a.includes('BLOCK') || a.includes('LOCK') || a.includes('DEACTIVAT')) return { icon: 'lock', tone: 'red' };
-  if (a.includes('PASSWORD') || a.includes('RESET')) return { icon: 'key', tone: 'slate' };
-  if (a.includes('CREATE') || a.includes('REGISTER')) return { icon: 'userPlus', tone: 'green' };
-  return { icon: 'activity', tone: 'slate' };
+  if (a.includes('UNBLOCK') || a.includes('UNLOCK') || a.includes('CREATE') || a.includes('REGISTER')) return 'green';
+  if (a.includes('BLOCK') || a.includes('LOCK') || a.includes('DEACTIVAT') || a.includes('FAILED')) return 'red';
+  return 'slate';
 }
 
-// Small inline icon set (same stroke style as the rest of the app)
+// Small inline icon set (same stroke style as the Marketing dashboard)
 const ICON_PATHS = {
   users: (
     <>
@@ -55,12 +52,6 @@ const ICON_PATHS = {
       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </>
   ),
-  unlock: (
-    <>
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-    </>
-  ),
   alert: (
     <>
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -75,16 +66,15 @@ const ICON_PATHS = {
       <polyline points="22 4 12 14.01 9 11.01" />
     </>
   ),
-  key: <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />,
   activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
-  calendar: (
+  bolt: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+  arrow: (
     <>
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
     </>
-  )
+  ),
+  chevron: <polyline points="9 18 15 12 9 6" />
 };
 
 const Icon = ({ name }) => (
@@ -92,6 +82,36 @@ const Icon = ({ name }) => (
     {ICON_PATHS[name]}
   </svg>
 );
+
+// One stat tile. Clickable (a button) when it has an onClick, otherwise static.
+const Tile = ({ tone, icon, label, number, sub, link, onClick }) => {
+  const inner = (
+    <>
+      <div className="itd-tile-top">
+        <span className={'itd-tile-icon itd-tone-' + tone}><Icon name={icon} /></span>
+        <div className="itd-tile-body">
+          <span className="itd-tile-label">{label}</span>
+          <span className="itd-tile-number">{number}</span>
+          <span className="itd-tile-sub">{sub}</span>
+        </div>
+      </div>
+      {link && (
+        <span className="itd-tile-link">
+          {link} <span className="itd-arrow"><Icon name="arrow" /></span>
+        </span>
+      )}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" className={'itd-tile itd-edge-' + tone} onClick={onClick}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={'itd-tile itd-tile-static itd-edge-' + tone}>{inner}</div>;
+};
 
 const ITDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -137,120 +157,67 @@ const ITDashboard = () => {
   if (loading) return <div className="loading">Loading manifest...</div>;
 
   const staffCount = itStats.admins + itStats.marketing + itStats.pricing + itStats.finance;
-  const today = new Date().toLocaleDateString('en-GB', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
-  });
 
   return (
     <div className="itd">
-      {/* Date sits beside the notification bell */}
-      <div className="itd-topline">
-        <span className="itd-date"><Icon name="calendar" />{today}</span>
-      </div>
-
-      {/* Welcome banner */}
-      <header className="itd-hero">
-        <div className="itd-hero-text">
-          <h1>
-            Welcome, <span className="itd-name">{userName}</span> <span aria-hidden="true">👋</span>
-          </h1>
+      {/* Welcome heading */}
+      <div className="itd-hero">
+        <span className="itd-hero-bar" aria-hidden="true" />
+        <div>
+          <h1>Welcome, <span className="itd-accent">{userName}</span></h1>
           <p>IT console — staff accounts, access and the activity trail</p>
         </div>
-        <div className="itd-hero-actions">
-          <button className="request-cta" onClick={() => navigate(ACCOUNTS_ROUTE)}>
-            <span className="request-cta-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <line x1="19" y1="8" x2="19" y2="14" />
-                <line x1="16" y1="11" x2="22" y2="11" />
-              </svg>
-            </span>
-            <span className="request-cta-text">
-              <span className="request-cta-title">Manage Accounts</span>
-              <span className="request-cta-sub">Create, reset and block</span>
-            </span>
-            <span className="request-cta-arrow" aria-hidden="true">→</span>
-          </button>
-        </div>
-      </header>
+      </div>
 
       {error && <div className="error-message">{error}</div>}
 
-      {/* Stat cards */}
-      <section className="itd-stats">
-        <div className="itd-stat itd-stat--green">
-          <span className="itd-stat-icon"><Icon name="users" /></span>
-          <div className="itd-stat-body">
-            <h3>Staff Accounts</h3>
-            <div className="itd-stat-figure">
-              <span className="itd-stat-value">{staffCount}</span>
-              <span className="itd-stat-chip">Total</span>
-            </div>
-            <button className="itd-stat-link" onClick={() => navigate(ACCOUNTS_ROUTE)}>
-              Manage <span>→</span>
-            </button>
-          </div>
-        </div>
+      {/* Stat tiles */}
+      <div className="itd-tiles">
+        <Tile
+          tone="navy" icon="users" label="Staff Accounts" number={staffCount} sub="Total"
+          link="Manage Accounts" onClick={() => navigate(ACCOUNTS_ROUTE)}
+        />
+        <Tile
+          tone="navy" icon="user" label="Customers" number={itStats.customers} sub="Total"
+        />
+        <Tile
+          tone="red" icon="lock" label="Blocked Accounts" number={itStats.blockedUsers}
+          sub={'Locked now ' + itStats.lockedUsers}
+          link="Review Accounts" onClick={() => navigate(ACCOUNTS_ROUTE)}
+        />
+        <Tile
+          tone="red" icon="alert" label="Failed Sign-ins" number={itStats.failedLogins24h} sub="Last 24 hours"
+        />
+      </div>
 
-        <div className="itd-stat itd-stat--steel">
-          <span className="itd-stat-icon"><Icon name="user" /></span>
-          <div className="itd-stat-body">
-            <h3>Customers</h3>
-            <div className="itd-stat-figure">
-              <span className="itd-stat-value">{itStats.customers}</span>
-              <span className="itd-stat-chip">Total</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="itd-stat itd-stat--red">
-          <span className="itd-stat-icon"><Icon name="lock" /></span>
-          <div className="itd-stat-body">
-            <h3>Blocked Accounts</h3>
-            <div className="itd-stat-figure">
-              <span className="itd-stat-value">{itStats.blockedUsers}</span>
-              <span className="itd-stat-chip">Locked now <b>{itStats.lockedUsers}</b></span>
-            </div>
-            <button className="itd-stat-link" onClick={() => navigate(ACCOUNTS_ROUTE)}>
-              Review <span>→</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="itd-stat itd-stat--amber">
-          <span className="itd-stat-icon"><Icon name="alert" /></span>
-          <div className="itd-stat-body">
-            <h3>Failed Sign-ins</h3>
-            <div className="itd-stat-figure">
-              <span className="itd-stat-value">{itStats.failedLogins24h}</span>
-              <span className="itd-stat-chip">Last 24 hours</span>
+      {/* Needs attention + Quick actions */}
+      <div className="itd-columns">
+        <section className="itd-card">
+          <div className="itd-card-head">
+            <span className="itd-card-bar" aria-hidden="true" />
+            <span className="itd-card-icon"><Icon name="shield" /></span>
+            <div className="itd-card-title">
+              <h3>Needs attention</h3>
+              {flagged.length > 0 && (
+                <p>{flagged.length} account{flagged.length === 1 ? '' : 's'} flagged</p>
+              )}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Needs attention + Recent IT activity */}
-      <section className="itd-panels">
-        <div className="itd-panel">
-          <div className="itd-panel-head">
-            <span className="itd-panel-icon"><Icon name="shield" /></span>
-            <h2>Needs attention</h2>
-            {flagged.length > 0 && <span className="itd-count">{flagged.length}</span>}
-          </div>
-          <div className="itd-panel-body">
-            {flagged.length === 0 ? (
-              <div className="itd-empty">
-                <span className="itd-empty-icon"><Icon name="checkCircle" /></span>
-                <p>No suspicious sign-in activity right now.</p>
-              </div>
-            ) : (
-              flagged.map((account) => (
+          {flagged.length === 0 ? (
+            <div className="itd-empty">
+              <span className="itd-empty-icon"><Icon name="checkCircle" /></span>
+              <strong>All clear</strong>
+              <p>No suspicious sign-in activity right now.</p>
+            </div>
+          ) : (
+            <div className="itd-list">
+              {flagged.map((account) => (
                 <div key={account.id} className="itd-row">
-                  <span className="itd-row-icon itd-tone-red"><Icon name="alert" /></span>
+                  <span className="itd-dot itd-dot-red" aria-hidden="true" />
                   <span className="itd-row-text">
-                    <span className="itd-row-title">{account.name || account.email} ({account.email})</span>
-                    <span className="itd-row-detail">
+                    <strong>{account.name || account.email} ({account.email})</strong>
+                    <span>
                       {account.failed_login_attempts} failed sign-ins
                       {account.is_locked ? ' · locked' : ''}
                       {account.is_active === false ? ' · blocked' : ''}
@@ -260,44 +227,67 @@ const ITDashboard = () => {
                     {account.last_failed_login ? formatTimeAgo(account.last_failed_login) : ''}
                   </span>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="itd-card">
+          <div className="itd-card-head">
+            <span className="itd-card-bar" aria-hidden="true" />
+            <span className="itd-card-icon"><Icon name="bolt" /></span>
+            <div className="itd-card-title">
+              <h3>Quick Actions</h3>
+            </div>
+          </div>
+          <div className="itd-actions">
+            <button type="button" className="itd-action" onClick={() => navigate(ACCOUNTS_ROUTE)}>
+              <span className="itd-action-icon itd-tone-red"><Icon name="userPlus" /></span>
+              <span className="itd-action-text">
+                <strong>Manage Accounts</strong>
+                <span>Create, reset and block</span>
+              </span>
+              <span className="itd-action-chevron"><Icon name="chevron" /></span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      {/* Recent IT activity */}
+      <section className="itd-card">
+        <div className="itd-card-head">
+          <span className="itd-card-bar" aria-hidden="true" />
+          <span className="itd-card-icon"><Icon name="activity" /></span>
+          <div className="itd-card-title">
+            <h3>Recent IT activity</h3>
           </div>
         </div>
 
-        <div className="itd-panel">
-          <div className="itd-panel-head">
-            <span className="itd-panel-icon"><Icon name="activity" /></span>
-            <h2>Recent IT activity</h2>
+        {itLog.length === 0 ? (
+          <div className="itd-empty">
+            <span className="itd-empty-icon itd-empty-icon--neutral"><Icon name="activity" /></span>
+            <strong>No activity yet</strong>
+            <p>No activity recorded yet. Account actions will show up here.</p>
           </div>
-          <div className="itd-panel-body">
-            {itLog.length === 0 ? (
-              <div className="itd-empty">
-                <span className="itd-empty-icon itd-empty-icon--neutral"><Icon name="activity" /></span>
-                <p>No activity recorded yet. Account actions will show up here.</p>
+        ) : (
+          <div className="itd-list">
+            {itLog.map((entry) => (
+              <div key={entry.id} className="itd-row">
+                <span className={'itd-dot itd-dot-' + entryTone(entry.action)} aria-hidden="true" />
+                <span className="itd-row-text">
+                  <strong>
+                    {actionLabel(entry.action)}
+                    {entry.actor_name ? ' by ' + entry.actor_name : ''}
+                  </strong>
+                  {entry.details && <span>{entry.details}</span>}
+                </span>
+                <span className="itd-row-time" title={formatDate(entry.created_at)}>
+                  {formatTimeAgo(entry.created_at)}
+                </span>
               </div>
-            ) : (
-              itLog.map((entry) => {
-                const kind = entryKind(entry.action);
-                return (
-                  <div key={entry.id} className="itd-row">
-                    <span className={'itd-row-icon itd-tone-' + kind.tone}><Icon name={kind.icon} /></span>
-                    <span className="itd-row-text">
-                      <span className="itd-row-title">
-                        {actionLabel(entry.action)}
-                        {entry.actor_name ? ' by ' + entry.actor_name : ''}
-                      </span>
-                      {entry.details && <span className="itd-row-detail">{entry.details}</span>}
-                    </span>
-                    <span className="itd-row-time" title={formatDate(entry.created_at)}>
-                      {formatTimeAgo(entry.created_at)}
-                    </span>
-                  </div>
-                );
-              })
-            )}
+            ))}
           </div>
-        </div>
+        )}
       </section>
     </div>
   );
