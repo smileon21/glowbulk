@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const {
   EDIT_WINDOW_MINUTES,
+  computeNetPrice,
   createQuotation,
   getQuotationById,
   getQuotationsByCustomer,
@@ -119,10 +120,15 @@ const notifyQuotationResponse = (quotation, customer, accepted) => {
   }).catch((err) => console.error('Quotation response notification failed:', err));
 };
 
-// Marketing: Create quotation
+// Marketing: Create quotation.
+// unitPrice is the LIST price per litre; discountCentsPerLitre (optional) is taken off it.
 router.post('/', authenticate, authorize('marketing'), [
   body('fuelRequestId').isNumeric().withMessage('Fuel request ID is required'),
-  body('unitPrice').isNumeric().withMessage('Unit price is required'),
+  body('unitPrice').isFloat({ gt: 0 }).withMessage('Unit price must be greater than 0'),
+  body('discountCentsPerLitre')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Discount must be between 0 and 100 cents per litre'),
   body('preparedBy')
     .trim()
     .notEmpty().withMessage('Please enter the name of the person who prepared this quotation')
@@ -148,10 +154,21 @@ router.post('/', authenticate, authorize('marketing'), [
 
     // ==========================================
     // PRICING — no tax, no grand total
+    // The server does the maths: price after discount, then total.
     // ==========================================
     const quantity = parseFloat(fuelRequest.quantity) || 0;
-    const unitPrice = parseFloat(req.body.unitPrice) || 0;
-    const totalAmount = quantity * unitPrice;
+    const listPrice = parseFloat(req.body.unitPrice) || 0;
+    const discountCents = parseFloat(req.body.discountCentsPerLitre) || 0;
+    const unitPrice = computeNetPrice(listPrice, discountCents);
+
+    if (!(unitPrice > 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'The price after discount must be greater than 0. Check the price and the discount.'
+      });
+    }
+
+    const totalAmount = Math.round(quantity * unitPrice * 100) / 100;
 
     // Validity is always 24 hours: the server sets it, staff don't pick a date.
     // (The exact moment comes from sent_at / expires_at in the database.)
@@ -166,7 +183,9 @@ router.post('/', authenticate, authorize('marketing'), [
       fuelType: fuelRequest.fuel_type,
       quantity: fuelRequest.quantity,
       unit: fuelRequest.unit,
-      unitPrice: unitPrice,
+      unitPrice: unitPrice,                 // price per litre after the discount
+      listPricePerLitre: listPrice,
+      discountCentsPerLitre: discountCents,
       totalAmount: totalAmount,
       validUntil: validUntil,
       deliveryTerms: req.body.deliveryTerms,
@@ -253,8 +272,13 @@ router.get('/all', authenticate, authorize(...STAFF), async (req, res) => {
 
 // Marketing: edit a sent or accepted quotation within the 15-minute window.
 // Editing an accepted quotation cancels the acceptance (customer must accept again).
+// unitPrice is the LIST price per litre; discountCentsPerLitre is taken off it.
 router.put('/:id/edit', authenticate, authorize('marketing'), [
   body('unitPrice').isFloat({ gt: 0 }).withMessage('Unit price must be greater than 0'),
+  body('discountCentsPerLitre')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Discount must be between 0 and 100 cents per litre'),
   body('reason').trim().notEmpty().withMessage('A reason for the edit is required')
 ], async (req, res) => {
   try {
@@ -263,13 +287,22 @@ router.put('/:id/edit', authenticate, authorize('marketing'), [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
+    const net = computeNetPrice(req.body.unitPrice, req.body.discountCentsPerLitre);
+    if (!(net > 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'The price after discount must be greater than 0. Check the price and the discount.'
+      });
+    }
+
     const editor = {
       id: req.user.id,
       name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
     };
 
     const result = await editSentQuotation(req.params.id, {
-      unitPrice: req.body.unitPrice,
+      listPrice: req.body.unitPrice,
+      discountCentsPerLitre: req.body.discountCentsPerLitre,
       deliveryTerms: req.body.deliveryTerms,
       paymentTerms: req.body.paymentTerms,
       notes: req.body.notes,
@@ -277,7 +310,7 @@ router.put('/:id/edit', authenticate, authorize('marketing'), [
     }, editor);
 
     if (!result.ok) {
-      const status = result.code === 'NOT_FOUND' ? 404 : 409;
+      const status = result.code === 'NOT_FOUND' ? 404 : result.code === 'INVALID_PRICE' ? 400 : 409;
       return res.status(status).json({ success: false, code: result.code, message: result.message });
     }
 

@@ -12,7 +12,17 @@ const CREATOR_NAME = `COALESCE(
   'Glow Petroleum'
 ) AS created_by_name`;
 
-// Create a new quotation
+// Price per litre after the discount: list price minus the discount (cents per litre).
+// Example: list 1.50, discount 5 cents -> 1.45
+const computeNetPrice = (listPrice, discountCentsPerLitre) => {
+  const list = Number(listPrice) || 0;
+  const discount = Number(discountCentsPerLitre) || 0;
+  return Math.round((list - discount / 100) * 10000) / 10000;
+};
+
+// Create a new quotation.
+// unitPrice = price per litre AFTER the discount (this is what the customer pays per litre).
+// listPricePerLitre and discountCentsPerLitre are stored so the discount stays visible.
 const createQuotation = async (quotationData) => {
   const {
     fuelRequestId,
@@ -22,6 +32,8 @@ const createQuotation = async (quotationData) => {
     quantity,
     unit,
     unitPrice,
+    listPricePerLitre,
+    discountCentsPerLitre = 0,
     totalAmount, // Subtotal
     validUntil,
     deliveryTerms,
@@ -38,9 +50,10 @@ const createQuotation = async (quotationData) => {
       fuel_type, quantity, unit,
       unit_price, total_amount, tax_rate, tax_amount, grand_total,
       valid_until, delivery_terms, payment_terms,
-      created_by, notes, status, prepared_by
+      created_by, notes, status, prepared_by,
+      list_price_per_litre, discount_cents_per_litre
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
     RETURNING *
   `;
 
@@ -53,7 +66,8 @@ const createQuotation = async (quotationData) => {
     fuelType, quantity, unit,
     unitPrice, totalAmount, 0, 0, grandTotal,
     validUntil, deliveryTerms, paymentTerms,
-    createdBy, notes, status, preparedBy
+    createdBy, notes, status, preparedBy,
+    listPricePerLitre, discountCentsPerLitre
   ];
 
   const result = await pool.query(query, values);
@@ -185,7 +199,8 @@ const updateQuotation = async (id, quotationData) => {
 // Everything happens in one transaction with the row locked, so an edit and a
 // customer accepting at the same moment can never both succeed.
 //
-// editor = { id, name }, data = { unitPrice, deliveryTerms, paymentTerms, notes, reason }
+// editor = { id, name }
+// data = { listPrice, discountCentsPerLitre, deliveryTerms, paymentTerms, notes, reason }
 // Returns { ok: true, quotation, previous, version, wasAccepted }
 //      or { ok: false, code, message }
 const editSentQuotation = async (id, data, editor) => {
@@ -245,6 +260,23 @@ const editSentQuotation = async (id, data, editor) => {
       }
     }
 
+    // The server does the maths: price after discount, then total.
+    // Quantity comes from the customer's request and is not editable.
+    const newList = Number(data.listPrice);
+    const newDiscount = Number(data.discountCentsPerLitre) || 0;
+    const newUnitPrice = computeNetPrice(newList, newDiscount);
+
+    if (!(newList > 0) || newDiscount < 0 || !(newUnitPrice > 0)) {
+      await client.query('ROLLBACK');
+      return {
+        ok: false,
+        code: 'INVALID_PRICE',
+        message: 'The price after discount must be greater than 0. Check the price and the discount.'
+      };
+    }
+
+    const newTotal = Math.round(Number(q.quantity) * newUnitPrice * 100) / 100;
+
     // First edit ever: save the original as version 1 so history is complete
     const hasVersions = await client.query(
       'SELECT 1 FROM quotation_versions WHERE quotation_id = $1 LIMIT 1',
@@ -268,9 +300,6 @@ const editSentQuotation = async (id, data, editor) => {
       );
     }
 
-    // The server does the maths. Quantity comes from the customer's request and is not editable.
-    const newUnitPrice = Number(data.unitPrice);
-    const newTotal = Number(q.quantity) * newUnitPrice;
     const newDelivery = data.deliveryTerms !== undefined ? data.deliveryTerms : q.delivery_terms;
     const newPayment = data.paymentTerms !== undefined ? data.paymentTerms : q.payment_terms;
     const newNotes = data.notes !== undefined ? data.notes : q.notes;
@@ -279,6 +308,8 @@ const editSentQuotation = async (id, data, editor) => {
 
     const previous = {
       unit_price: q.unit_price,
+      list_price_per_litre: q.list_price_per_litre,
+      discount_cents_per_litre: q.discount_cents_per_litre,
       total_amount: q.total_amount,
       delivery_terms: q.delivery_terms,
       payment_terms: q.payment_terms,
@@ -311,6 +342,8 @@ const editSentQuotation = async (id, data, editor) => {
            payment_terms = $4,
            notes = $5,
            current_version = $6,
+           list_price_per_litre = $8,
+           discount_cents_per_litre = $9,
            status = 'sent',
            accepted_date = NULL,
            accepted_version = NULL,
@@ -319,7 +352,7 @@ const editSentQuotation = async (id, data, editor) => {
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $7
        RETURNING *`,
-      [newUnitPrice, newTotal, newDelivery, newPayment, newNotes, nextVersion, q.id]
+      [newUnitPrice, newTotal, newDelivery, newPayment, newNotes, nextVersion, q.id, newList, newDiscount]
     );
 
     await client.query('COMMIT');
@@ -364,6 +397,7 @@ const getQuotationVersions = async (quotationId) => {
 
 module.exports = {
   EDIT_WINDOW_MINUTES,
+  computeNetPrice,
   createQuotation,
   getQuotationById,
   getQuotationsByCustomer,

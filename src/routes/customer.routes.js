@@ -11,7 +11,8 @@ const {
   updateCustomerProfile,
   verifyCustomer,
   rejectCustomer,
-  updateCustomerDiscount
+  updateCustomerDiscount,
+  updateCustomerGetsDiscount
 } = require('../models/customer.model');
 const { logActivity } = require('../utils/activityLog');
 
@@ -181,11 +182,10 @@ router.get('/:id', authenticate, authorize(...STAFF), async (req, res) => {
   }
 });
 
-// Marketing: approve a customer, set category and discount (cents per litre)
+// Marketing: approve a customer, set category and whether they get discounts
 router.post('/:id/verify', authenticate, authorize('marketing'), [
   body('category').isIn(['regular', 'long_term']).withMessage('Invalid category'),
-  body('discountCentsPerLitre').isFloat({ min: 0, max: 100 })
-    .withMessage('Discount must be between 0 and 100 cents per litre')
+  body('getsDiscount').isBoolean().withMessage('Choose whether this customer gets discounts').toBoolean()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -200,7 +200,7 @@ router.post('/:id/verify', authenticate, authorize('marketing'), [
 
     const customer = await verifyCustomer(req.params.id, {
       category: req.body.category,
-      discountCentsPerLitre: req.body.discountCentsPerLitre,
+      getsDiscount: req.body.getsDiscount,
       verifiedBy: req.user.id
     });
 
@@ -213,7 +213,7 @@ router.post('/:id/verify', authenticate, authorize('marketing'), [
       newValues: {
         verification_status: 'verified',
         category: customer.category,
-        discount_cents_per_litre: customer.discount_cents_per_litre
+        gets_discount: customer.gets_discount
       },
       details: `Verified ${customerLabel(customer)}`,
       ip: req.ip
@@ -266,7 +266,7 @@ router.post('/:id/reject', authenticate, authorize('marketing'), [
   }
 });
 
-// Marketing: change a verified customer's discount later
+// Marketing: change a verified customer's old per-customer discount (kept so nothing breaks)
 router.put('/:id/discount', authenticate, authorize('marketing'), [
   body('discountCentsPerLitre').isFloat({ min: 0, max: 100 })
     .withMessage('Discount must be between 0 and 100 cents per litre')
@@ -299,6 +299,41 @@ router.put('/:id/discount', authenticate, authorize('marketing'), [
   } catch (error) {
     console.error('Error changing discount:', error);
     res.status(500).json({ success: false, message: 'Error changing discount' });
+  }
+});
+
+// Marketing: change later whether a verified customer gets discounts
+router.put('/:id/gets-discount', authenticate, authorize('marketing'), [
+  body('getsDiscount').isBoolean().withMessage('Choose yes or no').toBoolean()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: errors.array()[0].msg });
+    }
+
+    const before = await getCustomerById(req.params.id);
+    if (!before) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+
+    const customer = await updateCustomerGetsDiscount(req.params.id, req.body.getsDiscount);
+
+    await logActivity({
+      actor: req.user,
+      action: 'CUSTOMER_DISCOUNT_STATUS_CHANGED',
+      targetType: 'customer',
+      targetId: customer.id,
+      oldValues: { gets_discount: before.gets_discount },
+      newValues: { gets_discount: customer.gets_discount },
+      details: `Discount status changed for ${customerLabel(customer)}`,
+      ip: req.ip
+    });
+
+    res.json({ success: true, data: customer });
+  } catch (error) {
+    console.error('Error changing discount status:', error);
+    res.status(500).json({ success: false, message: 'Error changing discount status' });
   }
 });
 

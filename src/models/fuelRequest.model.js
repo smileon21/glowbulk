@@ -64,7 +64,7 @@ const getFuelRequestById = async (id) => {
 const getAllFuelRequests = async () => {
   const query = `
     SELECT fr.*, u.first_name, u.last_name, u.email,
-           c.company_name, c.account_type, c.category, c.discount_cents_per_litre,
+           c.company_name, c.account_type, c.category, c.gets_discount,
            c.contact_person_name, c.contact_person_email, c.contact_person_phone,
            c.billing_address
     FROM fuel_requests fr

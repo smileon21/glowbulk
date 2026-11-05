@@ -299,21 +299,22 @@ const updateCustomer = async (id, customerData) => {
   }
 };
 
-// Marketing approves a customer and sets category + discount (cents per litre)
-const verifyCustomer = async (id, { category, discountCentsPerLitre, verifiedBy }) => {
+// Marketing approves a customer and sets category + whether they get discounts.
+// The discount amount itself is typed by marketing on each manual quotation.
+const verifyCustomer = async (id, { category, getsDiscount, verifiedBy }) => {
   try {
     const result = await pool.query(
       `UPDATE customers
        SET verification_status = 'verified',
            category = $1,
-           discount_cents_per_litre = $2,
+           gets_discount = $2,
            verified_by = $3,
            verified_at = CURRENT_TIMESTAMP,
            rejection_reason = NULL,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $4
        RETURNING *`,
-      [category, discountCentsPerLitre, verifiedBy, id]
+      [category, getsDiscount, verifiedBy, id]
     );
     return result.rows[0];
   } catch (error) {
@@ -343,7 +344,7 @@ const rejectCustomer = async (id, { reason, rejectedBy }) => {
   }
 };
 
-// Change a customer's discount later
+// Change a customer's discount later (old per-customer discount, kept so nothing breaks)
 const updateCustomerDiscount = async (id, discountCentsPerLitre) => {
   try {
     const result = await pool.query(
@@ -360,6 +361,23 @@ const updateCustomerDiscount = async (id, discountCentsPerLitre) => {
   }
 };
 
+// Change later whether a customer gets discounts (manual quotes) or not (automatic quotes)
+const updateCustomerGetsDiscount = async (id, getsDiscount) => {
+  try {
+    const result = await pool.query(
+      `UPDATE customers
+       SET gets_discount = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING *`,
+      [getsDiscount, id]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Database error in updateCustomerGetsDiscount:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   createCustomer,
   createCustomerFromRegistration,
@@ -371,5 +389,6 @@ module.exports = {
   updateCustomer,
   verifyCustomer,
   rejectCustomer,
-  updateCustomerDiscount
+  updateCustomerDiscount,
+  updateCustomerGetsDiscount
 };

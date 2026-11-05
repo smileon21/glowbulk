@@ -30,7 +30,7 @@ const CustomerVerification = () => {
 
   // Decision form
   const [category, setCategory] = useState('regular');
-  const [discount, setDiscount] = useState('0');
+  const [getsDiscount, setGetsDiscount] = useState('no');
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -59,7 +59,7 @@ const CustomerVerification = () => {
 
   const resetDecisionForm = () => {
     setCategory('regular');
-    setDiscount('0');
+    setGetsDiscount('no');
     setRejecting(false);
     setRejectReason('');
   };
@@ -81,12 +81,6 @@ const CustomerVerification = () => {
   const handleApprove = async () => {
     if (!selected || saving) return;
 
-    const cents = Number(discount);
-    if (discount === '' || Number.isNaN(cents) || cents < 0 || cents > 100) {
-      setError('Enter a discount between 0 and 100 cents per litre.');
-      return;
-    }
-
     setSaving(true);
     setError('');
     setMessage('');
@@ -94,7 +88,7 @@ const CustomerVerification = () => {
     try {
       const response = await axios.post(
         API_BASE_URL + '/api/customers/' + selected.id + '/verify',
-        { category, discountCentsPerLitre: cents },
+        { category, getsDiscount: getsDiscount === 'yes' },
         authHeaders()
       );
 
@@ -149,7 +143,7 @@ const CustomerVerification = () => {
         <h2>Verify Customers</h2>
       </div>
       <p className="sub-text">
-        Check each new registration, then approve it with a category and discount, or reject it.
+        Check each new registration, then approve it with a category and discount option, or reject it.
       </p>
 
       {message && <div className="success-message">{message}</div>}
@@ -246,18 +240,17 @@ const CustomerVerification = () => {
                       </div>
 
                       <div className="form-group">
-                        <label className="glow-label">Discount (cents per litre)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
+                        <label className="glow-label">Gets discounts?</label>
+                        <select
                           className="glow-input"
-                          value={discount}
-                          onChange={(e) => setDiscount(e.target.value)}
-                        />
+                          value={getsDiscount}
+                          onChange={(e) => setGetsDiscount(e.target.value)}
+                        >
+                          <option value="no">No - automatic quotes</option>
+                          <option value="yes">Yes - manual quotes</option>
+                        </select>
                         <span className="form-hint">
-                          Deducted from the day's price on every quote. Use 0 for no discount.
+                          Discounted customers are quoted by marketing, who enter the discount on each quote.
                         </span>
                       </div>
                     </div>

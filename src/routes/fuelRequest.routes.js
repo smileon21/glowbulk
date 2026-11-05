@@ -55,19 +55,25 @@ router.post('/', authenticate, authorize('customer'), [
       unit: 'Liters' // quantity is always in liters
     });
 
+    // Customers marked "gets discounts" are never quoted automatically:
+    // their request stays 'pending' and marketing quotes it by hand, typing the discount.
+    const isDiscountedCustomer = customer.gets_discount === true;
+
     // Automatic quotation: if a site with a price set today covers the delivery pin,
     // the quotation is created and sent straight away. Otherwise (no price today, or
     // the customer is outside every priced site's zone) the request stays 'pending'
     // and marketing quotes it the old way. A failure here never blocks the request.
     let auto = null;
-    try {
-      auto = await tryAutoQuote(fuelRequest, {
-        latitude: req.body.deliveryLatitude,
-        longitude: req.body.deliveryLongitude
-      });
-      if (auto) fuelRequest.status = 'quoted';
-    } catch (err) {
-      console.error('Auto quotation failed, falling back to manual:', err);
+    if (!isDiscountedCustomer) {
+      try {
+        auto = await tryAutoQuote(fuelRequest, {
+          latitude: req.body.deliveryLatitude,
+          longitude: req.body.deliveryLongitude
+        });
+        if (auto) fuelRequest.status = 'quoted';
+      } catch (err) {
+        console.error('Auto quotation failed, falling back to manual:', err);
+      }
     }
 
     // Tell staff about the new request.
@@ -78,7 +84,8 @@ router.post('/', authenticate, authorize('customer'), [
       type: 'fuel_request_created',
       title: isUrgent ? 'URGENT fuel request' : 'New fuel request',
       message: who + ' requested ' + Number(fuelRequest.quantity).toLocaleString() + ' liters of ' + fuelRequest.fuel_type + '.' +
-        (auto ? ' An automatic quotation ' + auto.quotation.quotation_number + ' was sent.' : ''),
+        (auto ? ' An automatic quotation ' + auto.quotation.quotation_number + ' was sent.' : '') +
+        (isDiscountedCustomer ? ' Discounted customer: needs a manual quotation.' : ''),
       link: '/fuel-requests'
     }).catch(function(err) {
       console.error('Fuel request notification failed:', err);
@@ -154,7 +161,7 @@ router.get('/available-for-quote', authenticate, authorize(...STAFF), async (req
   try {
     const query = `
       SELECT fr.*, u.first_name, u.last_name, u.email,
-             c.company_name, c.account_type, c.category, c.discount_cents_per_litre,
+             c.company_name, c.account_type, c.category, c.gets_discount,
              c.contact_person_name, c.contact_person_email, c.contact_person_phone,
              c.billing_address
       FROM fuel_requests fr

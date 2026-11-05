@@ -38,9 +38,10 @@ const Quotations = () => {
   const [now, setNow] = useState(Date.now());
 
   // Edit-modal state (Marketing only)
+  // unitPrice here is the LIST price per litre; discountCents is taken off it
   const [editQuote, setEditQuote] = useState(null);
   const [editForm, setEditForm] = useState({
-    unitPrice: '', deliveryTerms: '', paymentTerms: '', notes: '', reason: ''
+    unitPrice: '', discountCents: '', deliveryTerms: '', paymentTerms: '', notes: '', reason: ''
   });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
@@ -48,6 +49,7 @@ const Quotations = () => {
   const [formData, setFormData] = useState({
     fuelRequestId: '',
     unitPrice: '',
+    discountCents: '',
     validUntil: '',
     deliveryTerms: '',
     paymentTerms: '',
@@ -115,9 +117,12 @@ const Quotations = () => {
   });
 
   var quantity = selectedFuelRequest ? parseFloat(selectedFuelRequest.quantity) || 0 : 0;
-  var unitPrice = parseFloat(formData.unitPrice) || 0;
+  // List price per litre, discount (cents per litre) and the price after the discount
+  var listPrice = parseFloat(formData.unitPrice) || 0;
+  var discountCents = parseFloat(formData.discountCents) || 0;
+  var netPrice = Math.round((listPrice - discountCents / 100) * 10000) / 10000;
 
-  var subtotal = quantity * unitPrice;
+  var subtotal = quantity * netPrice;
   var grandTotal = subtotal;
 
   // Individuals have no company name, so fall back to the person's own name
@@ -142,6 +147,16 @@ const Quotations = () => {
     setMessage('');
     setError('');
     setJustAcceptedId(null);
+
+    if (discountCents < 0 || discountCents > 100) {
+      setError('The discount must be between 0 and 100 cents per litre.');
+      return;
+    }
+    if (netPrice <= 0) {
+      setError('The price after discount must be greater than 0. Check the price and the discount.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -158,6 +173,7 @@ const Quotations = () => {
         ...formData,
         preparedBy: formData.preparedBy.trim(),
         validUntil: validUntilStr,
+        discountCentsPerLitre: discountCents,
         subtotal: subtotal.toFixed(2),
         taxAmount: '0.00',
         grandTotal: grandTotal.toFixed(2)
@@ -172,6 +188,7 @@ const Quotations = () => {
         setFormData({
           fuelRequestId: '',
           unitPrice: '',
+          discountCents: '',
           validUntil: '',
           deliveryTerms: '',
           paymentTerms: '',
@@ -285,6 +302,19 @@ const Quotations = () => {
     return '$' + Number(amount).toFixed(2);
   };
 
+  // Price per litre: shows up to 4 decimals when needed (e.g. $1.435), at least 2
+  var formatUnitPrice = function(amount) {
+    var n = Number(amount) || 0;
+    var s = n.toFixed(4);
+    s = s.replace(/(\.\d\d)00$/, '$1').replace(/(\.\d\d\d)0$/, '$1');
+    return '$' + s;
+  };
+
+  // True when this quotation has a discount taken off the list price
+  var hasDiscount = function(quote) {
+    return (parseFloat(quote.discount_cents_per_litre) || 0) > 0;
+  };
+
   // Date with time, e.g. "20 Oct 2026, 14:35"
   var formatDateTime = function(dateString) {
     if (!dateString) return 'Not specified';
@@ -371,7 +401,9 @@ const Quotations = () => {
   var openEdit = function(quote) {
     setEditError('');
     setEditForm({
-      unitPrice: quote.unit_price,
+      // List price: older quotations have no list price saved, so use the unit price
+      unitPrice: quote.list_price_per_litre != null ? quote.list_price_per_litre : quote.unit_price,
+      discountCents: quote.discount_cents_per_litre != null ? quote.discount_cents_per_litre : 0,
       deliveryTerms: quote.delivery_terms || '',
       paymentTerms: quote.payment_terms || '',
       notes: quote.notes || '',
@@ -385,10 +417,28 @@ const Quotations = () => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
   };
 
+  // Price per litre after the discount, for the edit form
+  var editNetPrice = function() {
+    var list = parseFloat(editForm.unitPrice) || 0;
+    var disc = parseFloat(editForm.discountCents) || 0;
+    return Math.round((list - disc / 100) * 10000) / 10000;
+  };
+
   const submitEdit = async function(e) {
     e.preventDefault();
     setEditError('');
     setMessage('');
+
+    var editDisc = parseFloat(editForm.discountCents) || 0;
+    if (editDisc < 0 || editDisc > 100) {
+      setEditError('The discount must be between 0 and 100 cents per litre.');
+      return;
+    }
+    if (editNetPrice() <= 0) {
+      setEditError('The price after discount must be greater than 0. Check the price and the discount.');
+      return;
+    }
+
     setEditSaving(true);
     try {
       const token = localStorage.getItem('token');
@@ -397,6 +447,7 @@ const Quotations = () => {
         API_BASE_URL + '/api/quotations/' + editQuote.id + '/edit',
         {
           unitPrice: editForm.unitPrice,
+          discountCentsPerLitre: editDisc,
           deliveryTerms: editForm.deliveryTerms,
           paymentTerms: editForm.paymentTerms,
           notes: editForm.notes,
@@ -518,7 +569,7 @@ const Quotations = () => {
                         : 'Not given'}
                     </p>
                     <p><strong>Category:</strong> {selectedFuelRequest.category || 'Not set'}</p>
-                    <p><strong>Discount:</strong> {selectedFuelRequest.discount_cents_per_litre || 0} cents per litre</p>
+                    <p><strong>Gets discounts:</strong> {selectedFuelRequest.gets_discount ? 'Yes' : 'No'}</p>
                     <p>
                       <strong>Request:</strong> {selectedFuelRequest.fuel_type}, {selectedFuelRequest.quantity} {selectedFuelRequest.unit},{' '}
                       {selectedFuelRequest.priority} priority
@@ -559,7 +610,7 @@ const Quotations = () => {
               <div className="quote-fields">
             <div className="form-row">
               <div className="form-group">
-                <label className="glow-label">Unit Price ($) *</label>
+                <label className="glow-label">Unit Price ($ per litre) *</label>
                 <input
                   type="number"
                   name="unitPrice"
@@ -574,15 +625,37 @@ const Quotations = () => {
               </div>
 
               <div className="form-group">
-                <label className="glow-label">Validity</label>
-                <div className="validity-fixed">
-                  Valid for {QUOTE_VALIDITY_HOURS} hours after it is sent
-                </div>
+                <label className="glow-label">Discount (cents per litre)</label>
+                <input
+                  type="number"
+                  name="discountCents"
+                  className="glow-input"
+                  value={formData.discountCents}
+                  onChange={handleChange}
+                  placeholder="0 for no discount"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                />
+                <span className="form-hint">Taken off the unit price on this quotation only.</span>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="glow-label">Validity</label>
+              <div className="validity-fixed">
+                Valid for {QUOTE_VALIDITY_HOURS} hours after it is sent
               </div>
             </div>
 
             <div className="calculation-summary">
-              <p><strong>Subtotal:</strong> ${subtotal.toFixed(2)} ({quantity} units @ ${unitPrice || 0}/unit)</p>
+              {discountCents > 0 && (
+                <p>
+                  <strong>Price after discount:</strong> {formatUnitPrice(netPrice)}/litre
+                  {' '}(${listPrice.toFixed(2)} − {discountCents} cents)
+                </p>
+              )}
+              <p><strong>Subtotal:</strong> ${subtotal.toFixed(2)} ({quantity} units @ {formatUnitPrice(netPrice)}/unit)</p>
               <p className="grand-total-line">
                 <strong>Grand Total:</strong> ${grandTotal.toFixed(2)}
               </p>
@@ -780,9 +853,21 @@ const Quotations = () => {
                 <span className="detail-label">Quantity</span>
                 <span className="detail-value">{selectedQuote.quantity} {selectedQuote.unit}</span>
               </div>
+              {hasDiscount(selectedQuote) && selectedQuote.list_price_per_litre != null && (
+                <div className="modal-detail-item">
+                  <span className="detail-label">List Price</span>
+                  <span className="detail-value">{formatUnitPrice(selectedQuote.list_price_per_litre)}</span>
+                </div>
+              )}
+              {hasDiscount(selectedQuote) && (
+                <div className="modal-detail-item">
+                  <span className="detail-label">Discount</span>
+                  <span className="detail-value">{selectedQuote.discount_cents_per_litre} cents per litre</span>
+                </div>
+              )}
               <div className="modal-detail-item">
                 <span className="detail-label">Unit Price</span>
-                <span className="detail-value">{formatCurrency(selectedQuote.unit_price)}</span>
+                <span className="detail-value">{formatUnitPrice(selectedQuote.unit_price)}</span>
               </div>
               <div className="modal-detail-item modal-detail-highlight">
                 <span className="detail-label">Grand Total</span>
@@ -893,24 +978,42 @@ const Quotations = () => {
             {editError && <div className="error-message">{editError}</div>}
 
             <form onSubmit={submitEdit}>
-              <div className="form-group">
-                <label className="glow-label">Unit Price ($) *</label>
-                <input
-                  type="number"
-                  name="unitPrice"
-                  className="glow-input"
-                  value={editForm.unitPrice}
-                  onChange={handleEditChange}
-                  required
-                  step="0.01"
-                  min="0"
-                />
-                <span className="form-hint">
-                  Total: {formatCurrency(editQuote.grand_total)} →{' '}
-                  <strong>{formatCurrency((parseFloat(editQuote.quantity) || 0) * (parseFloat(editForm.unitPrice) || 0))}</strong>
-                  {' '}({editQuote.quantity} {editQuote.unit})
-                </span>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="glow-label">Unit Price ($ per litre) *</label>
+                  <input
+                    type="number"
+                    name="unitPrice"
+                    className="glow-input"
+                    value={editForm.unitPrice}
+                    onChange={handleEditChange}
+                    required
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="glow-label">Discount (cents per litre)</label>
+                  <input
+                    type="number"
+                    name="discountCents"
+                    className="glow-input"
+                    value={editForm.discountCents}
+                    onChange={handleEditChange}
+                    step="0.01"
+                    min="0"
+                    max="100"
+                  />
+                </div>
               </div>
+              <span className="form-hint">
+                {(parseFloat(editForm.discountCents) || 0) > 0 && (
+                  <span>Price after discount: <strong>{formatUnitPrice(editNetPrice())}</strong>/litre. </span>
+                )}
+                Total: {formatCurrency(editQuote.grand_total)} →{' '}
+                <strong>{formatCurrency((parseFloat(editQuote.quantity) || 0) * editNetPrice())}</strong>
+                {' '}({editQuote.quantity} {editQuote.unit})
+              </span>
 
               <div className="form-row">
                 <div className="form-group">
