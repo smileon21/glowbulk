@@ -12,25 +12,10 @@ const errorText = (err, fallback) => (err.response && err.response.data && err.r
 
 const EMPTY_FORM = {
   name: '',
-  region: '',
-  city: '',
+  cityZoneId: '',
   latitude: '',
-  longitude: '',
-  cityRadiusKm: '20'
+  longitude: ''
 };
-
-const REGIONS = [
-  'Harare',
-  'Bulawayo',
-  'Manicaland',
-  'Mashonaland Central',
-  'Mashonaland East',
-  'Mashonaland West',
-  'Masvingo',
-  'Matabeleland North',
-  'Matabeleland South',
-  'Midlands'
-];
 
 // ---------------------------------------------------------------
 // Register / edit a site
@@ -40,18 +25,43 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
     site
       ? {
           name: site.name,
-          region: site.region,
-          city: site.city,
+          cityZoneId: site.city_zone_id ? String(site.city_zone_id) : '',
           latitude: String(site.latitude),
-          longitude: String(site.longitude),
-          cityRadiusKm: String(site.city_radius_km)
+          longitude: String(site.longitude)
         }
       : EMPTY_FORM
   );
+  const [zones, setZones] = useState([]);
+  const [zonesLoading, setZonesLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  // The city list comes from the Zones page
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get(`${API_BASE_URL}/api/zones`, authConfig())
+      .then((response) => {
+        if (!cancelled) setZones(response.data.data || []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(errorText(err, 'Unable to load the city list.'));
+      })
+      .finally(() => {
+        if (!cancelled) setZonesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Active zones, plus the site's current zone when editing
+  const zoneOptions = zones.filter(
+    (z) => z.is_active || (site && z.id === site.city_zone_id)
+  );
+  const selectedZone = zones.find((z) => String(z.id) === form.cityZoneId);
 
   const useMyLocation = () => {
     if (!navigator.geolocation) {
@@ -77,8 +87,11 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
 
     const latitude = Number(form.latitude);
     const longitude = Number(form.longitude);
-    const cityRadiusKm = Number(form.cityRadiusKm);
 
+    if (!form.cityZoneId) {
+      setError('Please choose a city (zone).');
+      return;
+    }
     if (Number.isNaN(latitude) || latitude < -90 || latitude > 90) {
       setError('Latitude must be a number between -90 and 90.');
       return;
@@ -87,20 +100,14 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
       setError('Longitude must be a number between -180 and 180.');
       return;
     }
-    if (Number.isNaN(cityRadiusKm) || cityRadiusKm <= 0) {
-      setError('City radius must be more than 0 km.');
-      return;
-    }
 
     setSaving(true);
     try {
       const payload = {
         name: form.name.trim(),
-        region: form.region.trim(),
-        city: form.city.trim(),
+        cityZoneId: Number(form.cityZoneId),
         latitude,
-        longitude,
-        cityRadiusKm
+        longitude
       };
 
       if (site) {
@@ -134,22 +141,25 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
         </div>
         <div className="it-field">
           <label>City (zone)</label>
-          <input
-            className="it-input"
-            placeholder="e.g. Harare"
-            value={form.city}
-            onChange={set('city')}
+          <select
+            className="it-select"
+            value={form.cityZoneId}
+            onChange={set('cityZoneId')}
             required
-          />
-        </div>
-        <div className="it-field">
-          <label>Region</label>
-          <select className="it-select" value={form.region} onChange={set('region')} required>
-            <option value="">Select a region</option>
-            {REGIONS.map((r) => (
-              <option key={r} value={r}>{r}</option>
+            disabled={zonesLoading}
+          >
+            <option value="">{zonesLoading ? 'Loading cities...' : 'Select a city'}</option>
+            {zoneOptions.map((z) => (
+              <option key={z.id} value={z.id}>{z.name}</option>
             ))}
           </select>
+          {!zonesLoading && zoneOptions.length === 0 ? (
+            <span className="it-sub">No cities yet. Add one on the Zones page first.</span>
+          ) : selectedZone ? (
+            <span className="it-sub">
+              Zone radius: {selectedZone.radius_km} km from the {selectedZone.name} centre.
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -175,18 +185,6 @@ const SiteForm = ({ site, onSaved, onCancel }) => {
             onChange={set('longitude')}
             required
           />
-        </div>
-        <div className="it-field">
-          <label>City radius (km)</label>
-          <input
-            className="it-input"
-            inputMode="decimal"
-            placeholder="20"
-            value={form.cityRadiusKm}
-            onChange={set('cityRadiusKm')}
-            required
-          />
-          <span className="it-sub">Customers within this distance of the site are in the zone.</span>
         </div>
       </div>
 
@@ -315,7 +313,7 @@ const Sites = () => {
       <div className="page-header">
         <h2>Sites</h2>
       </div>
-      <p className="sub-text">Register service stations. Each site's city and radius define its pricing zone</p>
+      <p className="sub-text">Register service stations. Each site belongs to a city zone, which sets the pricing radius</p>
 
       {error && <div className="error-message">{error}</div>}
       {notice && <div className="success-message">{notice}</div>}
@@ -365,7 +363,7 @@ const Sites = () => {
                 <th>City (zone)</th>
                 <th>Region</th>
                 <th>Coordinates</th>
-                <th>Radius</th>
+                <th>Zone radius</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -379,7 +377,7 @@ const Sites = () => {
                   <td>
                     {Number(site.latitude).toFixed(5)}, {Number(site.longitude).toFixed(5)}
                   </td>
-                  <td>{site.city_radius_km} km</td>
+                  <td>{site.city_radius_km != null ? `${site.city_radius_km} km` : 'No zone'}</td>
                   <td>
                     {site.is_active ? (
                       <span className="it-badge active">Active</span>

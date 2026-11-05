@@ -160,6 +160,7 @@ app.use('/api/push', pushRoutes);
 app.use('/api/sites', siteRoutes);
 app.use('/api/site-prices', sitePriceRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/zones', require('./routes/cityZone.routes'));
 
 // =====================================================
 // HOME / API STATUS

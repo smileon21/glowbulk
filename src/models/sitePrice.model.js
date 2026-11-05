@@ -95,30 +95,37 @@ const deleteTodayPrice = async (siteId, fuelType) => {
   return rows[0] || null;
 };
 
-// The site whose zone covers the customer AND that has a price set today for this fuel.
-// Sites with no price today (for example sites that don't sell bulk fuel) are ignored,
-// so the customer gets the nearest site that actually has a price.
-// Returns null when no priced site covers the customer: the request then stays manual.
+// The site that has a price set today for this fuel AND sits in a city zone that
+// covers the customer. A customer is in a zone when their pin is within the zone's
+// radius of the CITY CENTRE (not of the site). Among the covering sites, the nearest
+// one to the customer is used. Sites with no price today are ignored.
+// Returns null when nothing qualifies: the request then stays manual.
 const findNearestPricedSite = async (latitude, longitude, fuelType) => {
   const { rows } = await pool.query(
     `SELECT *
        FROM (
-         SELECT s.id AS site_id, s.name, s.city, s.region,
-                s.city_radius_km::float AS city_radius_km,
+         SELECT s.id AS site_id, s.name, z.name AS city, s.region,
+                z.radius_km::float AS city_radius_km,
                 sp.id AS price_id, sp.unit_price::float AS unit_price, sp.prepared_by,
-                6371 * 2 * ASIN(SQRT(LEAST(1,
-                  POWER(SIN(RADIANS(s.latitude - $1::float8) / 2), 2) +
-                  COS(RADIANS($1::float8)) * COS(RADIANS(s.latitude)) *
-                  POWER(SIN(RADIANS(s.longitude - $2::float8) / 2), 2)
-                )))::float AS distance_km
+                (6371 * 2 * ASIN(SQRT(LEAST(1,
+                  POWER(SIN(RADIANS(s.latitude::float8 - $1::float8) / 2), 2) +
+                  COS(RADIANS($1::float8)) * COS(RADIANS(s.latitude::float8)) *
+                  POWER(SIN(RADIANS(s.longitude::float8 - $2::float8) / 2), 2)
+                ))))::float8 AS distance_km,
+                (6371 * 2 * ASIN(SQRT(LEAST(1,
+                  POWER(SIN(RADIANS(z.centre_latitude::float8 - $1::float8) / 2), 2) +
+                  COS(RADIANS($1::float8)) * COS(RADIANS(z.centre_latitude::float8)) *
+                  POWER(SIN(RADIANS(z.centre_longitude::float8 - $2::float8) / 2), 2)
+                ))))::float8 AS zone_distance_km
            FROM sites s
+           JOIN city_zones z ON z.id = s.city_zone_id AND z.is_active = TRUE
            JOIN site_prices sp
              ON sp.site_id = s.id
             AND sp.fuel_type = $3
             AND sp.price_date = ${TODAY_HARARE}
           WHERE s.is_active = TRUE
        ) t
-      WHERE distance_km <= city_radius_km
+      WHERE zone_distance_km <= city_radius_km
       ORDER BY distance_km
       LIMIT 1`,
     [latitude, longitude, String(fuelType).toLowerCase()]

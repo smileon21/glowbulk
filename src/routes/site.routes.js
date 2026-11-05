@@ -13,13 +13,12 @@ const {
   findNearestSite
 } = require('../models/site.model');
 
+// The city, region and radius come from the chosen city zone, so a site only needs a zone
 const siteRules = [
   body('name').trim().notEmpty().withMessage('Site name is required'),
-  body('region').trim().notEmpty().withMessage('Region is required'),
-  body('city').trim().notEmpty().withMessage('City is required'),
+  body('cityZoneId').isInt({ gt: 0 }).withMessage('Please choose a city (zone)'),
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Latitude must be between -90 and 90'),
-  body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180'),
-  body('cityRadiusKm').isFloat({ gt: 0, max: 500 }).withMessage('City radius must be between 0 and 500 km')
+  body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180')
 ];
 
 const firstError = (req, res) => {
@@ -31,11 +30,9 @@ const firstError = (req, res) => {
 
 const readSite = (b) => ({
   name: b.name.trim(),
-  region: b.region.trim(),
-  city: b.city.trim(),
+  cityZoneId: Number(b.cityZoneId),
   latitude: Number(b.latitude),
-  longitude: Number(b.longitude),
-  cityRadiusKm: Number(b.cityRadiusKm)
+  longitude: Number(b.longitude)
 });
 
 // List sites: IT manages them, the other staff roles need to read them
@@ -84,6 +81,9 @@ router.post('/', authenticate, authorize('admin'), siteRules, async (req, res) =
 
     const data = readSite(req.body);
     const site = await createSite({ ...data, createdBy: req.user.id });
+    if (!site) {
+      return res.status(400).json({ success: false, message: 'The chosen city (zone) does not exist' });
+    }
 
     await logActivity({
       actor: req.user,
@@ -117,6 +117,9 @@ router.put('/:id', authenticate, authorize('admin'), siteRules, async (req, res)
     if (!before) return res.status(404).json({ success: false, message: 'Site not found' });
 
     const site = await updateSite(req.params.id, readSite(req.body));
+    if (!site) {
+      return res.status(400).json({ success: false, message: 'The chosen city (zone) does not exist' });
+    }
 
     await logActivity({
       actor: req.user,
