@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-import { formatName, formatTimeAgo } from '../utils/format';
+import { formatName } from '../utils/format';
 
 // Customer dashboard (Dashboard.jsx sends role "customer" here).
 // Staff dashboards live in MarketingDashboard / FinanceDashboard / ITDashboard.
@@ -12,7 +12,6 @@ const URGENT_MS = 6 * 3600000;            // under 6 hours left on a quote
 const INVOICE_FRESH_MS = 7 * 86400000;    // show "invoice ready" for a week
 const MONTHS_SHOWN = 6;
 const TODO_LIMIT = 5;
-const UPDATES_LIMIT = 4;
 
 const ICONS = {
   fuel: 'M3 22V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 10h10M2 22h12M13 12h4a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3',
@@ -31,9 +30,6 @@ const Icon = ({ name }) => (
     <path d={ICONS[name]} />
   </svg>
 );
-
-const money = (n) =>
-  '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // ---------- date helpers ----------
 
@@ -242,7 +238,6 @@ const BusinessDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [updates, setUpdates] = useState([]);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -252,20 +247,22 @@ const BusinessDashboard = () => {
 
     const load = async () => {
       try {
-        const [r, q, o, n] = await Promise.all([
+        const [r, q, o] = await Promise.all([
           axios.get(API_BASE_URL + '/api/fuel-requests/my-requests'),
           axios.get(API_BASE_URL + '/api/quotations/my-quotations'),
-          axios.get(API_BASE_URL + '/api/orders/my-orders'),
-          // Notifications are a bonus: never let them break the dashboard
-          axios.get(API_BASE_URL + '/api/notifications').catch(() => null)
+          axios.get(API_BASE_URL + '/api/orders/my-orders')
         ]);
         setRequests(r.data.data || []);
         setQuotes(q.data.data || []);
         setOrders(o.data.data || []);
-        setUpdates(n && n.data && n.data.success ? (n.data.data || []).slice(0, UPDATES_LIMIT) : []);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
-        setLoadError('We could not load your dashboard. Please refresh the page.');
+        const msg = err.response && err.response.data && err.response.data.message;
+        setLoadError(
+          msg === 'Customer profile not found'
+            ? 'Your customer profile is not set up yet. Please contact Glow Petroleum support.'
+            : 'We could not load your dashboard. Please refresh the page.'
+        );
       } finally {
         setLoading(false);
       }
@@ -287,11 +284,6 @@ const BusinessDashboard = () => {
     ord: countByMonth(orders, months)
   }), [requests, quotes, orders, months]);
 
-  const paidOrders = useMemo(
-    () => orders.filter((o) => o.status === 'payment_confirmed' || o.status === 'completed'),
-    [orders]
-  );
-  const totalSpend = paidOrders.reduce((sum, o) => sum + (parseFloat(o.grand_total) || 0), 0);
   const awaitingPayment = orders.filter((o) => o.status === 'pending_payment').length;
   const openQuotes = quotes.filter((q) => {
     const end = quoteExpiresAt(q);
@@ -332,7 +324,7 @@ const BusinessDashboard = () => {
       {loadError && <div className="error-message">{loadError}</div>}
 
       {/* Summary cards */}
-      <div className="dashboard-stats-row marketing-stats-row">
+      <div className="cd-stats">
         <StatCard tone="req" icon="fuel" title="Fuel Requests" value={requests.length}
           note={reqTrend.text} noteClass={'cd-trend-' + reqTrend.dir}
           onClick={() => navigate('/fuel-requests')} />
@@ -344,17 +336,13 @@ const BusinessDashboard = () => {
           note={awaitingPayment > 0 ? awaitingPayment + ' awaiting payment' : 'No unpaid orders'}
           noteClass={awaitingPayment > 0 ? 'cd-trend-warn' : 'cd-trend-flat'}
           onClick={() => navigate('/orders')} />
-        <StatCard tone="spend" icon="cash" title="Total Spend" value={money(totalSpend)}
-          note={paidOrders.length === 1 ? '1 paid order' : paidOrders.length + ' paid orders'}
-          noteClass="cd-trend-flat"
-          onClick={() => navigate('/orders')} />
       </div>
 
       {/* Next steps (lead panel) + activity */}
       <div className="cd-grid cd-grid-lead">
         <section className="cd-panel cd-todo" aria-labelledby="cd-todo-title">
           <header className="cd-panel-head">
-            <h2 id="cd-todo-title">Your next steps</h2>
+            <h2 id="cd-todo-title">My To-Do List</h2>
             {actionCount > 0 && <span className="cd-count">{actionCount}</span>}
           </header>
 
@@ -399,49 +387,23 @@ const BusinessDashboard = () => {
         </section>
       </div>
 
-      {/* Shortcuts + latest updates */}
-      <div className="cd-grid cd-grid-even">
-        <section className="cd-panel" aria-labelledby="cd-qa-title">
-          <header className="cd-panel-head">
-            <h2 id="cd-qa-title">Quick actions</h2>
-          </header>
-          <div className="cd-actions">
-            <button className="glow-btn" onClick={() => navigate('/fuel-requests')}>
-              <Icon name="fuel" /> Get a Quote
-            </button>
-            <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/quotations')}>
-              <Icon name="doc" /> View my quotations
-            </button>
-            <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/orders')}>
-              <Icon name="box" /> View my orders
-            </button>
-          </div>
-        </section>
-
-        <section className="cd-panel" aria-labelledby="cd-up-title">
-          <header className="cd-panel-head">
-            <h2 id="cd-up-title">Latest updates</h2>
-          </header>
-          {updates.length === 0 ? (
-            <p className="cd-quiet">No updates yet. Quotation replies, payment confirmations and invoices will appear here.</p>
-          ) : (
-            <ul className="cd-updates">
-              {updates.map((n) => (
-                <li key={n.id}>
-                  <button type="button" className="cd-update" onClick={() => n.link && navigate(n.link)}>
-                    <span className={'cd-update-dot' + (n.is_read ? '' : ' unread')} aria-hidden="true" />
-                    <span className="cd-update-text">
-                      <span className="cd-update-title">{n.title}</span>
-                      <span className="cd-update-msg">{n.message}</span>
-                    </span>
-                    <span className="cd-update-time">{formatTimeAgo(n.created_at)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+      {/* Shortcuts */}
+      <section className="cd-panel" aria-labelledby="cd-qa-title">
+        <header className="cd-panel-head">
+          <h2 id="cd-qa-title">Quick actions</h2>
+        </header>
+        <div className="cd-actions">
+          <button className="glow-btn" onClick={() => navigate('/fuel-requests')}>
+            <Icon name="fuel" /> Get a Quote
+          </button>
+          <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/quotations')}>
+            <Icon name="doc" /> View my quotations
+          </button>
+          <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/orders')}>
+            <Icon name="box" /> View my orders
+          </button>
+        </div>
+      </section>
     </div>
   );
 };

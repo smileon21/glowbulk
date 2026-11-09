@@ -4469,19 +4469,76 @@ input[type="file"]::file-selector-button:hover {
   margin-top: 10px;
   text-decoration: none;
 }
+
 /* ============================================
-   CUSTOMER DASHBOARD: SUMMARY CARDS
-   Paste at the very END of App.css (after the earlier dashboard CSS).
+   CUSTOMER DASHBOARD (.cd)  -  ONE COMPLETE BLOCK
+   If you pasted any earlier dashboard CSS into App.css (anything starting
+   at "CUSTOMER DASHBOARD" or "SUMMARY CARDS"), delete it first, then paste
+   this at the very END of App.css.
    ============================================ */
 
-:root {
-  --cd-violet: #6d4fc2;
+:root { --cd-violet: #6d4fc2; }
+@media (prefers-color-scheme: dark) { :root { --cd-violet: #a58cf0; } }
+
+.cd { max-width: 1280px; }
+
+/* ---------- Welcome banner ---------- */
+
+.cd-hero {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+  min-height: 170px;
+  margin-bottom: 24px;
+  padding: 28px 30px;
+  overflow: hidden;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  isolation: isolate;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --cd-violet: #a58cf0;
-  }
+.cd-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, var(--white) 0%, var(--white) 40%, transparent 90%),
+    url('/station-bg.jpeg') right center / cover no-repeat;
+}
+
+.cd-hero::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--red);
+}
+
+.cd-date { margin: 0 0 4px; font-size: 13px; color: var(--steel); }
+
+.cd-hero h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--ink);
+}
+
+.cd-hero-sub { margin: 6px 0 0; max-width: 46ch; font-size: 15px; color: var(--ink); }
+
+/* ---------- Summary cards ---------- */
+
+.cd-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 22px;
 }
 
 .cd-stat {
@@ -4503,50 +4560,25 @@ input[type="file"]::file-selector-button:hover {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.cd-stat:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(20, 20, 31, 0.12);
-}
-
-.cd-stat:focus-visible {
-  outline: 2px solid var(--red);
-  outline-offset: 2px;
-}
+.cd-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(20, 20, 31, 0.12); }
+.cd-stat:focus-visible, .cd-todo-item:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 
 .cd-stat-req { --c: var(--amber); }
-.cd-stat-quo { --c: var(--latest); }
+.cd-stat-quo { --c: var(--latest, #2f5fd0); }
 .cd-stat-ord { --c: var(--green); }
-.cd-stat-spend { --c: var(--cd-violet); }
 
 .cd-stat-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  width: 54px;
-  height: 54px;
+  width: 54px; height: 54px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--c) 20%, transparent);
   color: var(--c);
 }
+.cd-stat-icon svg { width: 26px; height: 26px; }
 
-.cd-stat-icon svg {
-  width: 26px;
-  height: 26px;
-}
-
-.cd-stat-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.cd-stat-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-}
+.cd-stat-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cd-stat-title { font-size: 14px; font-weight: 600; color: var(--ink); }
 
 .cd-stat-value {
   font-family: var(--display);
@@ -4559,37 +4591,196 @@ input[type="file"]::file-selector-button:hover {
 
 .cd-stat-go {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  top: 14px; right: 14px;
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--c) 20%, transparent);
   color: var(--c);
   font-size: 14px;
   transition: transform 0.15s ease;
 }
+.cd-stat:hover .cd-stat-go { transform: translateX(3px); }
 
-.cd-stat:hover .cd-stat-go {
-  transform: translateX(3px);
+.cd-trend { font-size: 12.5px; font-weight: 500; color: var(--steel); }
+.cd-trend-up { color: var(--green-text); }
+.cd-trend-up::before { content: '↑ '; }
+.cd-trend-down { color: var(--red-text); }
+.cd-trend-down::before { content: '↓ '; }
+.cd-trend-warn { color: var(--amber); font-weight: 600; }
+
+/* ---------- Panels ---------- */
+
+.cd-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 22px;
+  margin-bottom: 22px;
+  align-items: start;
 }
 
-/* Quotations line on the chart matches the blue card */
-.cd-line-quo { stroke: var(--latest); background: var(--latest); }
-.cd-fill-quo { fill: var(--latest); }
+.cd-panel {
+  min-width: 0;
+  padding: 22px 24px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(20, 20, 31, 0.06);
+}
 
-@media (max-width: 480px) {
-  .cd-stat-value {
-    font-size: 28px;
+.cd-panel-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed var(--line);
+}
+
+.cd-panel-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cd-count {
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 11px;
+  background: var(--red);
+  color: #ffffff;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---------- To-do list ---------- */
+
+.cd-todo { border-top: 3px solid var(--red); }
+
+.cd-todo-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.cd-todo-item {
+  --tone: var(--steel);
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 11px 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--tone);
+  border-radius: 6px;
+  font-family: var(--sans);
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cd-todo-item:hover { background: var(--white); border-color: var(--tone); }
+
+.cd-tone-urgent { --tone: var(--red); }
+.cd-tone-action { --tone: var(--amber); }
+.cd-tone-wait { --tone: var(--steel); }
+.cd-tone-done { --tone: var(--green); }
+
+.cd-todo-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--tone);
+}
+.cd-todo-icon svg { width: 18px; height: 18px; }
+
+.cd-todo-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cd-todo-title { font-size: 14px; font-weight: 600; }
+.cd-todo-sub { font-size: 12.5px; color: var(--steel); }
+
+.cd-pill {
+  padding: 3px 9px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--steel);
+}
+.cd-tone-urgent .cd-pill { color: var(--red-text); border-color: rgba(204, 0, 0, 0.35); background: var(--red-tint); }
+.cd-tone-action .cd-pill { color: var(--amber); border-color: rgba(232, 163, 61, 0.4); background: var(--amber-tint); }
+.cd-tone-done .cd-pill { color: var(--green-text); border-color: rgba(47, 122, 63, 0.35); background: var(--green-tint); }
+
+.cd-more { margin: 12px 0 0; font-size: 12.5px; color: var(--steel); }
+
+.cd-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 6px 0 2px; }
+.cd-empty strong { font-family: var(--display); font-size: 17px; font-weight: 600; color: var(--ink); }
+.cd-empty p { margin: 0 0 10px; max-width: 40ch; font-size: 14px; color: var(--steel); }
+.cd-empty-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--green-tint);
+  color: var(--green-text);
+}
+.cd-empty-icon svg { width: 20px; height: 20px; }
+
+/* ---------- Chart ---------- */
+
+.cd-chart svg { display: block; width: 100%; height: auto; }
+
+.cd-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 8px; font-size: 12.5px; color: var(--ink); }
+.cd-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.cd-swatch { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
+
+.cd-grid-line { stroke: var(--line); stroke-width: 1; }
+.cd-axis { fill: var(--steel); font-family: var(--mono); font-size: 11px; }
+
+.cd-line { stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.cd-line-req { stroke: var(--amber); background: var(--amber); }
+.cd-line-quo { stroke: var(--latest, #2f5fd0); background: var(--latest, #2f5fd0); }
+.cd-line-ord { stroke: var(--green); background: var(--green); }
+.cd-fill-req { fill: var(--amber); }
+.cd-fill-quo { fill: var(--latest, #2f5fd0); }
+.cd-fill-ord { fill: var(--green); }
+.cd-dot { stroke: var(--white); stroke-width: 1.5; }
+
+.cd-chart-empty { margin: 6px 0 0; font-size: 13px; color: var(--steel); }
+
+/* ---------- Quick actions ---------- */
+
+.cd-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.cd-actions .glow-btn {
+  flex: 1 1 200px;
+  width: auto;
+  padding: 13px 20px;
+}
+.cd-actions .glow-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .cd-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .cd-hero { padding: 20px 18px; min-height: 0; }
+  .cd-hero::before {
+    background:
+      linear-gradient(90deg, var(--white) 0%, var(--white) 55%, transparent 100%),
+      url('/station-bg.jpeg') right center / cover no-repeat;
   }
+  .cd-hero h1 { font-size: 24px; }
+  .cd-panel { padding: 18px 16px; }
+  .cd-stat-value { font-size: 28px; }
+  .cd-todo-item { grid-template-columns: 34px 1fr; }
+  .cd-todo-item .cd-pill { grid-column: 2; justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cd-stat,
-  .cd-stat-go {
-    transition: none;
-  }
+  .cd-stat, .cd-stat-go, .cd-todo-item { transition: none; }
 }
