@@ -4469,12 +4469,8 @@ input[type="file"]::file-selector-button:hover {
   margin-top: 10px;
   text-decoration: none;
 }
-
 /* ============================================
-   CUSTOMER DASHBOARD (.cd)  -  ONE COMPLETE BLOCK
-   If you pasted any earlier dashboard CSS into App.css (anything starting
-   at "CUSTOMER DASHBOARD" or "SUMMARY CARDS"), delete it first, then paste
-   this at the very END of App.css.
+   CUSTOMER DASHBOARD 
    ============================================ */
 
 :root { --cd-violet: #6d4fc2; }
@@ -4620,13 +4616,18 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .cd-panel {
+  --c: var(--steel);
   min-width: 0;
   padding: 22px 24px;
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 16%, var(--white)) 0%, var(--white) 90%);
+  border: 1px solid color-mix(in srgb, var(--c) 35%, var(--line));
+  border-radius: 12px;
   box-shadow: 0 1px 3px rgba(20, 20, 31, 0.06);
 }
+
+/* Same tinted-card look as the summary cards; change --c to recolour a panel */
+.cd-todo { --c: var(--amber); }
+.cd-activity { --c: var(--latest, #2f5fd0); }
 
 .cd-panel-head {
   display: flex; align-items: center; gap: 10px;
@@ -4657,8 +4658,6 @@ input[type="file"]::file-selector-button:hover {
 
 /* ---------- To-do list ---------- */
 
-.cd-todo { border-top: 3px solid var(--red); }
-
 .cd-todo-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 
 .cd-todo-item {
@@ -4669,7 +4668,7 @@ input[type="file"]::file-selector-button:hover {
   align-items: center;
   width: 100%;
   padding: 11px 12px;
-  background: var(--paper);
+  background: var(--white);
   border: 1px solid var(--line);
   border-left: 4px solid var(--tone);
   border-radius: 6px;
@@ -4679,7 +4678,7 @@ input[type="file"]::file-selector-button:hover {
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.cd-todo-item:hover { background: var(--white); border-color: var(--tone); }
+.cd-todo-item:hover { border-color: var(--tone); }
 
 .cd-tone-urgent { --tone: var(--red); }
 .cd-tone-action { --tone: var(--amber); }
@@ -4690,7 +4689,7 @@ input[type="file"]::file-selector-button:hover {
   display: flex; align-items: center; justify-content: center;
   width: 34px; height: 34px;
   border-radius: 8px;
-  background: var(--white);
+  background: var(--paper);
   color: var(--tone);
 }
 .cd-todo-icon svg { width: 18px; height: 18px; }
@@ -4749,17 +4748,6 @@ input[type="file"]::file-selector-button:hover {
 .cd-dot { stroke: var(--white); stroke-width: 1.5; }
 
 .cd-chart-empty { margin: 6px 0 0; font-size: 13px; color: var(--steel); }
-
-/* ---------- Quick actions ---------- */
-
-.cd-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-
-.cd-actions .glow-btn {
-  flex: 1 1 200px;
-  width: auto;
-  padding: 13px 20px;
-}
-.cd-actions .glow-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
 /* ---------- Responsive ---------- */
 
