@@ -4470,7 +4470,7 @@ input[type="file"]::file-selector-button:hover {
   text-decoration: none;
 }
 /* ============================================
-   CUSTOMER DASHBOARD
+   CUSTOMER DASHBOARD 
    ============================================ */
 
 .cd { max-width: 1280px; }
@@ -4500,7 +4500,8 @@ input[type="file"]::file-selector-button:hover {
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(90deg, var(--white) 0%, var(--white) 40%, transparent 90%),
+    linear-gradient(90deg, var(--white) 0%, var(--white) 38%, transparent 92%),
+    linear-gradient(color-mix(in srgb, var(--white) 52%, transparent), color-mix(in srgb, var(--white) 52%, transparent)),
     url('/station-bg.jpeg') right center / cover no-repeat;
 }
 
@@ -4510,6 +4511,10 @@ input[type="file"]::file-selector-button:hover {
   left: 0; top: 0; bottom: 0;
   width: 4px;
   background: var(--red);
+}
+
+@media (min-width: 901px) {
+  .cd-hero { margin-top: 46px; }
 }
 
 .cd-date { margin: 0 0 4px; font-size: 13px; color: var(--steel); }
@@ -4540,8 +4545,8 @@ input[type="file"]::file-selector-button:hover {
   align-items: flex-start;
   gap: 16px;
   width: 100%;
-  min-height: 150px;
-  padding: 20px 22px 46px;
+  min-height: 132px;
+  padding: 20px 22px 42px;
   text-align: left;
   font-family: var(--sans);
   color: var(--ink);
@@ -4566,12 +4571,13 @@ input[type="file"]::file-selector-button:hover {
   width: 68px; height: 68px;
   border-radius: 50%;
   background: var(--navy);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
 .cd-stat-icon svg { width: 28px; height: 28px; }
 
 /* Red icon = something needs your attention */
-.cd-stat-alert .cd-stat-icon { background: var(--red); }
+.cd-stat-alert .cd-stat-icon { background: var(--red); border-color: transparent; }
 
 .cd-stat-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 2px; }
 
@@ -4602,7 +4608,7 @@ input[type="file"]::file-selector-button:hover {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 22px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .cd-panel {
@@ -4727,7 +4733,7 @@ input[type="file"]::file-selector-button:hover {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 26px 0 12px;
+  padding: 18px 0 8px;
   text-align: center;
 }
 .cd-empty strong { font-family: var(--display); font-size: 22px; font-weight: 600; color: var(--ink); }
@@ -4735,13 +4741,13 @@ input[type="file"]::file-selector-button:hover {
 
 .cd-empty-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 104px; height: 104px;
-  margin-bottom: 14px;
+  width: 88px; height: 88px;
+  margin-bottom: 12px;
   border-radius: 50%;
   background: var(--red-tint);
   color: var(--red);
 }
-.cd-empty-icon svg { width: 44px; height: 44px; }
+.cd-empty-icon svg { width: 38px; height: 38px; }
 
 /* ---------- Chart ---------- */
 
@@ -4776,6 +4782,7 @@ input[type="file"]::file-selector-button:hover {
   .cd-hero::before {
     background:
       linear-gradient(90deg, var(--white) 0%, var(--white) 55%, transparent 100%),
+      linear-gradient(color-mix(in srgb, var(--white) 52%, transparent), color-mix(in srgb, var(--white) 52%, transparent)),
       url('/station-bg.jpeg') right center / cover no-repeat;
   }
   .cd-hero h1 { font-size: 24px; }
