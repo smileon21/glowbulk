@@ -218,6 +218,19 @@ const ActivityChart = ({ months, data }) => {
   );
 };
 
+// One summary card: icon, title, big number, small status line, whole card clickable
+const StatCard = ({ tone, icon, title, value, note, noteClass, onClick }) => (
+  <button type="button" className={'cd-stat cd-stat-' + tone} onClick={onClick}>
+    <span className="cd-stat-icon"><Icon name={icon} /></span>
+    <span className="cd-stat-body">
+      <span className="cd-stat-title">{title}</span>
+      <span className="cd-stat-value">{value}</span>
+      <span className={'cd-trend ' + noteClass}>{note}</span>
+    </span>
+    <span className="cd-stat-go" aria-hidden="true">→</span>
+  </button>
+);
+
 // ---------- page ----------
 
 const BusinessDashboard = () => {
@@ -318,89 +331,23 @@ const BusinessDashboard = () => {
 
       {loadError && <div className="error-message">{loadError}</div>}
 
-      {/* Stat tickets */}
+      {/* Summary cards */}
       <div className="dashboard-stats-row marketing-stats-row">
-        <div className="stat-card stat-req">
-          <div className="stat-card-header">
-            <h3>Fuel Requests</h3>
-            <span className="ticket-tag">REQ</span>
-          </div>
-          <div className="stat-card-body">
-            <div className="stat-detail-item">
-              <span className="detail-label">Total</span>
-              <span className="detail-value">{requests.length}</span>
-            </div>
-            <span className={'cd-trend cd-trend-' + reqTrend.dir}>{reqTrend.text}</span>
-          </div>
-          <div className="stat-card-footer">
-            <button className="stat-btn" onClick={() => navigate('/fuel-requests')}>
-              Get a Quote <span className="stat-btn-arrow">→</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="stat-card stat-quo">
-          <div className="stat-card-header">
-            <h3>Quotations</h3>
-            <span className="ticket-tag">QUO</span>
-          </div>
-          <div className="stat-card-body">
-            <div className="stat-detail-item">
-              <span className="detail-label">Total</span>
-              <span className="detail-value">{quotes.length}</span>
-            </div>
-            <span className={'cd-trend ' + (openQuotes > 0 ? 'cd-trend-warn' : 'cd-trend-flat')}>
-              {openQuotes > 0 ? openQuotes + ' waiting for your answer' : 'Nothing waiting'}
-            </span>
-          </div>
-          <div className="stat-card-footer">
-            <button className="stat-btn" onClick={() => navigate('/quotations')}>
-              View All <span className="stat-btn-arrow">→</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="stat-card stat-ord">
-          <div className="stat-card-header">
-            <h3>Orders</h3>
-            <span className="ticket-tag">ORD</span>
-          </div>
-          <div className="stat-card-body">
-            <div className="stat-detail-item">
-              <span className="detail-label">Total</span>
-              <span className="detail-value">{orders.length}</span>
-            </div>
-            <span className={'cd-trend ' + (awaitingPayment > 0 ? 'cd-trend-warn' : 'cd-trend-flat')}>
-              {awaitingPayment > 0 ? awaitingPayment + ' awaiting payment' : 'No unpaid orders'}
-            </span>
-          </div>
-          <div className="stat-card-footer">
-            <button className="stat-btn" onClick={() => navigate('/orders')}>
-              View All <span className="stat-btn-arrow">→</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="stat-card stat-cust">
-          <div className="stat-card-header">
-            <h3>Total Spend</h3>
-            <span className="ticket-tag">PAID</span>
-          </div>
-          <div className="stat-card-body">
-            <div className="stat-detail-item">
-              <span className="detail-label">Confirmed</span>
-              <span className="detail-value">{money(totalSpend)}</span>
-            </div>
-            <span className="cd-trend cd-trend-flat">
-              {paidOrders.length === 1 ? '1 paid order' : paidOrders.length + ' paid orders'}
-            </span>
-          </div>
-          <div className="stat-card-footer">
-            <button className="stat-btn" onClick={() => navigate('/orders')}>
-              Orders <span className="stat-btn-arrow">→</span>
-            </button>
-          </div>
-        </div>
+        <StatCard tone="req" icon="fuel" title="Fuel Requests" value={requests.length}
+          note={reqTrend.text} noteClass={'cd-trend-' + reqTrend.dir}
+          onClick={() => navigate('/fuel-requests')} />
+        <StatCard tone="quo" icon="doc" title="Quotations" value={quotes.length}
+          note={openQuotes > 0 ? openQuotes + ' waiting for your answer' : 'Nothing waiting'}
+          noteClass={openQuotes > 0 ? 'cd-trend-warn' : 'cd-trend-flat'}
+          onClick={() => navigate('/quotations')} />
+        <StatCard tone="ord" icon="box" title="Orders" value={orders.length}
+          note={awaitingPayment > 0 ? awaitingPayment + ' awaiting payment' : 'No unpaid orders'}
+          noteClass={awaitingPayment > 0 ? 'cd-trend-warn' : 'cd-trend-flat'}
+          onClick={() => navigate('/orders')} />
+        <StatCard tone="spend" icon="cash" title="Total Spend" value={money(totalSpend)}
+          note={paidOrders.length === 1 ? '1 paid order' : paidOrders.length + ' paid orders'}
+          noteClass="cd-trend-flat"
+          onClick={() => navigate('/orders')} />
       </div>
 
       {/* Next steps (lead panel) + activity */}
