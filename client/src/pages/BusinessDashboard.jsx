@@ -379,31 +379,13 @@ const BusinessDashboard = () => {
           )}
         </section>
 
-        <section className="cd-panel" aria-labelledby="cd-chart-title">
+        <section className="cd-panel cd-activity" aria-labelledby="cd-chart-title">
           <header className="cd-panel-head">
             <h2 id="cd-chart-title">Activity, last 6 months</h2>
           </header>
           <ActivityChart months={months} data={series} />
         </section>
       </div>
-
-      {/* Shortcuts */}
-      <section className="cd-panel" aria-labelledby="cd-qa-title">
-        <header className="cd-panel-head">
-          <h2 id="cd-qa-title">Quick actions</h2>
-        </header>
-        <div className="cd-actions">
-          <button className="glow-btn" onClick={() => navigate('/fuel-requests')}>
-            <Icon name="fuel" /> Get a Quote
-          </button>
-          <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/quotations')}>
-            <Icon name="doc" /> View my quotations
-          </button>
-          <button className="glow-btn glow-btn-secondary" onClick={() => navigate('/orders')}>
-            <Icon name="box" /> View my orders
-          </button>
-        </div>
-      </section>
     </div>
   );
 };
