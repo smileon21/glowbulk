@@ -4,6 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import './Finance.css';
 
+// Invoice alerts are switched off for now. Set to true to bring them back:
+// the "Invoices to issue" tile, the "Invoice due" rows in To Do, and the "invoice pending" flag.
+const SHOW_INVOICE_ALERTS = false;
+
 // Small inline icons (no image files needed). They follow the text colour.
 const Icon = ({ name }) => {
   var paths = {
@@ -156,7 +160,7 @@ const FinanceDashboard = () => {
   var waitingProof = orders.filter(function(o) {
     return o.status === 'pending_payment' && o.payment_status !== 'proof_uploaded';
   });
-  var toInvoice = orders.filter(function(o) {
+  var toInvoice = !SHOW_INVOICE_ALERTS ? [] : orders.filter(function(o) {
     return o.status === 'payment_confirmed' && !o.invoice_path;
   });
 
@@ -194,6 +198,9 @@ const FinanceDashboard = () => {
     { label: 'Waiting for customer proof', count: waitingProof.length, icon: 'hourglass', tone: 'navy', path: '/finance/payments' },
     { label: 'Active payment methods', count: activeMethods, icon: 'card', tone: 'red', path: '/finance/payment-methods' }
   ];
+  if (!SHOW_INVOICE_ALERTS) {
+    tiles = tiles.filter(function(t) { return t.label !== 'Invoices to issue'; });
+  }
 
   return (
     <div className="finance-dashboard">
@@ -336,7 +343,7 @@ const FinanceDashboard = () => {
                       <strong>{o.order_number}</strong>
                       <span>
                         {o.company_name || 'Customer'} · {formatCurrency(o.grand_total)}
-                        {!o.invoice_path && <em className="fin-flag"> · invoice pending</em>}
+                        {SHOW_INVOICE_ALERTS && !o.invoice_path && <em className="fin-flag"> · invoice pending</em>}
                       </span>
                     </div>
                     <span className="fin-pill fin-pill-green">Confirmed</span>

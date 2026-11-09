@@ -4797,3 +4797,44 @@ input[type="file"]::file-selector-button:hover {
 @media (prefers-reduced-motion: reduce) {
   .cd-stat, .cd-stat-go, .cd-todo-item, .cd-head-link { transition: none; }
 }
+
+/* ============================================
+   QUOTATION FORM: customer details never cover the fields
+   ============================================ */
+
+/* Collapsible customer details (the button is inside the panel) */
+.customer-brief .brief-toggle {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.customer-brief.collapsed .brief-body {
+  display: none;
+}
+
+.customer-brief.collapsed .brief-toggle {
+  margin-bottom: 0;
+}
+
+/* Sticky only on desktop, where the form sits beside the panel */
+@media (min-width: 901px) {
+  .customer-brief {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+/* On phones the panel is a normal block and scrolls away with the page */
+@media (max-width: 900px) {
+  .customer-brief {
+    position: static;
+  }
+}
+
+/* The Create / Send button stays reachable while the form scrolls */
+.quotation-form form > .glow-btn {
+  position: sticky;
+  bottom: 8px;
+  z-index: 10;
+  box-shadow: 0 6px 18px rgba(20, 20, 31, 0.25);
+}

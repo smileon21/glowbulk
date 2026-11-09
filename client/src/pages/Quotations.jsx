@@ -27,6 +27,10 @@ const Quotations = () => {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState([]);
   const [fuelRequests, setFuelRequests] = useState([]);
+  // Sites marketing can choose from as the source of the price
+  const [sites, setSites] = useState([]);
+  // Customer details panel: open on desktop, closed on phones so it never covers the form
+  const [showBrief, setShowBrief] = useState(typeof window === 'undefined' || window.innerWidth > 900);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState('');
@@ -48,6 +52,7 @@ const Quotations = () => {
 
   const [formData, setFormData] = useState({
     fuelRequestId: '',
+    siteId: '',
     unitPrice: '',
     discountCents: '',
     validUntil: '',
@@ -95,6 +100,14 @@ const Quotations = () => {
         const requestsResponse = await axios.get(API_BASE_URL + '/api/fuel-requests/available-for-quote');
         if (requestsResponse.data.success) {
           setFuelRequests(requestsResponse.data.data);
+        }
+        try {
+          const sitesResponse = await axios.get(API_BASE_URL + '/api/sites');
+          if (sitesResponse.data.success) {
+            setSites((sitesResponse.data.data || []).filter(function(s) { return s.is_active; }));
+          }
+        } catch (siteErr) {
+          console.error('Error loading sites:', siteErr);
         }
       }
     } catch (error) {
@@ -194,6 +207,7 @@ const Quotations = () => {
         setShowForm(false);
         setFormData({
           fuelRequestId: '',
+    siteId: '',
           unitPrice: '',
           discountCents: '',
           validUntil: '',
@@ -553,7 +567,15 @@ const Quotations = () => {
               className="quote-layout"
               style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', alignItems: 'start' }}
             >
-              <aside className="customer-brief glow-card" style={{ position: 'sticky', top: '16px' }}>
+              <aside className={'customer-brief glow-card' + (showBrief ? '' : ' collapsed')}>
+                <button
+                  type="button"
+                  className="glow-btn glow-btn-secondary glow-btn-small brief-toggle"
+                  onClick={function() { setShowBrief(!showBrief); }}
+                >
+                  {showBrief ? 'Hide customer details' : 'Show customer details'}
+                </button>
+                <div className="brief-body">
                 {selectedFuelRequest ? (
                   <>
                     <h4 style={{ margin: 0 }}>{customerName(selectedFuelRequest)}</h4>
@@ -594,7 +616,7 @@ const Quotations = () => {
                       <MapPicker
                         key={selectedFuelRequest.id}
                         readOnly
-                        height="260px"
+                        height="160px"
                         value={{
                           lat: Number(selectedFuelRequest.delivery_latitude),
                           lng: Number(selectedFuelRequest.delivery_longitude)
@@ -612,9 +634,31 @@ const Quotations = () => {
                     </p>
                   </>
                 )}
+                </div>
               </aside>
 
               <div className="quote-fields">
+            <div className="form-group">
+              <label className="glow-label">Price from site *</label>
+              <select
+                name="siteId"
+                className="glow-input"
+                value={formData.siteId}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select the site you used the price from...</option>
+                {sites.map(function(s) {
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {s.name}{s.city ? ' (' + s.city + ')' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              <span className="form-hint">The customer and marketing will see this site on the quotation.</span>
+            </div>
+
             <div className="form-row">
               <div className="form-group">
                 <label className="glow-label">Unit Price ($ per litre) *</label>

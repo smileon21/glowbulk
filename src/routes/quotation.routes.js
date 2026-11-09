@@ -16,6 +16,7 @@ const {
 } = require('../models/quotation.model');
 const { getCustomerByUserId } = require('../models/customer.model');
 const { getFuelRequestById, updateFuelRequestStatus } = require('../models/fuelRequest.model');
+const { findSiteById } = require('../models/site.model');
 const { notifyStaff, notifyCustomer } = require('../services/notification.service');
 
 // A quotation stays valid for this many hours after it is sent
@@ -124,6 +125,7 @@ const notifyQuotationResponse = (quotation, customer, accepted) => {
 // unitPrice is the LIST price per litre; discountCentsPerLitre (optional) is taken off it.
 router.post('/', authenticate, authorize('marketing'), [
   body('fuelRequestId').isNumeric().withMessage('Fuel request ID is required'),
+  body('siteId').isInt({ gt: 0 }).withMessage('Please select the site this price is based on'),
   body('unitPrice').isFloat({ gt: 0 }).withMessage('Unit price must be greater than 0'),
   body('discountCentsPerLitre')
     .optional({ checkFalsy: true })
@@ -149,6 +151,15 @@ router.post('/', authenticate, authorize('marketing'), [
       return res.status(404).json({
         success: false,
         message: 'Fuel request not found'
+      });
+    }
+
+    // The site the marketing officer based the price on (shown to marketing and the customer)
+    const site = await findSiteById(req.body.siteId);
+    if (!site) {
+      return res.status(400).json({
+        success: false,
+        message: 'The selected site does not exist'
       });
     }
 
@@ -179,6 +190,7 @@ router.post('/', authenticate, authorize('marketing'), [
     const quotation = await createQuotation({
       fuelRequestId: fuelRequest.id,
       customerId: fuelRequest.customer_id,
+      siteId: site.id,                      // the site this price is based on
       quotationNumber: generateQuotationNumber(),
       fuelType: fuelRequest.fuel_type,
       quantity: fuelRequest.quantity,
