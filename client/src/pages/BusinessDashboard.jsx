@@ -17,11 +17,11 @@ const ICONS = {
   fuel: 'M3 22V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 10h10M2 22h12M13 12h4a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3',
   doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
   box: 'M21 8l-9-5-9 5v8l9 5 9-5zM3.3 7.5L12 12.5l8.7-5M12 22V12.5',
-  cash: 'M2 7h20v10H2zM12 12m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M6 12h.01M18 12h.01',
   check: 'M20 6L9 17l-5-5',
   clock: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3 2',
   alert: 'M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
-  bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0'
+  clipboard: 'M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1zM8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M9 14l2 2 4-4',
+  chart: 'M3 17l6-6 4 4 8-8M15 7h6v6'
 };
 
 const Icon = ({ name }) => (
@@ -55,17 +55,6 @@ function countByMonth(list, months) {
     if (i >= 0) counts[i] += 1;
   });
   return counts;
-}
-
-// "+100% vs last month" style text from the last two buckets of a series
-function trendOf(series) {
-  const cur = series[series.length - 1] || 0;
-  const prev = series[series.length - 2] || 0;
-  if (cur === 0 && prev === 0) return { dir: 'flat', text: 'No requests this month' };
-  if (prev === 0) return { dir: 'up', text: cur + ' this month' };
-  const pct = Math.round(((cur - prev) / prev) * 100);
-  if (pct === 0) return { dir: 'flat', text: 'Same as last month' };
-  return { dir: pct > 0 ? 'up' : 'down', text: (pct > 0 ? '+' : '') + pct + '% vs last month' };
 }
 
 // ---------- quotation helpers (same 24h rule as Quotations.jsx) ----------
@@ -214,14 +203,14 @@ const ActivityChart = ({ months, data }) => {
   );
 };
 
-// One summary card: icon, title, big number, small status line, whole card clickable
-const StatCard = ({ tone, icon, title, value, note, noteClass, onClick }) => (
-  <button type="button" className={'cd-stat cd-stat-' + tone} onClick={onClick}>
+// One summary card: round icon, big number, label, arrow. The icon turns red
+// when something needs the customer's attention.
+const StatCard = ({ icon, label, value, alert, onClick }) => (
+  <button type="button" className={'cd-stat' + (alert ? ' cd-stat-alert' : '')} onClick={onClick}>
     <span className="cd-stat-icon"><Icon name={icon} /></span>
     <span className="cd-stat-body">
-      <span className="cd-stat-title">{title}</span>
       <span className="cd-stat-value">{value}</span>
-      <span className={'cd-trend ' + noteClass}>{note}</span>
+      <span className="cd-stat-label">{label}</span>
     </span>
     <span className="cd-stat-go" aria-hidden="true">→</span>
   </button>
@@ -295,7 +284,6 @@ const BusinessDashboard = () => {
 
   if (loading) return <div className="loading">Loading your dashboard...</div>;
 
-  const reqTrend = trendOf(series.req);
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
@@ -325,35 +313,38 @@ const BusinessDashboard = () => {
 
       {/* Summary cards */}
       <div className="cd-stats">
-        <StatCard tone="req" icon="fuel" title="Fuel Requests" value={requests.length}
-          note={reqTrend.text} noteClass={'cd-trend-' + reqTrend.dir}
+        <StatCard icon="fuel" label="Fuel requests" value={requests.length}
           onClick={() => navigate('/fuel-requests')} />
-        <StatCard tone="quo" icon="doc" title="Quotations" value={quotes.length}
-          note={openQuotes > 0 ? openQuotes + ' waiting for your answer' : 'Nothing waiting'}
-          noteClass={openQuotes > 0 ? 'cd-trend-warn' : 'cd-trend-flat'}
+        <StatCard icon="doc" label="Quotations" value={quotes.length} alert={openQuotes > 0}
           onClick={() => navigate('/quotations')} />
-        <StatCard tone="ord" icon="box" title="Orders" value={orders.length}
-          note={awaitingPayment > 0 ? awaitingPayment + ' awaiting payment' : 'No unpaid orders'}
-          noteClass={awaitingPayment > 0 ? 'cd-trend-warn' : 'cd-trend-flat'}
+        <StatCard icon="box" label="Orders" value={orders.length} alert={awaitingPayment > 0}
           onClick={() => navigate('/orders')} />
       </div>
 
-      {/* Next steps (lead panel) + activity */}
-      <div className="cd-grid cd-grid-lead">
-        <section className="cd-panel cd-todo" aria-labelledby="cd-todo-title">
+      {/* To-do list + activity */}
+      <div className="cd-grid">
+        <section className="cd-panel" aria-labelledby="cd-todo-title">
           <header className="cd-panel-head">
-            <h2 id="cd-todo-title">My To-Do List</h2>
-            {actionCount > 0 && <span className="cd-count">{actionCount}</span>}
+            <span className="cd-bar" aria-hidden="true" />
+            <span className="cd-head-icon"><Icon name="clipboard" /></span>
+            <div className="cd-head-text">
+              <h2 id="cd-todo-title">My To-Do List</h2>
+              <p>
+                {actionCount > 0
+                  ? actionCount + (actionCount === 1 ? ' item needs' : ' items need') + ' your attention'
+                  : 'Nothing waiting for you right now'}
+              </p>
+            </div>
+            <button type="button" className="cd-head-link" onClick={() => navigate('/quotations')}>
+              Quotations <span aria-hidden="true">→</span>
+            </button>
           </header>
 
           {todos.length === 0 ? (
             <div className="cd-empty">
-              <span className="cd-empty-icon"><Icon name="check" /></span>
-              <strong>You are all caught up</strong>
-              <p>When a quotation arrives or an order needs payment, it shows up here.</p>
-              <button className="glow-btn glow-btn-small" onClick={() => navigate('/fuel-requests')}>
-                Get a Quote
-              </button>
+              <span className="cd-empty-icon"><Icon name="clipboard" /></span>
+              <strong>You are all caught up!</strong>
+              <p>No pending tasks at the moment.</p>
             </div>
           ) : (
             <ul className="cd-todo-list">
@@ -379,9 +370,17 @@ const BusinessDashboard = () => {
           )}
         </section>
 
-        <section className="cd-panel cd-activity" aria-labelledby="cd-chart-title">
+        <section className="cd-panel" aria-labelledby="cd-chart-title">
           <header className="cd-panel-head">
-            <h2 id="cd-chart-title">Activity, last 6 months</h2>
+            <span className="cd-bar" aria-hidden="true" />
+            <span className="cd-head-icon"><Icon name="chart" /></span>
+            <div className="cd-head-text">
+              <h2 id="cd-chart-title">Activity</h2>
+              <p>Last 6 months</p>
+            </div>
+            <button type="button" className="cd-head-link" onClick={() => navigate('/orders')}>
+              Orders <span aria-hidden="true">→</span>
+            </button>
           </header>
           <ActivityChart months={months} data={series} />
         </section>
