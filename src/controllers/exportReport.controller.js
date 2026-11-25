@@ -9,6 +9,21 @@ const MONTH_NAMES = [
 const pad = (n) => String(n).padStart(2, '0');
 
 // ============================================================
+// CUSTOMER NAME
+// Companies have company_name; individuals do not, so fall back to the
+// contact person, then to the name on the customer's user account.
+// Expects the customers table as "c" and joins the customer's user as "cust".
+// ============================================================
+
+const CUSTOMER_NAME = `COALESCE(
+        NULLIF(TRIM(c.company_name), ''),
+        NULLIF(TRIM(c.contact_person_name), ''),
+        NULLIF(TRIM(CONCAT_WS(' ', cust.first_name, cust.last_name)), ''),
+        'N/A'
+      ) AS customer_name`;
+const CUSTOMER_JOIN = `LEFT JOIN users cust ON c.user_id = cust.id`;
+
+// ============================================================
 // PERIOD: turns ?period=month|year|range into a start/end date
 // (start is included, end is NOT included)
 // ============================================================
@@ -22,7 +37,6 @@ const resolvePeriod = (query) => {
     return { error: 'Invalid year' };
   }
 
-  // Whole year
   if (period === 'year') {
     return {
       start: `${year}-01-01`,
@@ -32,7 +46,6 @@ const resolvePeriod = (query) => {
     };
   }
 
-  // Custom date range (both dates included)
   if (period === 'range') {
     const re = /^\d{4}-\d{2}-\d{2}$/;
     const from = query.from || '';
@@ -59,7 +72,6 @@ const resolvePeriod = (query) => {
     };
   }
 
-  // A single month (default: the current month)
   const month = parseInt(query.month, 10) || now.getMonth() + 1;
   if (month < 1 || month > 12) {
     return { error: 'Invalid month' };
@@ -91,7 +103,8 @@ const DATASETS = {
       SELECT
         f.id,
         f.created_at,
-        c.company_name,
+        ${CUSTOMER_NAME},
+        c.contact_person_phone,
         f.fuel_type,
         f.quantity,
         f.unit,
@@ -104,13 +117,15 @@ const DATASETS = {
         f.special_instructions
       FROM fuel_requests f
       LEFT JOIN customers c ON f.customer_id = c.id
+      ${CUSTOMER_JOIN}
       WHERE f.created_at >= $1::timestamp AND f.created_at < $2::timestamp
       ORDER BY f.created_at DESC
     `,
     columns: [
       { header: 'Request ID', key: 'id', width: 12 },
       { header: 'Requested On', key: 'created_at', width: 20, type: 'datetime' },
-      { header: 'Customer', key: 'company_name', width: 28 },
+      { header: 'Customer', key: 'customer_name', width: 28 },
+      { header: 'Phone', key: 'contact_person_phone', width: 18 },
       { header: 'Fuel Type', key: 'fuel_type', width: 12 },
       { header: 'Quantity', key: 'quantity', width: 14, type: 'qty', sum: true },
       { header: 'Unit', key: 'unit', width: 10 },
@@ -133,8 +148,9 @@ const DATASETS = {
         q.created_at,
         COALESCE(q.sent_at, q.sent_date) AS sent_at,
         q.expires_at,
-        c.company_name,
+        ${CUSTOMER_NAME},
         c.contact_person_name,
+        c.contact_person_phone,
         q.fuel_type,
         q.quantity,
         q.unit,
@@ -147,6 +163,7 @@ const DATASETS = {
         q.notes
       FROM quotations q
       LEFT JOIN customers c ON q.customer_id = c.id
+      ${CUSTOMER_JOIN}
       WHERE q.created_at >= $1::timestamp AND q.created_at < $2::timestamp
       ORDER BY q.created_at DESC
     `,
@@ -155,8 +172,9 @@ const DATASETS = {
       { header: 'Created', key: 'created_at', width: 20, type: 'datetime' },
       { header: 'Sent', key: 'sent_at', width: 20, type: 'datetime' },
       { header: 'Expires', key: 'expires_at', width: 20, type: 'datetime' },
-      { header: 'Customer', key: 'company_name', width: 28 },
+      { header: 'Customer', key: 'customer_name', width: 28 },
       { header: 'Contact Person', key: 'contact_person_name', width: 22 },
+      { header: 'Phone', key: 'contact_person_phone', width: 18 },
       { header: 'Fuel Type', key: 'fuel_type', width: 12 },
       { header: 'Quantity', key: 'quantity', width: 14, type: 'qty', sum: true },
       { header: 'Unit', key: 'unit', width: 10 },
@@ -178,7 +196,7 @@ const DATASETS = {
         o.order_number,
         q.quotation_number,
         o.created_at,
-        c.company_name,
+        ${CUSTOMER_NAME},
         c.contact_person_name,
         c.contact_person_phone,
         c.contact_person_email,
@@ -198,6 +216,7 @@ const DATASETS = {
         o.invoice_filename
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
+      ${CUSTOMER_JOIN}
       LEFT JOIN quotations q ON o.quotation_id = q.id
       WHERE o.created_at >= $1::timestamp AND o.created_at < $2::timestamp
       ORDER BY o.created_at DESC
@@ -206,7 +225,7 @@ const DATASETS = {
       { header: 'Order No.', key: 'order_number', width: 22 },
       { header: 'Quotation No.', key: 'quotation_number', width: 20 },
       { header: 'Ordered On', key: 'created_at', width: 20, type: 'datetime' },
-      { header: 'Customer', key: 'company_name', width: 28 },
+      { header: 'Customer', key: 'customer_name', width: 28 },
       { header: 'Contact Person', key: 'contact_person_name', width: 22 },
       { header: 'Phone', key: 'contact_person_phone', width: 18 },
       { header: 'Email', key: 'contact_person_email', width: 28 },
@@ -239,7 +258,7 @@ const DATASETS = {
         o.invoice_path AS invoice_link,
         o.invoice_uploaded_at,
         CONCAT_WS(' ', u.first_name, u.last_name) AS uploaded_by,
-        c.company_name,
+        ${CUSTOMER_NAME},
         o.fuel_type,
         o.quantity,
         o.unit,
@@ -247,6 +266,7 @@ const DATASETS = {
         o.payment_status
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
+      ${CUSTOMER_JOIN}
       LEFT JOIN users u ON o.invoice_uploaded_by = u.id
       WHERE o.invoice_path IS NOT NULL
         AND o.invoice_uploaded_at >= $1::timestamp
@@ -259,7 +279,7 @@ const DATASETS = {
       { header: 'Invoice Link', key: 'invoice_link', width: 16, type: 'link' },
       { header: 'Uploaded On', key: 'invoice_uploaded_at', width: 20, type: 'datetime' },
       { header: 'Uploaded By', key: 'uploaded_by', width: 22 },
-      { header: 'Customer', key: 'company_name', width: 28 },
+      { header: 'Customer', key: 'customer_name', width: 28 },
       { header: 'Fuel Type', key: 'fuel_type', width: 12 },
       { header: 'Quantity', key: 'quantity', width: 14, type: 'qty', sum: true },
       { header: 'Unit', key: 'unit', width: 10 },
@@ -427,7 +447,7 @@ const addSummarySheet = (workbook, period, keys, rowsByKey) => {
       row.getCell(4).value = value;
       row.getCell(4).numFmt = NUMBER_FORMATS.money;
     } else {
-      row.getCell(4).value = '—';
+      row.getCell(4).value = '-';
       row.getCell(4).alignment = { horizontal: 'right' };
     }
   });
