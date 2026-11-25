@@ -16,6 +16,12 @@ const generateOrderNumber = () => {
 
 // ============================================================
 // CREATE ORDER FROM ACCEPTED QUOTATION
+//
+// Everything happens in one transaction with the quotation row locked,
+// so two orders (or an order and an expiry) can never slip through together.
+// A quotation that has passed its expiry time cannot be ordered, even if the
+// customer accepted it earlier: it is marked 'expired' and the customer
+// must request a new quote.
 // ============================================================
 
 const createOrderFromQuotation = async (
@@ -24,117 +30,170 @@ const createOrderFromQuotation = async (
   orderData = {}
 ) => {
 
-  const getQuotationQuery = 'SELECT * FROM quotations WHERE id = $1';
-  const quotationResult = await pool.query(getQuotationQuery, [quotationId]);
-  const quotation = quotationResult.rows[0];
+  const client = await pool.connect();
 
-  if (!quotation) {
-    throw new Error('Quotation not found');
+  try {
+    await client.query('BEGIN');
+
+    // Expiry is judged by the database clock, not the browser's
+    const quotationResult = await client.query(
+      `SELECT *,
+         (now() >= COALESCE(expires_at, COALESCE(sent_at, created_at) + interval '24 hours')) AS is_expired
+       FROM quotations
+       WHERE id = $1
+       FOR UPDATE`,
+      [quotationId]
+    );
+    const quotation = quotationResult.rows[0];
+
+    if (!quotation) {
+      throw new Error('Quotation not found');
+    }
+
+    if (quotation.status === 'expired') {
+      const err = new Error('This quotation has expired. Please request a new quote.');
+      err.code = 'QUOTATION_EXPIRED';
+      throw err;
+    }
+
+    if (quotation.status !== 'accepted') {
+      throw new Error('Quotation must be accepted to create an order');
+    }
+
+    const checkResult = await client.query(
+      'SELECT 1 FROM orders WHERE quotation_id = $1 LIMIT 1',
+      [quotationId]
+    );
+
+    if (checkResult.rows.length > 0) {
+      throw new Error('Order already exists for this quotation');
+    }
+
+    // Accepted but never ordered, and the expiry time has passed:
+    // mark it expired (saved before the error is raised) and refuse the order
+    if (quotation.is_expired) {
+      await client.query(
+        `UPDATE quotations
+         SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [quotation.id]
+      );
+      await client.query(
+        `UPDATE fuel_requests SET status = 'expired' WHERE id = $1`,
+        [quotation.fuel_request_id]
+      );
+      await client.query('COMMIT');
+
+      const err = new Error('This quotation has expired. Please request a new quote.');
+      err.code = 'QUOTATION_EXPIRED';
+      throw err;
+    }
+
+    const orderNumber = generateOrderNumber();
+
+    // ==========================================
+    // PRICING — no tax, no separate grand total.
+    // grand_total is forced to equal total_amount so
+    // old inflated quotation values are never inherited.
+    // ==========================================
+    const totalAmount = parseFloat(
+      quotation.total_amount || quotation.total || 0
+    );
+    const grandTotal = totalAmount;
+
+    const query = `
+      INSERT INTO orders (
+        quotation_id,
+        customer_id,
+        created_by,
+        order_number,
+        fuel_type,
+        quantity,
+        unit,
+        unit_price,
+        total_amount,
+        tax_amount,
+        grand_total,
+        delivery_address,
+        delivery_city,
+        delivery_state,
+        delivery_country,
+        delivery_postal_code,
+        preferred_delivery_date,
+        preferred_delivery_time,
+        purchase_order_number,
+        status,
+        payment_status,
+        notes
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10, $11, $12,
+        $13, $14, $15, $16, $17, $18,
+        $19, $20, $21, $22
+      )
+      RETURNING *
+    `;
+
+    const values = [
+      quotationId,
+      quotation.customer_id,
+      userId,
+      orderNumber,
+      quotation.fuel_type,
+      quotation.quantity,
+      quotation.unit || 'L',
+      quotation.unit_price,
+      totalAmount,
+      0,             // tax_amount — always 0 now
+      grandTotal,    // grand_total — always equals total_amount
+
+      orderData.delivery_address ||
+        quotation.delivery_address ||
+        quotation.deliveryAddress,
+
+      orderData.delivery_city ||
+        quotation.delivery_city ||
+        quotation.deliveryCity,
+
+      orderData.delivery_state ||
+        quotation.delivery_state ||
+        quotation.deliveryState,
+
+      orderData.delivery_country ||
+        quotation.delivery_country ||
+        quotation.deliveryCountry,
+
+      orderData.delivery_postal_code ||
+        quotation.delivery_postal_code ||
+        quotation.deliveryPostalCode,
+
+      orderData.preferred_delivery_date || null,
+      orderData.preferred_delivery_time || null,
+      orderData.purchase_order_number || null,
+
+      'pending_payment',
+      'pending',
+
+      orderData.notes || null
+    ];
+
+    const result = await client.query(query, values);
+
+    await client.query('COMMIT');
+
+    return result.rows[0];
+  } catch (err) {
+    // After the expiry branch the transaction is already committed; this is then harmless
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      // nothing to roll back
+    }
+    throw err;
+  } finally {
+    client.release();
   }
-
-  if (quotation.status !== 'accepted') {
-    throw new Error('Quotation must be accepted to create an order');
-  }
-
-  const checkOrderQuery = 'SELECT * FROM orders WHERE quotation_id = $1';
-  const checkResult = await pool.query(checkOrderQuery, [quotationId]);
-
-  if (checkResult.rows.length > 0) {
-    throw new Error('Order already exists for this quotation');
-  }
-
-  const orderNumber = generateOrderNumber();
-
-  // ==========================================
-  // PRICING — no tax, no separate grand total.
-  // grand_total is forced to equal total_amount so
-  // old inflated quotation values are never inherited.
-  // ==========================================
-  const totalAmount = parseFloat(
-    quotation.total_amount || quotation.total || 0
-  );
-  const grandTotal = totalAmount;
-
-  const query = `
-    INSERT INTO orders (
-      quotation_id,
-      customer_id,
-      created_by,
-      order_number,
-      fuel_type,
-      quantity,
-      unit,
-      unit_price,
-      total_amount,
-      tax_amount,
-      grand_total,
-      delivery_address,
-      delivery_city,
-      delivery_state,
-      delivery_country,
-      delivery_postal_code,
-      preferred_delivery_date,
-      preferred_delivery_time,
-      purchase_order_number,
-      status,
-      payment_status,
-      notes
-    )
-    VALUES (
-      $1, $2, $3, $4, $5, $6,
-      $7, $8, $9, $10, $11, $12,
-      $13, $14, $15, $16, $17, $18,
-      $19, $20, $21, $22
-    )
-    RETURNING *
-  `;
-
-  const values = [
-    quotationId,
-    quotation.customer_id,
-    userId,
-    orderNumber,
-    quotation.fuel_type,
-    quotation.quantity,
-    quotation.unit || 'L',
-    quotation.unit_price,
-    totalAmount,
-    0,             // tax_amount — always 0 now
-    grandTotal,    // grand_total — always equals total_amount
-
-    orderData.delivery_address ||
-      quotation.delivery_address ||
-      quotation.deliveryAddress,
-
-    orderData.delivery_city ||
-      quotation.delivery_city ||
-      quotation.deliveryCity,
-
-    orderData.delivery_state ||
-      quotation.delivery_state ||
-      quotation.deliveryState,
-
-    orderData.delivery_country ||
-      quotation.delivery_country ||
-      quotation.deliveryCountry,
-
-    orderData.delivery_postal_code ||
-      quotation.delivery_postal_code ||
-      quotation.deliveryPostalCode,
-
-    orderData.preferred_delivery_date || null,
-    orderData.preferred_delivery_time || null,
-    orderData.purchase_order_number || null,
-
-    'pending_payment',
-    'pending',
-
-    orderData.notes || null
-  ];
-
-  const result = await pool.query(query, values);
-
-  return result.rows[0];
 };
 
 
