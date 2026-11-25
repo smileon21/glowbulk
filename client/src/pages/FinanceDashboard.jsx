@@ -26,14 +26,6 @@ const Icon = ({ name }) => {
         <line x1="8" y1="17" x2="16" y2="17" />
       </>
     ),
-    hourglass: (
-      <>
-        <path d="M5 2h14" />
-        <path d="M5 22h14" />
-        <path d="M7 2v4l5 6-5 6v4" />
-        <path d="M17 2v4l-5 6 5 6v4" />
-      </>
-    ),
     alert: (
       <>
         <circle cx="12" cy="12" r="10" />
@@ -157,9 +149,6 @@ const FinanceDashboard = () => {
   var toConfirm = orders.filter(function(o) {
     return o.status === 'pending_payment' && o.payment_status === 'proof_uploaded';
   });
-  var waitingProof = orders.filter(function(o) {
-    return o.status === 'pending_payment' && o.payment_status !== 'proof_uploaded';
-  });
   var toInvoice = !SHOW_INVOICE_ALERTS ? [] : orders.filter(function(o) {
     return o.status === 'payment_confirmed' && !o.invoice_path;
   });
@@ -195,7 +184,6 @@ const FinanceDashboard = () => {
   var tiles = [
     { label: 'Payments to confirm', count: toConfirm.length, icon: 'card', tone: 'navy', path: '/finance/payments' },
     { label: 'Invoices to issue', count: toInvoice.length, icon: 'doc', tone: 'red', path: '/finance/payments' },
-    { label: 'Waiting for customer proof', count: waitingProof.length, icon: 'hourglass', tone: 'navy', path: '/finance/payments' },
     { label: 'Active payment methods', count: activeMethods, icon: 'card', tone: 'red', path: '/finance/payment-methods' }
   ];
   if (!SHOW_INVOICE_ALERTS) {
