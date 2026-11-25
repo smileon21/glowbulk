@@ -28,7 +28,10 @@ const { uploadToSupabase } = require('../utils/supabaseUpload');
 const { accountName, rejectPayment } = require('../models/finance.model');
 
 // === notification service ===
-const { notifyStaff, notifyCustomer } = require('../services/notification.service');
+// notifyStaff   = marketing only
+// notifyFinance = finance only
+// notifyCustomer = the one customer
+const { notifyStaff, notifyFinance, notifyCustomer } = require('../services/notification.service');
 
 // Business staff. IT ("admin") is deliberately not in this list.
 const STAFF = ['marketing', 'pricing', 'finance'];
@@ -165,7 +168,7 @@ router.post('/create', authenticate, authorize('customer'), [
       await updateFuelRequestStatus(quotation.fuel_request_id, 'ordered');
     }
 
-    // Notify staff
+    // Notify marketing (a new order is a marketing alert, not a finance one)
     try {
       const companyName =
         (customer && (customer.company_name || customer.company)) ||
@@ -287,18 +290,18 @@ router.post('/upload-proof/:orderId', authenticate, authorize('customer', ...STA
 
     const updatedOrder = await addPaymentProof(orderId, filename, url);
 
-    // Notify staff
+    // Notify FINANCE ONLY: they are the ones who confirm the payment
     try {
       const customer = await getCustomerById(order.customer_id);
       const companyName =
         (customer && (customer.company_name || customer.company)) ||
         'A customer';
       const orderRef = updatedOrder.order_number || order.order_number || ('#' + orderId);
-      await notifyStaff({
+      await notifyFinance({
         type: 'payment_proof_uploaded',
         title: 'Payment proof uploaded: ' + orderRef,
-        message: companyName + ' uploaded payment proof for order ' + orderRef + '.',
-        link: '/orders'
+        message: companyName + ' uploaded payment proof for order ' + orderRef + '. Please confirm the payment.',
+        link: '/finance/payments'
       });
     } catch (notifyErr) {
       console.error('Payment-proof notification failed:', notifyErr);

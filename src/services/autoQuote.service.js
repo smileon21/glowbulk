@@ -6,6 +6,9 @@ const { notifyCustomer } = require('./notification.service');
 // Same validity as manual quotations
 const QUOTE_VALIDITY_HOURS = 24;
 
+// Requests below this many litres are always quoted manually by Marketing
+const MANUAL_QUOTE_BELOW_LITRES = 5000;
+
 const generateQuotationNumber = () => {
   const d = new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
@@ -16,6 +19,7 @@ const generateQuotationNumber = () => {
  * Try to create a quotation automatically for a new fuel request.
  * Only called for customers who do NOT get discounts (see fuelRequest.routes.js).
  *
+ * 0. Requests below MANUAL_QUOTE_BELOW_LITRES are never quoted automatically.
  * 1. Takes the customer's delivery pin.
  * 2. Finds a site that has a price today for that fuel and belongs to a city zone
  *    whose radius (measured from the CITY CENTRE) covers the pin. The nearest such
@@ -23,11 +27,15 @@ const generateQuotationNumber = () => {
  * 3. Creates a 'sent' quotation at that price, saving the site on the quotation so
  *    marketing and the customer can see which site it is from.
  *
- * Returns { quotation, site } or null. null means "do it the old way": no pin,
- * no priced site covers the customer, or marketing has not set today's price.
- * The fuel request then stays 'pending' for marketing.
+ * Returns { quotation, site } or null. null means "do it the old way": request is
+ * below the litres cutoff, no pin, no priced site covers the customer, or marketing
+ * has not set today's price. The fuel request then stays 'pending' for marketing.
  */
 const tryAutoQuote = async (fuelRequest, { latitude, longitude }) => {
+  // Small requests are quoted by hand
+  const litres = parseFloat(fuelRequest.quantity) || 0;
+  if (litres < MANUAL_QUOTE_BELOW_LITRES) return null;
+
   const lat = Number(latitude);
   const lng = Number(longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -74,4 +82,4 @@ const tryAutoQuote = async (fuelRequest, { latitude, longitude }) => {
   return { quotation, site };
 };
 
-module.exports = { tryAutoQuote };
+module.exports = { tryAutoQuote, MANUAL_QUOTE_BELOW_LITRES };

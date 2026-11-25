@@ -33,6 +33,7 @@ import FinancePayments from './pages/FinancePayments';
 import PaymentMethods from './pages/PaymentMethods';
 import TaxClearance from './pages/TaxClearance';
 import NotificationBell from './components/NotificationBell';
+import { disablePush } from './components/push';
 import { formatName } from './utils/format';
 
 import './App.css';
@@ -518,7 +519,19 @@ function App() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Remove this browser's push subscription first, while the token still exists,
+    // so the next person who logs in here never gets this user's pushes.
+    // The 2 second limit means a slow network can never block logging out.
+    try {
+      await Promise.race([
+        disablePush(),
+        new Promise((resolve) => setTimeout(resolve, 2000))
+      ]);
+    } catch (err) {
+      // ignore: logging out must always work
+    }
+
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('userRole');

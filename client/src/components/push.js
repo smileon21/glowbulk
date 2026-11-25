@@ -37,6 +37,7 @@ export async function enablePush() {
       applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY)
     });
 
+    // The backend re-assigns this browser's subscription to whoever is logged in now
     await fetch(API_BASE_URL + '/api/push/subscribe', {
       method: 'POST',
       headers: {
@@ -47,5 +48,37 @@ export async function enablePush() {
     });
   } catch (err) {
     console.warn('Push setup failed', err);
+  }
+}
+
+// Call this on logout, BEFORE the token is removed.
+// Removes this browser's subscription from the server and from the browser itself,
+// so the next person who logs in here never receives the previous user's pushes.
+export async function disablePush() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      await fetch(API_BASE_URL + '/api/push/unsubscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+        keepalive: true
+      });
+    }
+
+    await sub.unsubscribe();
+  } catch (err) {
+    console.warn('Push cleanup failed', err);
   }
 }

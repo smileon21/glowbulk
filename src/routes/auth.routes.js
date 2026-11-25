@@ -33,6 +33,9 @@ const {
 const { sendStytchOtp, verifyStytchOtp } = require('../utils/stytch');
 const { logActivity } = require('../utils/activityLog');
 
+// IT (admin) only: system alerts
+const { notifyAdmin } = require('../services/notification.service');
+
 const {
   authenticate,
   authorize
@@ -48,6 +51,13 @@ const LOCK_MINUTES = 15;
 // =====================================================
 // HELPERS
 // =====================================================
+
+// Send a system alert to IT. Never breaks the request if it fails.
+const alertIT = (payload) => {
+  notifyAdmin(payload).catch((err) => {
+    console.error('IT notification failed:', err);
+  });
+};
 
 // Issue JWT + build login response shape
 const issueLoginResponse = (user) => {
@@ -297,6 +307,15 @@ router.post(
             details: `${user.email} locked for ${LOCK_MINUTES} minutes after ${attempts} failed sign-ins`,
             ip: req.ip
           });
+
+          // System alert for IT
+          alertIT({
+            type: 'system_account_locked',
+            title: 'Account locked',
+            message: `${user.email} was locked for ${LOCK_MINUTES} minutes after ${attempts} failed sign-ins.`,
+            link: '/activity-log'
+          });
+
           return res.status(429).json({
             success: false,
             code: 'ACCOUNT_LOCKED',
@@ -320,6 +339,15 @@ router.post(
           details: `Blocked account tried to sign in: ${user.email}`,
           ip: req.ip
         });
+
+        // System alert for IT
+        alertIT({
+          type: 'system_blocked_login',
+          title: 'Blocked account tried to sign in',
+          message: `${user.email} tried to sign in but the account is blocked.`,
+          link: '/accounts'
+        });
+
         return res.status(403).json({
           success: false,
           code: 'ACCOUNT_BLOCKED',

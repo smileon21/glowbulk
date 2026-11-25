@@ -29,13 +29,22 @@ router.post('/subscribe', authenticate, async (req, res) => {
   }
 });
 
-// Remove a subscription (e.g. on logout — optional but tidy)
+// Remove this browser's subscription (called on logout).
+// Only the user who owns the subscription can remove it.
 router.post('/unsubscribe', authenticate, async (req, res) => {
   try {
     const { endpoint } = req.body;
-    await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [endpoint]);
+    if (!endpoint) {
+      return res.status(400).json({ success: false, message: 'Endpoint is required' });
+    }
+
+    await pool.query(
+      'DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2',
+      [endpoint, req.user.id]
+    );
     res.json({ success: true });
   } catch (err) {
+    console.error('push unsubscribe error', err);
     res.status(500).json({ success: false });
   }
 });

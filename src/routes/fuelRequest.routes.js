@@ -12,7 +12,7 @@ const {
 } = require('../models/fuelRequest.model');
 const { getCustomerByUserId } = require('../models/customer.model');
 const { notifyStaff } = require('../services/notification.service');
-const { tryAutoQuote } = require('../services/autoQuote.service');
+const { tryAutoQuote, MANUAL_QUOTE_BELOW_LITRES } = require('../services/autoQuote.service');
 const pool = require('../config/database');
 
 // Business staff. IT ("admin") is deliberately not in this list.
@@ -59,12 +59,15 @@ router.post('/', authenticate, authorize('customer'), [
     // their request stays 'pending' and marketing quotes it by hand, typing the discount.
     const isDiscountedCustomer = customer.gets_discount === true;
 
+    // Requests below the litres cutoff are also quoted by hand, whoever the customer is.
+    const isSmallRequest = (Number(fuelRequest.quantity) || 0) < MANUAL_QUOTE_BELOW_LITRES;
+
     // Automatic quotation: if a site with a price set today covers the delivery pin,
     // the quotation is created and sent straight away. Otherwise (no price today, or
     // the customer is outside every priced site's zone) the request stays 'pending'
     // and marketing quotes it the old way. A failure here never blocks the request.
     let auto = null;
-    if (!isDiscountedCustomer) {
+    if (!isDiscountedCustomer && !isSmallRequest) {
       try {
         auto = await tryAutoQuote(fuelRequest, {
           latitude: req.body.deliveryLatitude,
@@ -85,7 +88,8 @@ router.post('/', authenticate, authorize('customer'), [
       title: isUrgent ? 'URGENT fuel request' : 'New fuel request',
       message: who + ' requested ' + Number(fuelRequest.quantity).toLocaleString() + ' liters of ' + fuelRequest.fuel_type + '.' +
         (auto ? ' An automatic quotation ' + auto.quotation.quotation_number + ' was sent.' : '') +
-        (isDiscountedCustomer ? ' Discounted customer: needs a manual quotation.' : ''),
+        (isDiscountedCustomer ? ' Discounted customer: needs a manual quotation.' : '') +
+        (isSmallRequest ? ' Under ' + MANUAL_QUOTE_BELOW_LITRES.toLocaleString() + ' liters: needs a manual quotation.' : ''),
       link: '/fuel-requests'
     }).catch(function(err) {
       console.error('Fuel request notification failed:', err);
@@ -95,7 +99,9 @@ router.post('/', authenticate, authorize('customer'), [
       success: true,
       message: auto
         ? 'Fuel request submitted and your quotation is ready'
-        : 'Fuel request submitted successfully',
+        : isSmallRequest
+          ? 'Fuel request submitted. Requests under ' + MANUAL_QUOTE_BELOW_LITRES.toLocaleString() + ' liters are quoted by our team, and you will be notified when your quotation is ready.'
+          : 'Fuel request submitted successfully',
       data: fuelRequest,
       autoQuotation: auto ? auto.quotation : null
     });
